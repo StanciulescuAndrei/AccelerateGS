@@ -1,0 +1,14 @@
+[
+{
+  "directory": "/home/stankiu/Documents/Thesis/AccelerateGS/build",
+  "command": "/usr/local/cuda/bin/nvcc -forward-unknown-to-host-compiler   -g -std=c++17 \"--generate-code=arch=compute_86,code=[compute_86,sm_86]\" -x cu -c /home/stankiu/Documents/Thesis/AccelerateGS/src/main.cu -o CMakeFiles/AccelerateGS.dir/src/main.cu.o",
+  "file": "/home/stankiu/Documents/Thesis/AccelerateGS/src/main.cu",
+  "output": "CMakeFiles/AccelerateGS.dir/src/main.cu.o"
+},
+{
+  "directory": "/home/stankiu/Documents/Thesis/AccelerateGS/build",
+  "command": "/usr/bin/gcc-11   -g -o CMakeFiles/AccelerateGS.dir/src/glad/glad.c.o -c /home/stankiu/Documents/Thesis/AccelerateGS/src/glad/glad.c",
+  "file": "/home/stankiu/Documents/Thesis/AccelerateGS/src/glad/glad.c",
+  "output": "CMakeFiles/AccelerateGS.dir/src/glad/glad.c.o"
+}
+]
