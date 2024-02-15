@@ -16,7 +16,8 @@ include_directories(
 add_executable(AccelerateGS 
 		src/main.cu 
 		src/glad/glad.h
-		src/glad/glad.c)
+		src/glad/glad.c
+		src/PLYReader.h)
 
 target_link_libraries(AccelerateGS
 	${OPENGL_LIBRARY} # filled by "find_package(OpenGL REQUIRED)"

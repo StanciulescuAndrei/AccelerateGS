@@ -8,11 +8,16 @@
 #include "glad/glad.h"
 #include <GLFW/glfw3.h>
 
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
 #include <chrono>
 
 #include "render.cuh"
 
 #include "cuda_common/helper_cuda.h"
+
+#include "PLYReader.h"
 
 
 #define N 100000000
@@ -82,6 +87,17 @@ int main(){
 
     initGLContextAndWindow(&window);
 
+    SplatData * sd;
+    int num_elements = 0;
+    int res = loadSplatData("../../models/train/point_cloud/iteration_30000/point_cloud.ply", &sd, &num_elements);
+
+    SplatData * d_sd;
+
+    checkCudaErrors(cudaMalloc(&d_sd, sizeof(SplatData) * num_elements));
+    assert(d_sd != NULL);
+    checkCudaErrors(cudaMemcpy((void*)d_sd, (void*) sd, sizeof(SplatData) * num_elements, cudaMemcpyHostToDevice));
+
+
     GLuint pboId;
     GLuint texId;
     GLfloat * imageData = new GLfloat[SCREEN_HEIGHT * SCREEN_WIDTH * 4];
@@ -123,7 +139,6 @@ int main(){
 
     while (!glfwWindowShouldClose(window))
     {
-        
         glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 
         glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pboId);
@@ -140,11 +155,11 @@ int main(){
         assert(dataPointer != nullptr);
 
         // Clear the memory from the previous render
-        cudaMemset(dataPointer, 0, num_bytes);
+        // cudaMemset(dataPointer, 0, num_bytes);
 
         // Cuda kernel call
-        dim3 block(32, 32, 1);
-        dim3 grid(32, 32, 1);
+        dim3 block(16, 16, 1);
+        dim3 grid(16, 16, 1);
         render<<<grid, block>>>(dataPointer, SCREEN_HEIGHT, SCREEN_WIDTH);
         checkCudaErrors(cudaDeviceSynchronize());
         checkCudaErrors(cudaGraphicsUnmapResources(1, &cuda_pbo_resource, 0));
