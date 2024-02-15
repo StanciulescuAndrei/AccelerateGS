@@ -18,8 +18,8 @@
 #define N 100000000
 #define MAX_ERR 1e-6
 
-const int SCREEN_WIDTH = 1921;
-const int SCREEN_HEIGHT = 1081;
+const int SCREEN_WIDTH = 1920;
+const int SCREEN_HEIGHT = 1080;
 
 const int FPS_COUNTER_REFRESH = 60;
 
@@ -139,10 +139,13 @@ int main(){
         assert(num_bytes >= SCREEN_HEIGHT * SCREEN_WIDTH * 4 * sizeof(float));
         assert(dataPointer != nullptr);
 
+        // Clear the memory from the previous render
+        cudaMemset(dataPointer, 0, num_bytes);
+
         // Cuda kernel call
-        dim3 block(1, 1, 1);
+        dim3 block(32, 32, 1);
         dim3 grid(32, 32, 1);
-        render<<<grid, block>>>(dataPointer, SCREEN_HEIGHT, SCREEN_WIDTH, 32);
+        render<<<grid, block>>>(dataPointer, SCREEN_HEIGHT, SCREEN_WIDTH);
         checkCudaErrors(cudaDeviceSynchronize());
         checkCudaErrors(cudaGraphicsUnmapResources(1, &cuda_pbo_resource, 0));
 
