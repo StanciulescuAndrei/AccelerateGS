@@ -1,3 +1,5 @@
 **/.build/
 **/.vscode/
 
+build/CMakeFiles/AccelerateGS.dir/compiler_depend.internal
+build/CMakeFiles/AccelerateGS.dir/compiler_depend.make
