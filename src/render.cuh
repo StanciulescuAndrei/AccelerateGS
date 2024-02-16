@@ -60,17 +60,18 @@ __global__ void render(SplatData * sd, float4 *imageBuffer, int max_x, int max_y
         {
             glm::vec2 ssc = glm::vec2((((float)x) / max_x) * 2.0f - 1.0f, (((float)y) / max_y) * 2.0f - 1.0f);
             /* Per-Pixel operations */
-            for(int splat = 0; splat < 100; splat++){
+            imageBuffer[x * max_y + y] = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
+            for(int splat = 0; splat < 1000; splat++){
                 glm::vec4 position = glm::vec4(sd[splat].fields.position[0], sd[splat].fields.position[1], sd[splat].fields.position[2], 1.0f);
                 position = perspective * position;
                 if(position[0] < -1 || position[0] > 1 || position[1] < -1 || position[1] > 1 || position[2] > 0){
                     continue;
                 }
-                if(glm::distance(ssc, glm::vec2(position[0], position[1])) < 0.1){
+                if(glm::distance(ssc, glm::vec2(position[0], position[1])) < 0.02){
                     imageBuffer[x * max_y + y].x += clip(0.5 + SH_C0 * sd[splat].fields.SH[0], 0.0f, 1.0f);
                     imageBuffer[x * max_y + y].y += clip(0.5 + SH_C0 * sd[splat].fields.SH[1], 0.0f, 1.0f);
                     imageBuffer[x * max_y + y].z += clip(0.5 + SH_C0 * sd[splat].fields.SH[2], 0.0f, 1.0f);
-                    imageBuffer[x * max_y + y].w += 0.1f;
+                    imageBuffer[x * max_y + y].w += clip(sd[splat].fields.opacity, 0.0f, 1.0f) / 10;
                 }
             }
             // imageBuffer[x * max_y + y] = color;
