@@ -70,34 +70,25 @@ void initGLContextAndWindow(GLFWwindow** window){
     glfwSwapInterval(0);
 }
 
-void updatePixels(GLubyte * imageBuffer, float t){
-    for(int x = 0; x < SCREEN_WIDTH; x++){
-        for(int y = 0; y < SCREEN_HEIGHT; y++){
-            imageBuffer[x * SCREEN_HEIGHT * 4 + y * 4 + 0] = ((int)t) % 255;
-            imageBuffer[x * SCREEN_HEIGHT * 4 + y * 4 + 1] = 255 - ((int)t) % 255;
-            imageBuffer[x * SCREEN_HEIGHT * 4 + y * 4 + 2] = 0;
-            imageBuffer[x * SCREEN_HEIGHT * 4 + y * 4 + 3] = 255;
-        }
-    }
-}
-
 int main(){
     float time = 0.0f;
     GLFWwindow* window;
 
     initGLContextAndWindow(&window);
 
+    /* Load splat scene data from file */
     SplatData * sd;
     int num_elements = 0;
     int res = loadSplatData("../../models/train/point_cloud/iteration_30000/point_cloud.ply", &sd, &num_elements);
 
+    /* Allocate and send splat data to GPU memory */
     SplatData * d_sd;
-
     checkCudaErrors(cudaMalloc(&d_sd, sizeof(SplatData) * num_elements));
     assert(d_sd != NULL);
     checkCudaErrors(cudaMemcpy((void*)d_sd, (void*) sd, sizeof(SplatData) * num_elements, cudaMemcpyHostToDevice));
 
 
+    /* Set up resources for texture writing */
     GLuint pboId;
     GLuint texId;
     GLfloat * imageData = new GLfloat[SCREEN_HEIGHT * SCREEN_WIDTH * 4];
@@ -131,42 +122,44 @@ int main(){
     glClearStencil(0);                          // clear stencil buffer
     glClearDepth(1.0f);                         // 0 is near, 1 is far
 
+    /* Very basic FPS metrics */
     int currentFPSIndex = 0;
     std::chrono::steady_clock::time_point begin;
     std::chrono::steady_clock::time_point end;
 
     begin = std::chrono::steady_clock::now();
 
+    /* Main program loop */
     while (!glfwWindowShouldClose(window))
     {
+        /* Clear color and depth buffers */
         glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 
+
+        /* Bind the texture and Pixel Buffer */
         glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pboId);
         glBindTexture(GL_TEXTURE_2D, texId);
         
         glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, GL_RGBA, GL_FLOAT, 0);
 
+        /* Map the OpenGL resources to a CUDA memory location */
         checkCudaErrors(cudaGraphicsMapResources(1, &cuda_pbo_resource, 0));
         float4* dataPointer = nullptr;
         size_t num_bytes;
         checkCudaErrors(cudaGraphicsResourceGetMappedPointer((void**)&dataPointer, &num_bytes, cuda_pbo_resource));
-        // printf("%d\n", num_bytes);
         assert(num_bytes >= SCREEN_HEIGHT * SCREEN_WIDTH * 4 * sizeof(float));
         assert(dataPointer != nullptr);
 
-        // Clear the memory from the previous render
-        // cudaMemset(dataPointer, 0, num_bytes);
-
-        // Cuda kernel call
+        /* Call the main CUDA render kernel */
         dim3 block(16, 16, 1);
         dim3 grid(16, 16, 1);
         render<<<grid, block>>>(dataPointer, SCREEN_HEIGHT, SCREEN_WIDTH);
         checkCudaErrors(cudaDeviceSynchronize());
+
+        /* Unmap the OpenGL resources */
         checkCudaErrors(cudaGraphicsUnmapResources(1, &cuda_pbo_resource, 0));
 
-        time += 0.5f;
-        // Draw fullscreen quad
-        glPushMatrix();
+        /* Draw a quad which covers the entire screen */
 
         glBindTexture(GL_TEXTURE_2D, texId);
         glEnable(GL_TEXTURE_2D);
@@ -179,17 +172,16 @@ int main(){
         glTexCoord2f(0.0f, 1.0f);   glVertex3f(-1.0f,  1.0f, 0.0f);
         glEnd();
 
-        glPopMatrix();
-
-        // unbind texture
+        /* Unbind the texture and PBO */
         glBindTexture(GL_TEXTURE_2D, 0);
         glDisable(GL_TEXTURE_2D);
 
+        /* Swap buffers and handle GLFW events */
         glfwSwapBuffers(window);
         glfwPollEvents();
 
+        /* Compute and display FPS every set number of frames */
         currentFPSIndex++;
-
         if(currentFPSIndex == FPS_COUNTER_REFRESH){
             end = std::chrono::steady_clock::now();
             int milisCount = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
@@ -200,8 +192,14 @@ int main(){
             currentFPSIndex = 0;
         }
     }
+
+    /* Unmap resources and free allocated memory */
     checkCudaErrors(cudaGraphicsUnregisterResource(cuda_pbo_resource));
     glDeleteTextures(1, &texId);
     glDeleteBuffers(1, &pboId);
+    cudaFree(d_sd);
+    cudaFree(d_pbo_buffer);
     delete [] imageData;
+
+    return 0;
 }

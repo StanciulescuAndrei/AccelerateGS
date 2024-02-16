@@ -12,7 +12,7 @@ __global__ void render(float4 *imageBuffer, int max_x, int max_y)
 
     int tileSpan_x = max_x / gridDim.x;
     int tileSpan_y = max_y / gridDim.x;
-
+    
     if (tile_x == (gridDim.x - 1))
         tileSpan_x = (max_x - tile_x * tileSpan_x);
 
