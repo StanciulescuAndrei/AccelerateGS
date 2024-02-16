@@ -273,13 +273,20 @@ CMakeFiles/AccelerateGS.dir/src/main.cu.o : /home/stankiu/Documents/Thesis/Accel
     /home/stankiu/Documents/Thesis/AccelerateGS/src/glad/glad.h \
     /home/stankiu/Documents/Thesis/AccelerateGS/src/glad/khrplatform.h \
     /usr/include/GLFW/glfw3.h \
+    /usr/include/c++/11/chrono \
+    /usr/include/c++/11/ratio \
+    /usr/include/c++/11/ctime \
+    /usr/include/c++/11/bits/parse_numbers.h \
+    /home/stankiu/Documents/Thesis/AccelerateGS/src/render.cuh \
+    /usr/local/cuda/bin/../targets/x86_64-linux/include/cuda.h \
+    /usr/local/cuda/bin/../targets/x86_64-linux/include/cuda_gl_interop.h \
+    /usr/include/GL/gl.h \
     /usr/include/glm/glm.hpp \
     /usr/include/glm/detail/_fixes.hpp \
     /usr/include/glm/detail/setup.hpp \
     /usr/include/c++/11/cassert \
     /usr/include/c++/11/cstddef \
     /usr/include/glm/simd/platform.h \
-    /usr/local/cuda/bin/../targets/x86_64-linux/include/cuda.h \
     /usr/include/c++/11/climits \
     /usr/include/c++/11/cfloat \
     /usr/lib/gcc/x86_64-linux-gnu/11/include/float.h \
@@ -424,18 +431,11 @@ CMakeFiles/AccelerateGS.dir/src/main.cu.o : /home/stankiu/Documents/Thesis/Accel
     /usr/include/glm/ext/matrix_transform.hpp \
     /usr/include/glm/ext/matrix_transform.inl \
     /usr/include/glm/gtc/matrix_transform.inl \
-    /usr/include/c++/11/chrono \
-    /usr/include/c++/11/ratio \
-    /usr/include/c++/11/ctime \
-    /usr/include/c++/11/bits/parse_numbers.h \
-    /home/stankiu/Documents/Thesis/AccelerateGS/src/render.cuh \
-    /usr/local/cuda/bin/../targets/x86_64-linux/include/cuda_gl_interop.h \
-    /usr/include/GL/gl.h \
-    /home/stankiu/Documents/Thesis/AccelerateGS/src/cuda_common/helper_cuda.h \
-    /home/stankiu/Documents/Thesis/AccelerateGS/src/cuda_common/helper_string.h \
+    /home/stankiu/Documents/Thesis/AccelerateGS/src/PLYReader.h \
     /usr/include/c++/11/fstream \
     /usr/include/c++/11/bits/codecvt.h \
     /usr/include/x86_64-linux-gnu/c++/11/bits/basic_file.h \
     /usr/include/x86_64-linux-gnu/c++/11/bits/c++io.h \
     /usr/include/c++/11/bits/fstream.tcc \
-    /home/stankiu/Documents/Thesis/AccelerateGS/src/PLYReader.h
+    /home/stankiu/Documents/Thesis/AccelerateGS/src/cuda_common/helper_cuda.h \
+    /home/stankiu/Documents/Thesis/AccelerateGS/src/cuda_common/helper_string.h

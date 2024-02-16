@@ -8,16 +8,11 @@
 #include "glad/glad.h"
 #include <GLFW/glfw3.h>
 
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-
 #include <chrono>
 
 #include "render.cuh"
 
 #include "cuda_common/helper_cuda.h"
-
-#include "PLYReader.h"
 
 
 #define N 100000000
@@ -71,7 +66,6 @@ void initGLContextAndWindow(GLFWwindow** window){
 }
 
 int main(){
-    float time = 0.0f;
     GLFWwindow* window;
 
     initGLContextAndWindow(&window);
@@ -150,10 +144,13 @@ int main(){
         assert(num_bytes >= SCREEN_HEIGHT * SCREEN_WIDTH * 4 * sizeof(float));
         assert(dataPointer != nullptr);
 
+        /* --------- RENDERING ------------*/
+        glm::mat4 perspective = glm::perspective(90.0f, 16.0f/9.0f, 1.0f, 200.0f);
+
         /* Call the main CUDA render kernel */
         dim3 block(16, 16, 1);
         dim3 grid(16, 16, 1);
-        render<<<grid, block>>>(dataPointer, SCREEN_HEIGHT, SCREEN_WIDTH);
+        render<<<grid, block>>>(d_sd, dataPointer, SCREEN_HEIGHT, SCREEN_WIDTH, perspective, num_elements);
         checkCudaErrors(cudaDeviceSynchronize());
 
         /* Unmap the OpenGL resources */

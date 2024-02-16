@@ -2,7 +2,18 @@
 #include <cuda_runtime.h>
 #include <cuda_gl_interop.h>
 
-__global__ void render(float4 *imageBuffer, int max_x, int max_y)
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
+#include "PLYReader.h"
+
+__device__ const float SH_C0 = 0.28209479177387814;
+
+__device__ float clip(float in, float min_val, float max_val){
+    return min(max_val, max(in, min_val));
+}
+
+__global__ void render(SplatData * sd, float4 *imageBuffer, int max_x, int max_y, glm::mat4 perspective, int num_splats)
 {
     int tile_x = blockIdx.x;
     int tile_y = blockIdx.y;
@@ -24,12 +35,6 @@ __global__ void render(float4 *imageBuffer, int max_x, int max_y)
 
     int threadStart_x = thread_x * (tileSpan_x / blockDim.x) + tileStart_x;
     int threadStart_y = thread_y * (tileSpan_y / blockDim.y) + tileStart_y;
-
-    // if(tile_x == 8 && tile_y == 8){
-    //     if(thread_x == 31 && thread_y == 31){
-    //         printf("%d * (%d / %d) + %d\n", thread_y, tileSpan_y, blockDim.y, tileStart_y);
-    //     }
-    // }
 
     int threadSpan_x = tileSpan_x / blockDim.x;
     int threadSpan_y = tileSpan_y / blockDim.y;
@@ -53,7 +58,23 @@ __global__ void render(float4 *imageBuffer, int max_x, int max_y)
     {
         for (int y = threadStart_y; y < threadStart_y + threadSpan_y && y < max_y; y++)
         {
-            imageBuffer[x * max_y + y] = color;
+            glm::vec2 ssc = glm::vec2((((float)x) / max_x) * 2.0f - 1.0f, (((float)y) / max_y) * 2.0f - 1.0f);
+            /* Per-Pixel operations */
+            for(int splat = 0; splat < 100; splat++){
+                glm::vec4 position = glm::vec4(sd[splat].fields.position[0], sd[splat].fields.position[1], sd[splat].fields.position[2], 1.0f);
+                position = perspective * position;
+                if(position[0] < -1 || position[0] > 1 || position[1] < -1 || position[1] > 1 || position[2] > 0){
+                    continue;
+                }
+                if(glm::distance(ssc, glm::vec2(position[0], position[1])) < 0.1){
+                    imageBuffer[x * max_y + y].x += clip(0.5 + SH_C0 * sd[splat].fields.SH[0], 0.0f, 1.0f);
+                    imageBuffer[x * max_y + y].y += clip(0.5 + SH_C0 * sd[splat].fields.SH[1], 0.0f, 1.0f);
+                    imageBuffer[x * max_y + y].z += clip(0.5 + SH_C0 * sd[splat].fields.SH[2], 0.0f, 1.0f);
+                    imageBuffer[x * max_y + y].w += 0.1f;
+                }
+            }
+            // imageBuffer[x * max_y + y] = color;
+            
         }
     }
 

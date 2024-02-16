@@ -54,7 +54,6 @@ int loadSplatData(char* path, SplatData ** dataBuffer, int * numElements){
         }
 
         std::getline(is, crt_line); // end_header
-        std::getline(is, crt_line); // empty line
 
         // Now we read the binary data
         *dataBuffer = (SplatData*)malloc(sizeof(SplatData) * dataSize);
