@@ -21,6 +21,9 @@
 const int SCREEN_WIDTH = 1920;
 const int SCREEN_HEIGHT = 1080;
 
+const int BLOCK_X = 16;
+const int BLOCK_Y = 16;
+
 const int FPS_COUNTER_REFRESH = 60;
 
 static void error_callback(int error, const char* description)
@@ -150,8 +153,8 @@ int main(){
         glm::mat4 perspective = glm::perspective(90.0f, 16.0f/9.0f, 1.0f, 200.0f);
 
         /* Call the main CUDA render kernel */
-        dim3 block(16, 16, 1);
-        dim3 grid(16, 16, 1);
+        dim3 block(BLOCK_X, BLOCK_Y, 1); // One thread per pixel!
+        dim3 grid(SCREEN_HEIGHT / BLOCK_X + 1, SCREEN_WIDTH / BLOCK_Y + 1, 1);
         render<<<grid, block>>>(d_sd, dataPointer, SCREEN_HEIGHT, SCREEN_WIDTH, perspective, num_elements);
         checkCudaErrors(cudaDeviceSynchronize());
 
