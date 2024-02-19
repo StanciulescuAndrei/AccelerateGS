@@ -189,6 +189,28 @@ __global__ void preprocessGaussians(int num_splats, SplatData * sd,
 
 }
 
+__global__ void debugInfo(int num_splats, SplatData * sd, 
+    glm::mat4 projection, 
+    glm::mat4 modelview, 
+    float4 * conic_opacity, 
+    float3 * rgb, 
+    float2 * image_point,
+    int * radius, // Radius in pixels
+    float * depth,
+    int * num_tiles_overlap,
+    const int SCREEN_HEIGHT,
+    const int SCREEN_WIDTH,
+    dim3 grid)
+{
+    printf("Conics  : %f, %f, %f, %f\n", conic_opacity[0].x, conic_opacity[0].y, conic_opacity[0].z, conic_opacity[0].w);
+    printf("RGB     : %f, %f, %f\n", rgb[0].x, rgb[0].y, rgb[0].z);
+    printf("I. P.   : %f, %f\n", image_point[0].x, image_point[0].y);
+    printf("Radius  : %d\n", radius[0]);
+    printf("Depth   : %f\n", depth[0]);
+    printf("Overlap : %d\n", num_tiles_overlap[0]);
+    printf("----------------------------------------------\n");
+}
+
 __global__ void render(SplatData * sd, float4 *imageBuffer, int max_x, int max_y, glm::mat4 perspective, int num_splats)
 {
     int tile_x = blockIdx.x;
@@ -208,7 +230,7 @@ __global__ void render(SplatData * sd, float4 *imageBuffer, int max_x, int max_y
     glm::vec2 ssc = glm::vec2((((float)thread_x) / max_x) * 2.0f - 1.0f, (((float)thread_y) / max_y) * 2.0f - 1.0f);
     /* Per-Pixel operations */
     imageBuffer[thread_x * max_y + thread_y] = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
-    for(int splat = 0; splat < 100; splat++){
+    for(int splat = 0; splat < num_splats; splat++){
         glm::vec4 position = glm::vec4(sd[splat].fields.position[0], sd[splat].fields.position[1], sd[splat].fields.position[2], 1.0f);
         position = perspective * position;
         if(position[0] < -1 || position[0] > 1 || position[1] < -1 || position[1] > 1 || position[2] > 0){

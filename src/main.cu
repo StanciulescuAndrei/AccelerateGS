@@ -98,6 +98,8 @@ int main(){
     int num_elements = 0;
     int res = loadSplatData("../../models/train/point_cloud/iteration_30000/point_cloud.ply", &sd, &num_elements);
 
+    num_elements = 1;
+
     /* Allocate and send splat data to GPU memory */
     SplatData * d_sd;
     checkCudaErrors(cudaMalloc(&d_sd, sizeof(SplatData) * num_elements));
@@ -196,15 +198,17 @@ int main(){
 
         /* --------- RENDERING ------------*/
         glm::mat4 modelview = glm::translate(glm::mat4(1.0f), cameraPosition);
-        glm::mat4 perspective = glm::perspective(90.0f, 16.0f/9.0f, 1.0f, 200.0f) * modelview;
+        glm::mat4 perspective = glm::perspective(90.0f, 16.0f/9.0f, 1.0f, 200.0f);
 
         /* Call the main CUDA render kernel */
         dim3 block(BLOCK_X, BLOCK_Y, 1); // One thread per pixel!
         dim3 grid(SCREEN_HEIGHT / BLOCK_X + 1, SCREEN_WIDTH / BLOCK_Y + 1, 1);
 
         preprocessGaussians<<<num_elements / 1024 + 1, 1024>>>(num_elements, d_sd, perspective, modelview, d_conic_opacity, d_rgb, d_image_point, d_radius, d_depth, d_overlap, SCREEN_HEIGHT, SCREEN_WIDTH, grid);
-
-        render<<<grid, block>>>(d_sd, dataPointer, SCREEN_HEIGHT, SCREEN_WIDTH, perspective, num_elements);
+        checkCudaErrors(cudaDeviceSynchronize());
+        debugInfo<<<1, 1>>>(num_elements, d_sd, perspective, modelview, d_conic_opacity, d_rgb, d_image_point, d_radius, d_depth, d_overlap, SCREEN_HEIGHT, SCREEN_WIDTH, grid);
+        checkCudaErrors(cudaDeviceSynchronize());
+        render<<<grid, block>>>(d_sd, dataPointer, SCREEN_HEIGHT, SCREEN_WIDTH, perspective * modelview, num_elements);
         checkCudaErrors(cudaDeviceSynchronize());
 
         /* Unmap the OpenGL resources */
