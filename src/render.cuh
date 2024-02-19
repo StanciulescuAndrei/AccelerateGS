@@ -16,6 +16,25 @@ __device__ float clip(float in, float min_val, float max_val){
     return min(max_val, max(in, min_val));
 }
 
+__device__ void printMat(glm::mat4 m){
+	for(int i=0;i<4;i++){
+		for(int j=0;j<4;j++){
+			printf("%f ", m[i][j]);
+		}
+		printf("\n");
+	}
+	printf("-----------------------------\n");
+}
+__device__ void printMat(glm::mat3 m){
+	for(int i=0;i<3;i++){
+		for(int j=0;j<3;j++){
+			printf("%f ", m[i][j]);
+		}
+		printf("\n");
+	}
+	printf("-----------------------------\n");
+}
+
 __forceinline__ __device__ float3 transformPoint4x3(const float3& p, const float* matrix)
 {
 	float3 transformed = {
@@ -41,9 +60,11 @@ __device__ float3 computeCov2D(const glm::vec4& mean, float focal_x, float focal
 	t.x = min(limx, max(-limx, txtz)) * t.z;
 	t.y = min(limy, max(-limy, tytz)) * t.z;
 
+	printf("%f, %f, %f\n", t.x, t.y, t.z);
+
 	glm::mat3 J = glm::mat3(
-		focal_x / t.z, 0.0f, -(focal_x * t.x) / (t.z * t.z),
-		0.0f, focal_y / t.z, -(focal_y * t.y) / (t.z * t.z),
+		1.0f / t.z, 0.0f, -(1.0f * t.x) / (t.z * t.z),
+		0.0f, 1.0f / t.z, -(1.0f * t.y) / (t.z * t.z),
 		0, 0, 0);
 
 	glm::mat3 W = glm::mat3(
@@ -59,6 +80,9 @@ __device__ float3 computeCov2D(const glm::vec4& mean, float focal_x, float focal
 		cov3D[2], cov3D[4], cov3D[5]);
 
 	glm::mat3 cov = glm::transpose(T) * glm::transpose(Vrk) * T;
+	printMat(J);
+	printMat(W);
+	printMat(Vrk);
 
 	// Apply low-pass filter: every Gaussian should be at least
 	// one pixel wide/high. Discard 3rd row and column.
@@ -75,6 +99,8 @@ __device__ void computeCov3D(const float * scale, float mod, const float * rot, 
 	S[1][1] = mod * scale[1];
 	S[2][2] = mod * scale[2];
 
+	printf("scale: %f, %f, %f\n", scale[0], scale[1], scale[2]);
+
     glm::vec4 q = glm::vec4(rot[0], rot[1], rot[2], rot[3]);
     q = q * (1.0f / glm::length(q));
 	float r = q.x;
@@ -88,6 +114,8 @@ __device__ void computeCov3D(const float * scale, float mod, const float * rot, 
 		2.f * (x * y + r * z), 1.f - 2.f * (x * x + z * z), 2.f * (y * z - r * x),
 		2.f * (x * z - r * y), 2.f * (y * z + r * x), 1.f - 2.f * (x * x + y * y)
 	);
+
+	printf("quaternion: %f, %f, %f, %f\n", r, x, y, z);
 
 	glm::mat3 M = S * R;
 
