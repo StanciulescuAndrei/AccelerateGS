@@ -47,9 +47,9 @@ __device__ float3 computeCov2D(const glm::vec4& mean, float focal_x, float focal
 		0, 0, 0);
 
 	glm::mat3 W = glm::mat3(
-		viewmatrix[0][0], viewmatrix[0][1], viewmatrix[0][2],
-		viewmatrix[1][0], viewmatrix[1][1], viewmatrix[1][2],
-		viewmatrix[2][0], viewmatrix[2][1], viewmatrix[2][2]);
+		viewmatrix[0][0], viewmatrix[1][0], viewmatrix[2][0],
+		viewmatrix[0][1], viewmatrix[1][1], viewmatrix[2][1],
+		viewmatrix[0][2], viewmatrix[1][2], viewmatrix[2][2]);
 
 	glm::mat3 T = W * J;
 
@@ -75,10 +75,12 @@ __device__ void computeCov3D(const float * scale, float mod, const float * rot, 
 	S[1][1] = mod * scale[1];
 	S[2][2] = mod * scale[2];
 
-	float r = rot[0];
-	float x = rot[1];
-	float y = rot[2];
-	float z = rot[3];
+    glm::vec4 q = glm::vec4(rot[0], rot[1], rot[2], rot[3]);
+    q = q * (1.0f / glm::length(q));
+	float r = q.x;
+	float x = q.y;
+	float y = q.z;
+	float z = q.w;
 
 	// Compute rotation matrix from quaternion
 	glm::mat3 R = glm::mat3(
@@ -145,11 +147,12 @@ __global__ void preprocessGaussians(int num_splats, SplatData * sd,
     computeCov3D(sd[idx].fields.scale, 1.0f, sd[idx].fields.rotation, cov3D);
 
     /* Compute 2D screen-space covariance matrix */
-    const float tan_fovx = tanf(9.0f / 16.0f * 90.0f * 3.1415f / 180.0f);
-    const float tan_fovy = tanf(90.0f * 3.1415f / 180.0f);
+    const float tan_fovx = 1.0f;
+    const float tan_fovy = 1.0f;
     const float focal_y = SCREEN_HEIGHT / (2.0f * tan_fovy);
 	const float focal_x = SCREEN_WIDTH / (2.0f * tan_fovx);
 	float3 cov = computeCov2D(pOrig, focal_x, focal_y, tan_fovx, tan_fovy, cov3D, modelview);
+    printf("cov: %f, %f, %f\n", cov.x, cov.y, cov.z);
 
     // Invert covariance (EWA algorithm)
 	float det = (cov.x * cov.z - cov.y * cov.y);
