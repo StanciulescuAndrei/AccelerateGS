@@ -21,10 +21,12 @@
 const int SCREEN_WIDTH = 1920;
 const int SCREEN_HEIGHT = 1080;
 
-const int BLOCK_X = 16;
-const int BLOCK_Y = 16;
+
 
 const int FPS_COUNTER_REFRESH = 60;
+
+glm::vec3 cameraPosition = glm::vec3(0.0f);
+const float movement_step = 0.1f;
 
 static void error_callback(int error, const char* description)
 {
@@ -35,6 +37,24 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
 {
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
         glfwSetWindowShouldClose(window, GLFW_TRUE);
+    if(key == GLFW_KEY_A && (action == GLFW_REPEAT || action == GLFW_PRESS)){
+        cameraPosition += glm::vec3(0.0f, movement_step, 0.0f);
+    }
+    if(key == GLFW_KEY_D && (action == GLFW_REPEAT || action == GLFW_PRESS)){
+        cameraPosition += glm::vec3(0.0f, -movement_step, 0.0f);
+    }
+    if(key == GLFW_KEY_Z && (action == GLFW_REPEAT || action == GLFW_PRESS)){
+        cameraPosition += glm::vec3(movement_step, 0.0f, 0.0f);
+    }
+    if(key == GLFW_KEY_X && (action == GLFW_REPEAT || action == GLFW_PRESS)){
+        cameraPosition += glm::vec3(-movement_step, 0.0f, 0.0f);
+    }
+    if(key == GLFW_KEY_W && (action == GLFW_REPEAT || action == GLFW_PRESS)){
+        cameraPosition += glm::vec3(0.0f, 0.0f, -movement_step);
+    }
+    if(key == GLFW_KEY_S && (action == GLFW_REPEAT || action == GLFW_PRESS)){
+        cameraPosition += glm::vec3(0.0f, 0.0f, movement_step);
+    }
 }
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
@@ -84,6 +104,31 @@ int main(){
     assert(d_sd != NULL);
     checkCudaErrors(cudaMemcpy((void*)d_sd, (void*) sd, sizeof(SplatData) * num_elements, cudaMemcpyHostToDevice));
 
+    /* Allocate additional data buffers */
+    float4 * d_conic_opacity;
+    float3 * d_rgb;
+    float2 * d_image_point;
+    int * d_radius;
+    float * d_depth;
+    int * d_overlap;
+
+    checkCudaErrors(cudaMalloc(&d_conic_opacity, sizeof(float4) * num_elements));
+    assert(d_conic_opacity != NULL);
+
+    checkCudaErrors(cudaMalloc(&d_rgb, sizeof(float3) * num_elements));
+    assert(d_rgb != NULL);
+
+    checkCudaErrors(cudaMalloc(&d_image_point, sizeof(float2) * num_elements));
+    assert(d_image_point != NULL);
+
+    checkCudaErrors(cudaMalloc(&d_radius, sizeof(int) * num_elements));
+    assert(d_radius != NULL);
+
+    checkCudaErrors(cudaMalloc(&d_depth, sizeof(float) * num_elements));
+    assert(d_depth != NULL);
+
+    checkCudaErrors(cudaMalloc(&d_overlap, sizeof(int) * num_elements));
+    assert(d_overlap != NULL);
 
     /* Set up resources for texture writing */
     GLuint pboId;
@@ -150,11 +195,15 @@ int main(){
         assert(dataPointer != nullptr);
 
         /* --------- RENDERING ------------*/
-        glm::mat4 perspective = glm::perspective(90.0f, 16.0f/9.0f, 1.0f, 200.0f);
+        glm::mat4 modelview = glm::translate(glm::mat4(1.0f), cameraPosition);
+        glm::mat4 perspective = glm::perspective(90.0f, 16.0f/9.0f, 1.0f, 200.0f) * modelview;
 
         /* Call the main CUDA render kernel */
         dim3 block(BLOCK_X, BLOCK_Y, 1); // One thread per pixel!
         dim3 grid(SCREEN_HEIGHT / BLOCK_X + 1, SCREEN_WIDTH / BLOCK_Y + 1, 1);
+
+        preprocessGaussians<<<num_elements / 1024 + 1, 1024>>>(num_elements, d_sd, perspective, modelview, d_conic_opacity, d_rgb, d_image_point, d_radius, d_depth, d_overlap, SCREEN_HEIGHT, SCREEN_WIDTH, grid);
+
         render<<<grid, block>>>(d_sd, dataPointer, SCREEN_HEIGHT, SCREEN_WIDTH, perspective, num_elements);
         checkCudaErrors(cudaDeviceSynchronize());
 
@@ -201,6 +250,14 @@ int main(){
     glDeleteBuffers(1, &pboId);
     cudaFree(d_sd);
     cudaFree(d_pbo_buffer);
+
+    cudaFree(d_conic_opacity);
+    cudaFree(d_rgb);
+    cudaFree(d_image_point);
+    cudaFree(d_radius);
+    cudaFree(d_depth);
+    cudaFree(d_overlap);
+
     delete [] imageData;
 
     return 0;
