@@ -59,6 +59,16 @@ int loadSplatData(char* path, SplatData ** dataBuffer, int * numElements){
         *dataBuffer = (SplatData*)malloc(sizeof(SplatData) * dataSize);
         is.read((char*)*dataBuffer, sizeof(SplatData) * dataSize);
 
+        /* Convert data to correct format: scale as exponential, opacity is sigmoid */
+
+        for(int i = 0; i < dataSize; i++){
+            for(int comp = 0; comp < 3; comp++){
+                (*dataBuffer)[i].fields.scale[comp] = exp((*dataBuffer)[i].fields.scale[comp]);
+            }
+            (*dataBuffer)[i].fields.opacity = 1.0f / (1.0f + exp(-(*dataBuffer)[i].fields.opacity));
+            
+        }
+
         *numElements = dataSize;
 
         return 0;
