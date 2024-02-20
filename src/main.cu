@@ -18,8 +18,8 @@
 #define N 100000000
 #define MAX_ERR 1e-6
 
-const int SCREEN_WIDTH = 1920;
-const int SCREEN_HEIGHT = 1080;
+const int SCREEN_WIDTH = 960;
+const int SCREEN_HEIGHT = 960;
 
 
 
@@ -98,7 +98,7 @@ int main(){
     int num_elements = 0;
     int res = loadSplatData("../../models/train/point_cloud/iteration_30000/point_cloud.ply", &sd, &num_elements);
 
-    num_elements = 1;
+    num_elements = 10000;
 
     /* Allocate and send splat data to GPU memory */
     SplatData * d_sd;
@@ -206,9 +206,9 @@ int main(){
 
         preprocessGaussians<<<num_elements / 1024 + 1, 1024>>>(num_elements, d_sd, perspective, modelview, d_conic_opacity, d_rgb, d_image_point, d_radius, d_depth, d_overlap, SCREEN_HEIGHT, SCREEN_WIDTH, grid);
         checkCudaErrors(cudaDeviceSynchronize());
-        debugInfo<<<1, 1>>>(num_elements, d_sd, perspective, modelview, d_conic_opacity, d_rgb, d_image_point, d_radius, d_depth, d_overlap, SCREEN_HEIGHT, SCREEN_WIDTH, grid);
-        checkCudaErrors(cudaDeviceSynchronize());
-        render<<<grid, block>>>(d_sd, dataPointer, SCREEN_HEIGHT, SCREEN_WIDTH, perspective * modelview, num_elements);
+        // debugInfo<<<1, 1>>>(num_elements, d_sd, perspective, modelview, d_conic_opacity, d_rgb, d_image_point, d_radius, d_depth, d_overlap, SCREEN_HEIGHT, SCREEN_WIDTH, grid);
+        // checkCudaErrors(cudaDeviceSynchronize());
+        render<<<grid, block>>>(num_elements, d_sd, perspective, modelview, d_conic_opacity, d_rgb, d_image_point, d_radius, d_depth, d_overlap, SCREEN_HEIGHT, SCREEN_WIDTH, grid, dataPointer);
         checkCudaErrors(cudaDeviceSynchronize());
 
         /* Unmap the OpenGL resources */

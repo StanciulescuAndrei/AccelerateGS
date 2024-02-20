@@ -60,8 +60,6 @@ __device__ float3 computeCov2D(const glm::vec4& mean, float focal_x, float focal
 	t.x = min(limx, max(-limx, txtz)) * t.z;
 	t.y = min(limy, max(-limy, tytz)) * t.z;
 
-	printf("%f, %f, %f\n", t.x, t.y, t.z);
-
 	glm::mat3 J = glm::mat3(
 		1.0f / t.z, 0.0f, -(1.0f * t.x) / (t.z * t.z),
 		0.0f, 1.0f / t.z, -(1.0f * t.y) / (t.z * t.z),
@@ -80,10 +78,6 @@ __device__ float3 computeCov2D(const glm::vec4& mean, float focal_x, float focal
 		cov3D[2], cov3D[4], cov3D[5]);
 
 	glm::mat3 cov = glm::transpose(T) * glm::transpose(Vrk) * T;
-	printMat(J);
-	printMat(W);
-	printMat(Vrk);
-
 	// Apply low-pass filter: every Gaussian should be at least
 	// one pixel wide/high. Discard 3rd row and column.
 	cov[0][0] += 0.3f;
@@ -99,8 +93,6 @@ __device__ void computeCov3D(const float * scale, float mod, const float * rot, 
 	S[1][1] = mod * scale[1];
 	S[2][2] = mod * scale[2];
 
-	printf("scale: %f, %f, %f\n", scale[0], scale[1], scale[2]);
-
     glm::vec4 q = glm::vec4(rot[0], rot[1], rot[2], rot[3]);
     q = q * (1.0f / glm::length(q));
 	float r = q.x;
@@ -114,8 +106,6 @@ __device__ void computeCov3D(const float * scale, float mod, const float * rot, 
 		2.f * (x * y + r * z), 1.f - 2.f * (x * x + z * z), 2.f * (y * z - r * x),
 		2.f * (x * z - r * y), 2.f * (y * z + r * x), 1.f - 2.f * (x * x + y * y)
 	);
-
-	printf("quaternion: %f, %f, %f, %f\n", r, x, y, z);
 
 	glm::mat3 M = S * R;
 
@@ -180,7 +170,6 @@ __global__ void preprocessGaussians(int num_splats, SplatData * sd,
     const float focal_y = SCREEN_HEIGHT / (2.0f * tan_fovy);
 	const float focal_x = SCREEN_WIDTH / (2.0f * tan_fovx);
 	float3 cov = computeCov2D(pOrig, focal_x, focal_y, tan_fovx, tan_fovy, cov3D, modelview);
-    printf("cov: %f, %f, %f\n", cov.x, cov.y, cov.z);
 
     // Invert covariance (EWA algorithm)
 	float det = (cov.x * cov.z - cov.y * cov.y);
@@ -242,7 +231,18 @@ __global__ void debugInfo(int num_splats, SplatData * sd,
     printf("----------------------------------------------\n");
 }
 
-__global__ void render(SplatData * sd, float4 *imageBuffer, int max_x, int max_y, glm::mat4 perspective, int num_splats)
+__global__ void render(int num_splats, SplatData * sd, 
+    glm::mat4 projection, 
+    glm::mat4 modelview, 
+    float4 * conic_opacity, 
+    float3 * rgb, 
+    float2 * image_point,
+    int * radius, // Radius in pixels
+    float * depth,
+    int * num_tiles_overlap,
+    const int SCREEN_HEIGHT,
+    const int SCREEN_WIDTH,
+    dim3 grid, float4 * imageBuffer)
 {
     int tile_x = blockIdx.x;
     int tile_y = blockIdx.y;
@@ -250,36 +250,49 @@ __global__ void render(SplatData * sd, float4 *imageBuffer, int max_x, int max_y
     int thread_x = tile_x * blockDim.x + threadIdx.x;
     int thread_y = tile_y * blockDim.y + threadIdx.y;
 
+	float T = 1.0f;
+	float pixColor[4] = { 0, 0, 0, 0 };
+
     /* Debug here */
     if(thread_x == 0 && thread_y){
         // printf("%d\n", sizeof(float));
     }
 
-    if(thread_x >= max_x || thread_y >= max_y)
+    if(thread_x >= SCREEN_HEIGHT || thread_y >= SCREEN_WIDTH)
         return;
 
-    glm::vec2 ssc = glm::vec2((((float)thread_x) / max_x) * 2.0f - 1.0f, (((float)thread_y) / max_y) * 2.0f - 1.0f);
+    glm::vec2 ssc = glm::vec2((((float)thread_x) / SCREEN_HEIGHT) * 2.0f - 1.0f, (((float)thread_y) / SCREEN_WIDTH) * 2.0f - 1.0f);
     /* Per-Pixel operations */
-    imageBuffer[thread_x * max_y + thread_y] = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
+    imageBuffer[thread_x * SCREEN_WIDTH + thread_y] = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
     for(int splat = 0; splat < num_splats; splat++){
-        glm::vec4 position = glm::vec4(sd[splat].fields.position[0], sd[splat].fields.position[1], sd[splat].fields.position[2], 1.0f);
-        position = perspective * position;
-        if(position[0] < -1 || position[0] > 1 || position[1] < -1 || position[1] > 1 || position[2] > 0){
-            continue;
-        }
-        if(glm::distance(ssc, glm::vec2(position[0], position[1])) < abs(0.05f / position[2])){
-            
-            imageBuffer[thread_x * max_y + thread_y].x += clip(0.5 + SH_C0 * sd[splat].fields.SH[0], 0.0f, 1.0f);
-            imageBuffer[thread_x * max_y + thread_y].y += clip(0.5 + SH_C0 * sd[splat].fields.SH[1], 0.0f, 1.0f);
-            imageBuffer[thread_x * max_y + thread_y].z += clip(0.5 + SH_C0 * sd[splat].fields.SH[2], 0.0f, 1.0f);
-            imageBuffer[thread_x * max_y + thread_y].w += clip(sd[splat].fields.opacity, 0.0f, 1.0f);
-        }
-    }
+		if(num_tiles_overlap[splat] == 0) continue;
 
-    // if(tile_x == 15 && tile_y == 15){
-    //     if(thread_x == 31 && thread_y == 31){
-    //         printf("Tile start: [%d, %d]\nTile span: [%d, %d]\nThread start: [%d, %d]\nThread span: [%d, %d]\n", tileStart_x, tileStart_y, tileSpan_x, tileSpan_y, threadStart_x, threadStart_y, threadSpan_x, threadSpan_y);
-    //         printf("block: [%d, %d, %d], grid: [%d, %d, %d]\n", blockDim.x, blockDim.y, blockDim.z, gridDim.x, gridDim.y, gridDim.z);
-    //     }
-    // }
+        float2 position = image_point[splat];
+		float2 d = { position.x - thread_x, position.y - thread_y };
+
+		float4 con_o = conic_opacity[splat];
+		float power = -0.5f * (con_o.x * d.x * d.x + con_o.z * d.y * d.y) - con_o.y * d.x * d.y;
+
+		if (power > 0.0f) continue;
+
+		float alpha = min(0.99f, con_o.w * exp(power));
+
+		float test_T = T * (1 - alpha);
+		if (test_T < 0.0001f)
+		{
+			break;
+		}
+
+		// Eq. (3) from 3D Gaussian splatting paper.
+		pixColor[0] += rgb[splat].x * alpha * T;
+		pixColor[1] += rgb[splat].y * alpha * T;
+		pixColor[2] += rgb[splat].z * alpha * T;
+
+		T = test_T;
+
+    }
+	imageBuffer[thread_x * SCREEN_WIDTH + thread_y].x = pixColor[0];
+	imageBuffer[thread_x * SCREEN_WIDTH + thread_y].y = pixColor[1];
+	imageBuffer[thread_x * SCREEN_WIDTH + thread_y].z = pixColor[2];
+	imageBuffer[thread_x * SCREEN_WIDTH + thread_y].w = 1.0f;
 }
