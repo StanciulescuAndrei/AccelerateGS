@@ -98,7 +98,7 @@ int main(){
     int num_elements = 0;
     int res = loadSplatData("../../models/train/point_cloud/iteration_30000/point_cloud.ply", &sd, &num_elements);
 
-    num_elements = 10000;
+    num_elements = 1000;
 
     /* Allocate and send splat data to GPU memory */
     SplatData * d_sd;
@@ -206,10 +206,24 @@ int main(){
 
         preprocessGaussians<<<num_elements / 1024 + 1, 1024>>>(num_elements, d_sd, perspective, modelview, d_conic_opacity, d_rgb, d_image_point, d_radius, d_depth, d_overlap, SCREEN_HEIGHT, SCREEN_WIDTH, grid);
         checkCudaErrors(cudaDeviceSynchronize());
+        cumulativeSum<<<1,1>>>(num_elements, d_overlap);
+        checkCudaErrors(cudaDeviceSynchronize());
+
+        int totalDuplicateGaussians = 0;
+        checkCudaErrors(cudaMemcpy(&totalDuplicateGaussians, d_overlap + num_elements - 1, sizeof(int), cudaMemcpyDeviceToHost));
+
+        /* Now create an array to keep the tile id and depth (32 bits + 32 bits) */ 
+        uint64_t * d_sort_keys;
+        checkCudaErrors(cudaMalloc(&d_sort_keys, sizeof(uint64_t) * totalDuplicateGaussians));
+
+        /* Populate sorting keys array */
+
         // debugInfo<<<1, 1>>>(num_elements, d_sd, perspective, modelview, d_conic_opacity, d_rgb, d_image_point, d_radius, d_depth, d_overlap, SCREEN_HEIGHT, SCREEN_WIDTH, grid);
         // checkCudaErrors(cudaDeviceSynchronize());
-        render<<<grid, block>>>(num_elements, d_sd, perspective, modelview, d_conic_opacity, d_rgb, d_image_point, d_radius, d_depth, d_overlap, SCREEN_HEIGHT, SCREEN_WIDTH, grid, dataPointer);
+        render<<<grid, block>>>(1000, d_sd, perspective, modelview, d_conic_opacity, d_rgb, d_image_point, d_radius, d_depth, d_overlap, SCREEN_HEIGHT, SCREEN_WIDTH, grid, dataPointer);
         checkCudaErrors(cudaDeviceSynchronize());
+
+        checkCudaErrors(cudaFree(d_sort_keys));
 
         /* Unmap the OpenGL resources */
         checkCudaErrors(cudaGraphicsUnmapResources(1, &cuda_pbo_resource, 0));

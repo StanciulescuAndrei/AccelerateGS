@@ -133,6 +133,48 @@ __forceinline__ __device__ void getRect(const float2 p, int max_radius, uint2& r
 	};
 }
 
+__global__ void cumulativeSum(int num_splats, int * num_tiles_overlap){
+	for(int i = 1; i < num_splats; i++){
+		num_tiles_overlap[i] = num_tiles_overlap[i] + num_tiles_overlap[i-1];
+	}
+}
+
+__global__ void duplicateGaussians(int num_splats, SplatData * sd, 
+    glm::mat4 projection, 
+    glm::mat4 modelview, 
+    float4 * conic_opacity, 
+    float3 * rgb, 
+    float2 * image_point,
+    int * radius, // Radius in pixels
+    float * depth,
+    int * num_tiles_overlap,
+	int * cumulative_sum_overlaps,
+	uint64_t * sort_keys,
+    const int SCREEN_HEIGHT,
+    const int SCREEN_WIDTH,
+    dim3 grid)
+{
+	int idx = blockIdx.x * blockDim.x + threadIdx.x;
+	if(idx >= num_splats) return;
+
+	uint2 rect_min, rect_max;
+	getRect(image_point[idx], radius[idx], rect_min, rect_max, grid);
+
+	int offset = 0;
+	if(idx > 0) offset += cumulative_sum_overlaps[idx - 1];
+
+	for(int x = rect_min.x; x < rect_max.x; x++){
+		for(int y = rect_min.y; y < rect_max.y; y++){
+			uint32_t tile_id = y * grid.x + x;
+			sort_keys[offset] = 0;
+			sort_keys[offset] += tile_id;
+			sort_keys[offset] <<= 32;
+			sort_keys[offset] += (*((uint32_t *)&(depth[idx]))); // Move the bits of the depth, which is float, to the lowest 32 bits of the sorting key
+			offset++;
+		}
+	}
+}
+
 __global__ void preprocessGaussians(int num_splats, SplatData * sd, 
     glm::mat4 projection, 
     glm::mat4 modelview, 
