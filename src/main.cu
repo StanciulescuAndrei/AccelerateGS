@@ -14,14 +14,16 @@
 
 #include "cuda_common/helper_cuda.h"
 
+#include <cub/cub.cuh>
+#include <cub/util_allocator.cuh>
+#include <cub/device/device_radix_sort.cuh>
+
 
 #define N 100000000
 #define MAX_ERR 1e-6
 
-const int SCREEN_WIDTH = 960;
-const int SCREEN_HEIGHT = 960;
-
-
+const int SCREEN_WIDTH = 1920;
+const int SCREEN_HEIGHT = 1080;
 
 const int FPS_COUNTER_REFRESH = 60;
 
@@ -37,16 +39,16 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
 {
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
         glfwSetWindowShouldClose(window, GLFW_TRUE);
-    if(key == GLFW_KEY_A && (action == GLFW_REPEAT || action == GLFW_PRESS)){
+    if(key == GLFW_KEY_Z && (action == GLFW_REPEAT || action == GLFW_PRESS)){
         cameraPosition += glm::vec3(0.0f, movement_step, 0.0f);
     }
-    if(key == GLFW_KEY_D && (action == GLFW_REPEAT || action == GLFW_PRESS)){
+    if(key == GLFW_KEY_X && (action == GLFW_REPEAT || action == GLFW_PRESS)){
         cameraPosition += glm::vec3(0.0f, -movement_step, 0.0f);
     }
-    if(key == GLFW_KEY_Z && (action == GLFW_REPEAT || action == GLFW_PRESS)){
+    if(key == GLFW_KEY_A && (action == GLFW_REPEAT || action == GLFW_PRESS)){
         cameraPosition += glm::vec3(movement_step, 0.0f, 0.0f);
     }
-    if(key == GLFW_KEY_X && (action == GLFW_REPEAT || action == GLFW_PRESS)){
+    if(key == GLFW_KEY_D && (action == GLFW_REPEAT || action == GLFW_PRESS)){
         cameraPosition += glm::vec3(-movement_step, 0.0f, 0.0f);
     }
     if(key == GLFW_KEY_W && (action == GLFW_REPEAT || action == GLFW_PRESS)){
@@ -98,7 +100,7 @@ int main(){
     int num_elements = 0;
     int res = loadSplatData("../../models/train/point_cloud/iteration_30000/point_cloud.ply", &sd, &num_elements);
 
-    num_elements = 1000;
+    // num_elements = 100000;
 
     /* Allocate and send splat data to GPU memory */
     SplatData * d_sd;
@@ -113,6 +115,7 @@ int main(){
     int * d_radius;
     float * d_depth;
     int * d_overlap;
+    int * d_overlap_sums;
 
     checkCudaErrors(cudaMalloc(&d_conic_opacity, sizeof(float4) * num_elements));
     assert(d_conic_opacity != NULL);
@@ -131,6 +134,9 @@ int main(){
 
     checkCudaErrors(cudaMalloc(&d_overlap, sizeof(int) * num_elements));
     assert(d_overlap != NULL);
+
+    checkCudaErrors(cudaMalloc(&d_overlap_sums, sizeof(int) * num_elements));
+    assert(d_overlap_sums != NULL);
 
     /* Set up resources for texture writing */
     GLuint pboId;
@@ -202,28 +208,74 @@ int main(){
 
         /* Call the main CUDA render kernel */
         dim3 block(BLOCK_X, BLOCK_Y, 1); // One thread per pixel!
-        dim3 grid(SCREEN_HEIGHT / BLOCK_X + 1, SCREEN_WIDTH / BLOCK_Y + 1, 1);
+        dim3 grid(SCREEN_WIDTH / BLOCK_X + 1, SCREEN_HEIGHT / BLOCK_Y + 1, 1);
 
-        preprocessGaussians<<<num_elements / 1024 + 1, 1024>>>(num_elements, d_sd, perspective, modelview, d_conic_opacity, d_rgb, d_image_point, d_radius, d_depth, d_overlap, SCREEN_HEIGHT, SCREEN_WIDTH, grid);
+        preprocessGaussians<<<num_elements / 1024 + 1, 1024>>>(num_elements, d_sd, perspective, modelview, d_conic_opacity, d_rgb, d_image_point, d_radius, d_depth, d_overlap, SCREEN_WIDTH, SCREEN_HEIGHT, grid);
         checkCudaErrors(cudaDeviceSynchronize());
-        cumulativeSum<<<1,1>>>(num_elements, d_overlap);
-        checkCudaErrors(cudaDeviceSynchronize());
+
+        // Determine temporary device storage requirements for inclusive prefix sum
+        void     *d_temp_storage = NULL;
+        size_t   temp_storage_bytes = 0;
+        cub::DeviceScan::InclusiveSum(d_temp_storage, temp_storage_bytes, d_overlap, d_overlap_sums, num_elements);
+        // Allocate temporary storage for inclusive prefix sum
+        cudaMalloc(&d_temp_storage, temp_storage_bytes);
+        // Run inclusive prefix sum
+        cub::DeviceScan::InclusiveSum(d_temp_storage, temp_storage_bytes, d_overlap, d_overlap_sums, num_elements);
+
+        checkCudaErrors(cudaFree(d_temp_storage));
 
         int totalDuplicateGaussians = 0;
-        checkCudaErrors(cudaMemcpy(&totalDuplicateGaussians, d_overlap + num_elements - 1, sizeof(int), cudaMemcpyDeviceToHost));
+        checkCudaErrors(cudaMemcpy(&totalDuplicateGaussians, d_overlap_sums + num_elements - 1, sizeof(int), cudaMemcpyDeviceToHost));
 
         /* Now create an array to keep the tile id and depth (32 bits + 32 bits) */ 
-        uint64_t * d_sort_keys;
-        checkCudaErrors(cudaMalloc(&d_sort_keys, sizeof(uint64_t) * totalDuplicateGaussians));
+        uint64_t * d_sort_keys_in;
+        uint64_t * d_sort_keys_out;
+        uint32_t * d_sort_ids_in;
+        uint32_t * d_sort_ids_out;
+        checkCudaErrors(cudaMalloc(&d_sort_keys_in, sizeof(uint64_t) * totalDuplicateGaussians));
+        checkCudaErrors(cudaMalloc(&d_sort_keys_out, sizeof(uint64_t) * totalDuplicateGaussians));
+        checkCudaErrors(cudaMalloc(&d_sort_ids_in, sizeof(uint32_t) * totalDuplicateGaussians));
+        checkCudaErrors(cudaMalloc(&d_sort_ids_out, sizeof(uint32_t) * totalDuplicateGaussians));
 
         /* Populate sorting keys array */
+        duplicateGaussians<<<num_elements / 1024 + 1, 1024>>>(num_elements, d_image_point, d_radius, d_depth, d_overlap_sums, d_sort_keys_in, d_sort_ids_in, grid);
+        checkCudaErrors(cudaDeviceSynchronize());
+
+        d_temp_storage = NULL;
+        temp_storage_bytes = 0;
+
+        /* Determine how much temporary storage we need */
+        cub::DeviceRadixSort::SortPairs(d_temp_storage, temp_storage_bytes, d_sort_keys_in, d_sort_keys_out, d_sort_ids_in, d_sort_ids_out, totalDuplicateGaussians);
+        checkCudaErrors(cudaMalloc(&d_temp_storage, temp_storage_bytes));
+
+        /* TODO: determine highest MSB to pass to sorting, so we don't use all 64 bits */
+        cub::DeviceRadixSort::SortPairs(d_temp_storage, temp_storage_bytes, d_sort_keys_in, d_sort_keys_out, d_sort_ids_in, d_sort_ids_out, totalDuplicateGaussians);
+        checkCudaErrors(cudaFree(d_temp_storage));
+
+        uint32_t * d_tile_range_min;
+        uint32_t * d_tile_range_max;
+
+        checkCudaErrors(cudaMalloc(&d_tile_range_min, sizeof(uint32_t) * grid.x * grid.y));
+        checkCudaErrors(cudaMalloc(&d_tile_range_max, sizeof(uint32_t) * grid.x * grid.y));
+
+        checkCudaErrors(cudaMemset(d_tile_range_min, 0, sizeof(uint32_t) * grid.x * grid.y));
+        checkCudaErrors(cudaMemset(d_tile_range_max, 0, sizeof(uint32_t) * grid.x * grid.y));
+
+        getTileRanges<<<(totalDuplicateGaussians) / 512 + 1, 512>>>(d_sort_keys_out, totalDuplicateGaussians, d_tile_range_min, d_tile_range_max);
+        checkCudaErrors(cudaDeviceSynchronize());
 
         // debugInfo<<<1, 1>>>(num_elements, d_sd, perspective, modelview, d_conic_opacity, d_rgb, d_image_point, d_radius, d_depth, d_overlap, SCREEN_HEIGHT, SCREEN_WIDTH, grid);
         // checkCudaErrors(cudaDeviceSynchronize());
-        render<<<grid, block>>>(1000, d_sd, perspective, modelview, d_conic_opacity, d_rgb, d_image_point, d_radius, d_depth, d_overlap, SCREEN_HEIGHT, SCREEN_WIDTH, grid, dataPointer);
+        render<<<grid, block>>>(num_elements, d_sd, d_conic_opacity, d_rgb, d_image_point, d_tile_range_min, d_tile_range_max, d_sort_ids_out, SCREEN_WIDTH, SCREEN_HEIGHT, grid, dataPointer);
         checkCudaErrors(cudaDeviceSynchronize());
 
-        checkCudaErrors(cudaFree(d_sort_keys));
+        checkCudaErrors(cudaFree(d_sort_keys_in));
+        checkCudaErrors(cudaFree(d_sort_keys_out));
+        checkCudaErrors(cudaFree(d_sort_ids_in));
+        checkCudaErrors(cudaFree(d_sort_ids_out));
+
+        checkCudaErrors(cudaFree(d_tile_range_min));
+        checkCudaErrors(cudaFree(d_tile_range_max));
 
         /* Unmap the OpenGL resources */
         checkCudaErrors(cudaGraphicsUnmapResources(1, &cuda_pbo_resource, 0));
@@ -275,6 +327,7 @@ int main(){
     cudaFree(d_radius);
     cudaFree(d_depth);
     cudaFree(d_overlap);
+    cudaFree(d_overlap_sums);
 
     delete [] imageData;
 

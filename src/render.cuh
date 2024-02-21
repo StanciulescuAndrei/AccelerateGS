@@ -139,19 +139,13 @@ __global__ void cumulativeSum(int num_splats, int * num_tiles_overlap){
 	}
 }
 
-__global__ void duplicateGaussians(int num_splats, SplatData * sd, 
-    glm::mat4 projection, 
-    glm::mat4 modelview, 
-    float4 * conic_opacity, 
-    float3 * rgb, 
+__global__ void duplicateGaussians(int num_splats, 
     float2 * image_point,
     int * radius, // Radius in pixels
     float * depth,
-    int * num_tiles_overlap,
 	int * cumulative_sum_overlaps,
 	uint64_t * sort_keys,
-    const int SCREEN_HEIGHT,
-    const int SCREEN_WIDTH,
+	uint32_t * gaussian_ids,
     dim3 grid)
 {
 	int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -166,10 +160,13 @@ __global__ void duplicateGaussians(int num_splats, SplatData * sd,
 	for(int x = rect_min.x; x < rect_max.x; x++){
 		for(int y = rect_min.y; y < rect_max.y; y++){
 			uint32_t tile_id = y * grid.x + x;
-			sort_keys[offset] = 0;
+			sort_keys[offset] = (uint64_t)0;
 			sort_keys[offset] += tile_id;
 			sort_keys[offset] <<= 32;
 			sort_keys[offset] += (*((uint32_t *)&(depth[idx]))); // Move the bits of the depth, which is float, to the lowest 32 bits of the sorting key
+
+			gaussian_ids[offset] = idx;
+
 			offset++;
 		}
 	}
@@ -184,8 +181,8 @@ __global__ void preprocessGaussians(int num_splats, SplatData * sd,
     int * radius, // Radius in pixels
     float * depth,
     int * num_tiles_overlap,
-    const int SCREEN_HEIGHT,
     const int SCREEN_WIDTH,
+    const int SCREEN_HEIGHT,
     dim3 grid)
 {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -207,11 +204,7 @@ __global__ void preprocessGaussians(int num_splats, SplatData * sd,
     computeCov3D(sd[idx].fields.scale, 1.0f, sd[idx].fields.rotation, cov3D);
 
     /* Compute 2D screen-space covariance matrix */
-    const float tan_fovx = 1.0f;
-    const float tan_fovy = 1.0f;
-    const float focal_y = SCREEN_HEIGHT / (2.0f * tan_fovy);
-	const float focal_x = SCREEN_WIDTH / (2.0f * tan_fovx);
-	float3 cov = computeCov2D(pOrig, focal_x, focal_y, tan_fovx, tan_fovy, cov3D, modelview);
+	float3 cov = computeCov2D(pOrig, 1.0f, 1.0f, 1.0f, 1.0f, cov3D, modelview);
 
     // Invert covariance (EWA algorithm)
 	float det = (cov.x * cov.z - cov.y * cov.y);
@@ -228,7 +221,7 @@ __global__ void preprocessGaussians(int num_splats, SplatData * sd,
 	float lambda1 = mid + sqrt(max(0.1f, mid * mid - det));
 	float lambda2 = mid - sqrt(max(0.1f, mid * mid - det));
 	float my_radius = ceil(3.f * sqrt(max(lambda1, lambda2)));
-	float2 point_image = { (position.x + 1.0f) * 0.5f * SCREEN_HEIGHT, (position.y + 1.0f) * 0.5f * SCREEN_WIDTH };
+	float2 point_image = { (position.x + 1.0f) * 0.5f * SCREEN_WIDTH, (position.y + 1.0f) * 0.5f * SCREEN_HEIGHT };
 	uint2 rect_min, rect_max;
 	getRect(point_image, my_radius, rect_min, rect_max, grid);
 	if ((rect_max.x - rect_min.x) * (rect_max.y - rect_min.y) == 0)
@@ -260,8 +253,8 @@ __global__ void debugInfo(int num_splats, SplatData * sd,
     int * radius, // Radius in pixels
     float * depth,
     int * num_tiles_overlap,
-    const int SCREEN_HEIGHT,
     const int SCREEN_WIDTH,
+    const int SCREEN_HEIGHT,
     dim3 grid)
 {
     printf("Conics  : %f, %f, %f, %f\n", conic_opacity[0].x, conic_opacity[0].y, conic_opacity[0].z, conic_opacity[0].w);
@@ -273,21 +266,47 @@ __global__ void debugInfo(int num_splats, SplatData * sd,
     printf("----------------------------------------------\n");
 }
 
+__global__ void getTileRanges(uint64_t * sorted_keys, int array_len, uint32_t * tile_range_min, uint32_t * tile_range_max){
+	int idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+	if(idx >= array_len) return;
+
+	uint32_t tile_id = sorted_keys[idx] >> 32;
+
+	if(idx == 0){
+		tile_range_min[tile_id] = 0;
+	}
+	else{
+		uint32_t prev_tile_id = sorted_keys[idx - 1] >> 32;
+		if(tile_id != prev_tile_id){
+			tile_range_max[prev_tile_id] = idx;
+			tile_range_min[tile_id] = idx;
+		}
+	}
+
+	if(idx == array_len - 1){
+		tile_range_max[tile_id] = array_len;
+	}
+}
+
 __global__ void render(int num_splats, SplatData * sd, 
-    glm::mat4 projection, 
-    glm::mat4 modelview, 
     float4 * conic_opacity, 
     float3 * rgb, 
     float2 * image_point,
-    int * radius, // Radius in pixels
-    float * depth,
-    int * num_tiles_overlap,
-    const int SCREEN_HEIGHT,
+	uint32_t * tile_range_min,
+	uint32_t * tile_range_max,
+	uint32_t * splat_ids,
     const int SCREEN_WIDTH,
+    const int SCREEN_HEIGHT,
     dim3 grid, float4 * imageBuffer)
 {
     int tile_x = blockIdx.x;
     int tile_y = blockIdx.y;
+
+	uint32_t tile_id = blockIdx.y * gridDim.x + blockIdx.x;
+
+	uint32_t min_range = tile_range_min[tile_id];
+	uint32_t max_range = tile_range_max[tile_id];
 
     int thread_x = tile_x * blockDim.x + threadIdx.x;
     int thread_y = tile_y * blockDim.y + threadIdx.y;
@@ -295,24 +314,18 @@ __global__ void render(int num_splats, SplatData * sd,
 	float T = 1.0f;
 	float pixColor[4] = { 0, 0, 0, 0 };
 
-    /* Debug here */
-    if(thread_x == 0 && thread_y){
-        // printf("%d\n", sizeof(float));
-    }
-
-    if(thread_x >= SCREEN_HEIGHT || thread_y >= SCREEN_WIDTH)
+    if(thread_x >= SCREEN_WIDTH || thread_y >= SCREEN_HEIGHT)
         return;
 
-    glm::vec2 ssc = glm::vec2((((float)thread_x) / SCREEN_HEIGHT) * 2.0f - 1.0f, (((float)thread_y) / SCREEN_WIDTH) * 2.0f - 1.0f);
     /* Per-Pixel operations */
-    imageBuffer[thread_x * SCREEN_WIDTH + thread_y] = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
-    for(int splat = 0; splat < num_splats; splat++){
-		if(num_tiles_overlap[splat] == 0) continue;
+    imageBuffer[(SCREEN_HEIGHT - thread_y - 1) * SCREEN_WIDTH + thread_x] = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
+    for(int i = min_range; i < max_range; i++){
+		uint32_t splat_id = splat_ids[i];
 
-        float2 position = image_point[splat];
+        float2 position = image_point[splat_id];
 		float2 d = { position.x - thread_x, position.y - thread_y };
 
-		float4 con_o = conic_opacity[splat];
+		float4 con_o = conic_opacity[splat_id];
 		float power = -0.5f * (con_o.x * d.x * d.x + con_o.z * d.y * d.y) - con_o.y * d.x * d.y;
 
 		if (power > 0.0f) continue;
@@ -326,15 +339,15 @@ __global__ void render(int num_splats, SplatData * sd,
 		}
 
 		// Eq. (3) from 3D Gaussian splatting paper.
-		pixColor[0] += rgb[splat].x * alpha * T;
-		pixColor[1] += rgb[splat].y * alpha * T;
-		pixColor[2] += rgb[splat].z * alpha * T;
+		pixColor[0] += rgb[splat_id].x * alpha * T;
+		pixColor[1] += rgb[splat_id].y * alpha * T;
+		pixColor[2] += rgb[splat_id].z * alpha * T;
 
 		T = test_T;
 
     }
-	imageBuffer[thread_x * SCREEN_WIDTH + thread_y].x = pixColor[0];
-	imageBuffer[thread_x * SCREEN_WIDTH + thread_y].y = pixColor[1];
-	imageBuffer[thread_x * SCREEN_WIDTH + thread_y].z = pixColor[2];
-	imageBuffer[thread_x * SCREEN_WIDTH + thread_y].w = 1.0f;
+	imageBuffer[(SCREEN_HEIGHT - thread_y - 1) * SCREEN_WIDTH + thread_x].x = pixColor[0];
+	imageBuffer[(SCREEN_HEIGHT - thread_y - 1) * SCREEN_WIDTH + thread_x].y = pixColor[1];
+	imageBuffer[(SCREEN_HEIGHT - thread_y - 1) * SCREEN_WIDTH + thread_x].z = pixColor[2];
+	imageBuffer[(SCREEN_HEIGHT - thread_y - 1) * SCREEN_WIDTH + thread_x].w = 1.0f;
 }
