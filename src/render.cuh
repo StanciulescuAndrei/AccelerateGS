@@ -16,7 +16,7 @@ __device__ float clip(float in, float min_val, float max_val){
     return min(max_val, max(in, min_val));
 }
 
-__device__ void printMat(glm::mat4 m){
+__host__ void printMat(glm::mat4 m){
 	for(int i=0;i<4;i++){
 		for(int j=0;j<4;j++){
 			printf("%f ", m[i][j]);
@@ -25,7 +25,7 @@ __device__ void printMat(glm::mat4 m){
 	}
 	printf("-----------------------------\n");
 }
-__device__ void printMat(glm::mat3 m){
+__host__ void printMat(glm::mat3 m){
 	for(int i=0;i<3;i++){
 		for(int j=0;j<3;j++){
 			printf("%f ", m[i][j]);

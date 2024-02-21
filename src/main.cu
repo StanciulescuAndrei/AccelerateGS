@@ -204,7 +204,12 @@ int main(){
 
         /* --------- RENDERING ------------*/
         glm::mat4 modelview = glm::translate(glm::mat4(1.0f), cameraPosition);
-        glm::mat4 perspective = glm::perspective(90.0f, 16.0f/9.0f, 1.0f, 200.0f);
+        glm::mat4 perspective = glm::perspective(70.0f, 16.0f/9.0f, 1.0f, 100000.0f);
+
+        printMat(perspective);
+        perspective = glm::perspective(90.0f, 16.0f/9.0f, 1.0f, 100000.0f);
+        printMat(perspective);
+
 
         /* Call the main CUDA render kernel */
         dim3 block(BLOCK_X, BLOCK_Y, 1); // One thread per pixel!
