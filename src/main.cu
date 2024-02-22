@@ -52,10 +52,10 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
         cameraPosition += glm::vec3(-movement_step, 0.0f, 0.0f);
     }
     if(key == GLFW_KEY_W && (action == GLFW_REPEAT || action == GLFW_PRESS)){
-        cameraPosition += glm::vec3(0.0f, 0.0f, -movement_step);
+        cameraPosition += glm::vec3(0.0f, 0.0f, movement_step);
     }
     if(key == GLFW_KEY_S && (action == GLFW_REPEAT || action == GLFW_PRESS)){
-        cameraPosition += glm::vec3(0.0f, 0.0f, movement_step);
+        cameraPosition += glm::vec3(0.0f, 0.0f, -movement_step);
     }
 }
 
@@ -203,13 +203,8 @@ int main(){
         assert(dataPointer != nullptr);
 
         /* --------- RENDERING ------------*/
-        glm::mat4 modelview = glm::translate(glm::mat4(1.0f), cameraPosition);
-        glm::mat4 perspective = glm::perspective(70.0f, 16.0f/9.0f, 1.0f, 100000.0f);
-
-        printMat(perspective);
-        perspective = glm::perspective(90.0f, 16.0f/9.0f, 1.0f, 100000.0f);
-        printMat(perspective);
-
+        glm::mat4 modelview = glm::lookAt(glm::vec3(0.0f, 0.0f, 1.0f) + cameraPosition, cameraPosition, glm::vec3(0.0f, 1.0f, 0.0f));
+        glm::mat4 perspective = glm::perspective(90.0f, 16.0f/9.0f, 5.0f, 500.0f) * modelview;
 
         /* Call the main CUDA render kernel */
         dim3 block(BLOCK_X, BLOCK_Y, 1); // One thread per pixel!

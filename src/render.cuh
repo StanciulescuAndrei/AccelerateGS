@@ -45,13 +45,13 @@ __forceinline__ __device__ float3 transformPoint4x3(const float3& p, const float
 	return transformed;
 }
 
-__device__ float3 computeCov2D(const glm::vec4& mean, float focal_x, float focal_y, float tan_fovx, float tan_fovy, const float* cov3D, const glm::mat4 viewmatrix)
+__device__ float3 computeCov2D(const glm::vec4& mean, float focal_x, float focal_y, float tan_fovx, float tan_fovy, const float* cov3D, const glm::mat4 view)
 {
 	// The following models the steps outlined by equations 29
 	// and 31 in "EWA Splatting" (Zwicker et al., 2002). 
 	// Additionally considers aspect / scaling of viewport.
 	// Transposes used to account for row-/column-major conventions.
-	glm::vec4 t = viewmatrix * mean;
+	glm::vec4 t = view * mean;
 
 	const float limx = 1.3f * tan_fovx;
 	const float limy = 1.3f * tan_fovy;
@@ -61,14 +61,14 @@ __device__ float3 computeCov2D(const glm::vec4& mean, float focal_x, float focal
 	t.y = min(limy, max(-limy, tytz)) * t.z;
 
 	glm::mat3 J = glm::mat3(
-		1.0f / t.z, 0.0f, -(1.0f * t.x) / (t.z * t.z),
-		0.0f, 1.0f / t.z, -(1.0f * t.y) / (t.z * t.z),
+		focal_x / t.z, 0.0f, -(focal_x * t.x) / (t.z * t.z),
+		0.0f, focal_y / t.z, -(focal_y * t.y) / (t.z * t.z),
 		0, 0, 0);
 
 	glm::mat3 W = glm::mat3(
-		viewmatrix[0][0], viewmatrix[1][0], viewmatrix[2][0],
-		viewmatrix[0][1], viewmatrix[1][1], viewmatrix[2][1],
-		viewmatrix[0][2], viewmatrix[1][2], viewmatrix[2][2]);
+		view[0][0], view[1][0], view[2][0],
+		view[0][1], view[1][1], view[2][1],
+		view[0][2], view[1][2], view[2][2]);
 
 	glm::mat3 T = W * J;
 
@@ -174,7 +174,7 @@ __global__ void duplicateGaussians(int num_splats,
 
 __global__ void preprocessGaussians(int num_splats, SplatData * sd, 
     glm::mat4 projection, 
-    glm::mat4 modelview, 
+    glm::mat4 view, 
     float4 * conic_opacity, 
     float3 * rgb, 
     float2 * image_point,
@@ -194,8 +194,13 @@ __global__ void preprocessGaussians(int num_splats, SplatData * sd,
 
     /* Check if splat is in frustum */
     glm::vec4 pOrig = glm::vec4(sd[idx].fields.position[0], sd[idx].fields.position[1], sd[idx].fields.position[2], 1.0f);
-    glm::vec4 position = projection * modelview * pOrig;
-    if(position[0] < -1 || position[0] > 1 || position[1] < -1 || position[1] > 1 || position[2] > 0){
+	glm::vec4 p_hom = projection * pOrig;
+	float p_w = 1.0f / (p_hom.w + 0.000000001f);
+	glm::vec3 p_proj = p_hom * p_w;
+    glm::vec4 position_viewport = view * pOrig;
+	// float p_w = 1.0f / (position.w + 0.000000001f);
+	// position = position * p_w;
+    if(p_proj.z <= 0.2f){
         return;
     }
 
@@ -204,7 +209,10 @@ __global__ void preprocessGaussians(int num_splats, SplatData * sd,
     computeCov3D(sd[idx].fields.scale, 1.0f, sd[idx].fields.rotation, cov3D);
 
     /* Compute 2D screen-space covariance matrix */
-	float3 cov = computeCov2D(pOrig, 1.0f, 1.0f, 1.0f, 1.0f, cov3D, modelview);
+	float tan_fovy = tanf(70.0f * M_PI_2 / 180.0f);
+	float tan_fovx = tan_fovy * 16.0f / 9.0f;
+	float focal = 1080.0f / (2.0f * tan_fovy);
+	float3 cov = computeCov2D(pOrig, focal, focal, tan_fovx, tan_fovy, cov3D, view);
 
     // Invert covariance (EWA algorithm)
 	float det = (cov.x * cov.z - cov.y * cov.y);
@@ -221,7 +229,7 @@ __global__ void preprocessGaussians(int num_splats, SplatData * sd,
 	float lambda1 = mid + sqrt(max(0.1f, mid * mid - det));
 	float lambda2 = mid - sqrt(max(0.1f, mid * mid - det));
 	float my_radius = ceil(3.f * sqrt(max(lambda1, lambda2)));
-	float2 point_image = { (position.x + 1.0f) * 0.5f * SCREEN_WIDTH, (position.y + 1.0f) * 0.5f * SCREEN_HEIGHT };
+	float2 point_image = { (p_proj.x + 1.0f) * 0.5f * SCREEN_WIDTH, (p_proj.y + 1.0f) * 0.5f * SCREEN_HEIGHT };
 	uint2 rect_min, rect_max;
 	getRect(point_image, my_radius, rect_min, rect_max, grid);
 	if ((rect_max.x - rect_min.x) * (rect_max.y - rect_min.y) == 0)
@@ -235,7 +243,7 @@ __global__ void preprocessGaussians(int num_splats, SplatData * sd,
     };
 
 	// Store some useful helper data for the next steps.
-	depth[idx] = position.z;
+	depth[idx] = position_viewport.z;
 	radius[idx] = my_radius;
 	image_point[idx] = point_image;
 	// Inverse 2D covariance and opacity neatly pack into one float4
@@ -246,7 +254,7 @@ __global__ void preprocessGaussians(int num_splats, SplatData * sd,
 
 __global__ void debugInfo(int num_splats, SplatData * sd, 
     glm::mat4 projection, 
-    glm::mat4 modelview, 
+    glm::mat4 view, 
     float4 * conic_opacity, 
     float3 * rgb, 
     float2 * image_point,
@@ -318,7 +326,7 @@ __global__ void render(int num_splats, SplatData * sd,
         return;
 
     /* Per-Pixel operations */
-    imageBuffer[(SCREEN_HEIGHT - thread_y - 1) * SCREEN_WIDTH + thread_x] = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
+    imageBuffer[thread_y * SCREEN_WIDTH + thread_x] = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
     for(int i = min_range; i < max_range; i++){
 		uint32_t splat_id = splat_ids[i];
 
@@ -346,8 +354,8 @@ __global__ void render(int num_splats, SplatData * sd,
 		T = test_T;
 
     }
-	imageBuffer[(SCREEN_HEIGHT - thread_y - 1) * SCREEN_WIDTH + thread_x].x = pixColor[0];
-	imageBuffer[(SCREEN_HEIGHT - thread_y - 1) * SCREEN_WIDTH + thread_x].y = pixColor[1];
-	imageBuffer[(SCREEN_HEIGHT - thread_y - 1) * SCREEN_WIDTH + thread_x].z = pixColor[2];
-	imageBuffer[(SCREEN_HEIGHT - thread_y - 1) * SCREEN_WIDTH + thread_x].w = 1.0f;
+	imageBuffer[thread_y * SCREEN_WIDTH + thread_x].x = pixColor[0];
+	imageBuffer[thread_y * SCREEN_WIDTH + thread_x].y = pixColor[1];
+	imageBuffer[thread_y * SCREEN_WIDTH + thread_x].z = pixColor[2];
+	imageBuffer[thread_y * SCREEN_WIDTH + thread_x].w = 1.0f;
 }
