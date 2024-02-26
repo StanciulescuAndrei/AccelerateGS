@@ -30,6 +30,8 @@ const int FPS_COUNTER_REFRESH = 60;
 glm::vec3 cameraPosition = glm::vec3(0.0f);
 const float movement_step = 0.1f;
 
+float fovy = M_PI / 2.0f;
+
 static void error_callback(int error, const char* description)
 {
     fprintf(stderr, "Error: %s\n", description);
@@ -46,16 +48,22 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
         cameraPosition += glm::vec3(0.0f, -movement_step, 0.0f);
     }
     if(key == GLFW_KEY_A && (action == GLFW_REPEAT || action == GLFW_PRESS)){
-        cameraPosition += glm::vec3(movement_step, 0.0f, 0.0f);
+        cameraPosition += glm::vec3(-movement_step, 0.0f, 0.0f);
     }
     if(key == GLFW_KEY_D && (action == GLFW_REPEAT || action == GLFW_PRESS)){
-        cameraPosition += glm::vec3(-movement_step, 0.0f, 0.0f);
+        cameraPosition += glm::vec3(movement_step, 0.0f, 0.0f);
     }
     if(key == GLFW_KEY_W && (action == GLFW_REPEAT || action == GLFW_PRESS)){
         cameraPosition += glm::vec3(0.0f, 0.0f, movement_step);
     }
     if(key == GLFW_KEY_S && (action == GLFW_REPEAT || action == GLFW_PRESS)){
         cameraPosition += glm::vec3(0.0f, 0.0f, -movement_step);
+    }
+    if(key == GLFW_KEY_1 && (action == GLFW_PRESS)){
+        fovy -= M_PI_4 / 10.0f;
+    }
+    if(key == GLFW_KEY_2 && (action == GLFW_PRESS)){
+        fovy += M_PI_4 / 10.0f;
     }
 }
 
@@ -203,14 +211,14 @@ int main(){
         assert(dataPointer != nullptr);
 
         /* --------- RENDERING ------------*/
-        glm::mat4 modelview = glm::lookAt(glm::vec3(0.0f, 0.0f, 1.0f) + cameraPosition, cameraPosition, glm::vec3(0.0f, 1.0f, 0.0f));
-        glm::mat4 perspective = glm::perspective(90.0f, 16.0f/9.0f, 5.0f, 500.0f) * modelview;
+        glm::mat4 modelview = glm::lookAt(cameraPosition, glm::vec3(0.0f, 0.0f, 1.0f) + cameraPosition, glm::vec3(0.0f, 1.0f, 0.0f));
+        glm::mat4 perspective = glm::perspective(fovy, 16.0f/9.0f, 0.9f, 100.0f) * modelview;
 
         /* Call the main CUDA render kernel */
         dim3 block(BLOCK_X, BLOCK_Y, 1); // One thread per pixel!
         dim3 grid(SCREEN_WIDTH / BLOCK_X + 1, SCREEN_HEIGHT / BLOCK_Y + 1, 1);
 
-        preprocessGaussians<<<num_elements / 1024 + 1, 1024>>>(num_elements, d_sd, perspective, modelview, d_conic_opacity, d_rgb, d_image_point, d_radius, d_depth, d_overlap, SCREEN_WIDTH, SCREEN_HEIGHT, grid);
+        preprocessGaussians<<<num_elements / 1024 + 1, 1024>>>(num_elements, d_sd, perspective, modelview, fovy, d_conic_opacity, d_rgb, d_image_point, d_radius, d_depth, d_overlap, SCREEN_WIDTH, SCREEN_HEIGHT, grid);
         checkCudaErrors(cudaDeviceSynchronize());
 
         // Determine temporary device storage requirements for inclusive prefix sum

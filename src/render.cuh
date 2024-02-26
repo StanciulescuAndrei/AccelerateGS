@@ -25,7 +25,7 @@ __host__ void printMat(glm::mat4 m){
 	}
 	printf("-----------------------------\n");
 }
-__host__ void printMat(glm::mat3 m){
+__device__ void printMat(glm::mat3 m){
 	for(int i=0;i<3;i++){
 		for(int j=0;j<3;j++){
 			printf("%f ", m[i][j]);
@@ -45,7 +45,7 @@ __forceinline__ __device__ float3 transformPoint4x3(const float3& p, const float
 	return transformed;
 }
 
-__device__ float3 computeCov2D(const glm::vec4& mean, float focal_x, float focal_y, float tan_fovx, float tan_fovy, const float* cov3D, const glm::mat4 view)
+__device__ float3 computeCov2D(const glm::vec4& mean, float focal_x, float focal_y, float tan_fovx, float tan_fovy, const float* cov3D, const glm::mat4 view, float debug = false)
 {
 	// The following models the steps outlined by equations 29
 	// and 31 in "EWA Splatting" (Zwicker et al., 2002). 
@@ -133,12 +133,6 @@ __forceinline__ __device__ void getRect(const float2 p, int max_radius, uint2& r
 	};
 }
 
-__global__ void cumulativeSum(int num_splats, int * num_tiles_overlap){
-	for(int i = 1; i < num_splats; i++){
-		num_tiles_overlap[i] = num_tiles_overlap[i] + num_tiles_overlap[i-1];
-	}
-}
-
 __global__ void duplicateGaussians(int num_splats, 
     float2 * image_point,
     int * radius, // Radius in pixels
@@ -152,6 +146,7 @@ __global__ void duplicateGaussians(int num_splats,
 	if(idx >= num_splats) return;
 
 	uint2 rect_min, rect_max;
+	if(radius[idx] == 0) return;
 	getRect(image_point[idx], radius[idx], rect_min, rect_max, grid);
 
 	int offset = 0;
@@ -175,6 +170,7 @@ __global__ void duplicateGaussians(int num_splats,
 __global__ void preprocessGaussians(int num_splats, SplatData * sd, 
     glm::mat4 projection, 
     glm::mat4 view, 
+	float fovy,
     float4 * conic_opacity, 
     float3 * rgb, 
     float2 * image_point,
@@ -200,7 +196,8 @@ __global__ void preprocessGaussians(int num_splats, SplatData * sd,
     glm::vec4 position_viewport = view * pOrig;
 	// float p_w = 1.0f / (position.w + 0.000000001f);
 	// position = position * p_w;
-    if(p_proj.z <= 0.2f){
+	position_viewport *= (-1.0f);
+    if(position_viewport.z <= 0.2f){
         return;
     }
 
@@ -209,10 +206,13 @@ __global__ void preprocessGaussians(int num_splats, SplatData * sd,
     computeCov3D(sd[idx].fields.scale, 1.0f, sd[idx].fields.rotation, cov3D);
 
     /* Compute 2D screen-space covariance matrix */
-	float tan_fovy = tanf(70.0f * M_PI_2 / 180.0f);
+	float tan_fovy = tanf(fovy * 0.5f);
 	float tan_fovx = tan_fovy * 16.0f / 9.0f;
-	float focal = 1080.0f / (2.0f * tan_fovy);
-	float3 cov = computeCov2D(pOrig, focal, focal, tan_fovx, tan_fovy, cov3D, view);
+
+	float focal_x = 1920.0f / (2.0f * tan_fovx);
+	float focal_y = 1080.0f / (2.0f * tan_fovy);
+
+	float3 cov = computeCov2D(pOrig, focal_x, focal_y, tan_fovx, tan_fovy, cov3D, view);
 
     // Invert covariance (EWA algorithm)
 	float det = (cov.x * cov.z - cov.y * cov.y);
@@ -229,7 +229,7 @@ __global__ void preprocessGaussians(int num_splats, SplatData * sd,
 	float lambda1 = mid + sqrt(max(0.1f, mid * mid - det));
 	float lambda2 = mid - sqrt(max(0.1f, mid * mid - det));
 	float my_radius = ceil(3.f * sqrt(max(lambda1, lambda2)));
-	float2 point_image = { (p_proj.x + 1.0f) * 0.5f * SCREEN_WIDTH, (p_proj.y + 1.0f) * 0.5f * SCREEN_HEIGHT };
+	float2 point_image = { (-p_proj.x + 1.0f) * 0.5f * SCREEN_WIDTH, (-p_proj.y + 1.0f) * 0.5f * SCREEN_HEIGHT };
 	uint2 rect_min, rect_max;
 	getRect(point_image, my_radius, rect_min, rect_max, grid);
 	if ((rect_max.x - rect_min.x) * (rect_max.y - rect_min.y) == 0)
