@@ -9,6 +9,7 @@
 
 #define BLOCK_X 16
 #define BLOCK_Y 16
+#define BLOCK_SIZE (BLOCK_X * BLOCK_Y)
 
 __device__ const float SH_C0 = 0.28209479177387814;
 
@@ -209,8 +210,8 @@ __global__ void preprocessGaussians(int num_splats, SplatData * sd,
 	float tan_fovy = tanf(fovy * 0.5f);
 	float tan_fovx = tan_fovy * 16.0f / 9.0f;
 
-	float focal_x = 1920.0f / (2.0f * tan_fovx);
-	float focal_y = 1080.0f / (2.0f * tan_fovy);
+	float focal_x = SCREEN_WIDTH / (2.0f * tan_fovx);
+	float focal_y = SCREEN_HEIGHT / (2.0f * tan_fovy);
 
 	float3 cov = computeCov2D(pOrig, focal_x, focal_y, tan_fovx, tan_fovy, cov3D, view);
 
@@ -319,43 +320,60 @@ __global__ void render(int num_splats, SplatData * sd,
     int thread_x = tile_x * blockDim.x + threadIdx.x;
     int thread_y = tile_y * blockDim.y + threadIdx.y;
 
+	int thread_rank = threadIdx.x + threadIdx.y * blockDim.x;
+
+	__shared__ float2 positions[BLOCK_SIZE];
+	__shared__ float4 conics[BLOCK_SIZE];
+	__shared__ float3 colors[BLOCK_SIZE];
+
 	float T = 1.0f;
 	float pixColor[4] = { 0, 0, 0, 0 };
+	
+    if(!(thread_x >= SCREEN_WIDTH || thread_y >= SCREEN_HEIGHT)){
+		/* Per-Pixel operations */
+		int array_offset = min_range;
+		while(array_offset < max_range){
+			
+			if(array_offset + thread_rank < max_range){
+				int splat_data_id = splat_ids[array_offset + thread_rank];
+				positions[thread_rank] = image_point[splat_data_id];
+				conics[thread_rank] = conic_opacity[splat_data_id];
+				colors[thread_rank] = rgb[splat_data_id];
+			}
 
-    if(thread_x >= SCREEN_WIDTH || thread_y >= SCREEN_HEIGHT)
-        return;
+			__syncthreads();
 
-    /* Per-Pixel operations */
-    imageBuffer[thread_y * SCREEN_WIDTH + thread_x] = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
-    for(int i = min_range; i < max_range; i++){
-		uint32_t splat_id = splat_ids[i];
+			for(int i = 0; i < min(BLOCK_SIZE, max_range - array_offset - 1); i++){
+				float2 d = { positions[i].x - thread_x, positions[i].y - thread_y };
+				float4 con_o = conics[i];
+				float power = -0.5f * (con_o.x * d.x * d.x + con_o.z * d.y * d.y) - con_o.y * d.x * d.y;
 
-        float2 position = image_point[splat_id];
-		float2 d = { position.x - thread_x, position.y - thread_y };
+				if (power > 0.0f) continue;
 
-		float4 con_o = conic_opacity[splat_id];
-		float power = -0.5f * (con_o.x * d.x * d.x + con_o.z * d.y * d.y) - con_o.y * d.x * d.y;
+				float alpha = min(0.99f, con_o.w * exp(power));
 
-		if (power > 0.0f) continue;
+				float test_T = T * (1 - alpha);
+				if (test_T < 0.0001f)
+				{
+					break;
+				}
 
-		float alpha = min(0.99f, con_o.w * exp(power));
+				// Eq. (3) from 3D Gaussian splatting paper.
+				pixColor[0] += colors[i].x * alpha * T;
+				pixColor[1] += colors[i].y * alpha * T;
+				pixColor[2] += colors[i].z * alpha * T;
 
-		float test_T = T * (1 - alpha);
-		if (test_T < 0.0001f)
-		{
-			break;
+				T = test_T;
+			}
+
+			__syncthreads();
+			array_offset += BLOCK_SIZE;
+
 		}
 
-		// Eq. (3) from 3D Gaussian splatting paper.
-		pixColor[0] += rgb[splat_id].x * alpha * T;
-		pixColor[1] += rgb[splat_id].y * alpha * T;
-		pixColor[2] += rgb[splat_id].z * alpha * T;
-
-		T = test_T;
-
-    }
-	imageBuffer[thread_y * SCREEN_WIDTH + thread_x].x = pixColor[0];
-	imageBuffer[thread_y * SCREEN_WIDTH + thread_x].y = pixColor[1];
-	imageBuffer[thread_y * SCREEN_WIDTH + thread_x].z = pixColor[2];
-	imageBuffer[thread_y * SCREEN_WIDTH + thread_x].w = 1.0f;
+		imageBuffer[thread_y * SCREEN_WIDTH + thread_x].x = pixColor[0];
+		imageBuffer[thread_y * SCREEN_WIDTH + thread_x].y = pixColor[1];
+		imageBuffer[thread_y * SCREEN_WIDTH + thread_x].z = pixColor[2];
+		imageBuffer[thread_y * SCREEN_WIDTH + thread_x].w = 1.0f;
+	}
 }
