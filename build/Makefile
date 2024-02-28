@@ -129,6 +129,174 @@ AccelerateGS/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/AccelerateGS.dir/build.make CMakeFiles/AccelerateGS.dir/build
 .PHONY : AccelerateGS/fast
 
+home/stankiu/Documents/libs/imgui/backends/imgui_impl_glfw.o: home/stankiu/Documents/libs/imgui/backends/imgui_impl_glfw.cpp.o
+.PHONY : home/stankiu/Documents/libs/imgui/backends/imgui_impl_glfw.o
+
+# target to build an object file
+home/stankiu/Documents/libs/imgui/backends/imgui_impl_glfw.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AccelerateGS.dir/build.make CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/backends/imgui_impl_glfw.cpp.o
+.PHONY : home/stankiu/Documents/libs/imgui/backends/imgui_impl_glfw.cpp.o
+
+home/stankiu/Documents/libs/imgui/backends/imgui_impl_glfw.i: home/stankiu/Documents/libs/imgui/backends/imgui_impl_glfw.cpp.i
+.PHONY : home/stankiu/Documents/libs/imgui/backends/imgui_impl_glfw.i
+
+# target to preprocess a source file
+home/stankiu/Documents/libs/imgui/backends/imgui_impl_glfw.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AccelerateGS.dir/build.make CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/backends/imgui_impl_glfw.cpp.i
+.PHONY : home/stankiu/Documents/libs/imgui/backends/imgui_impl_glfw.cpp.i
+
+home/stankiu/Documents/libs/imgui/backends/imgui_impl_glfw.s: home/stankiu/Documents/libs/imgui/backends/imgui_impl_glfw.cpp.s
+.PHONY : home/stankiu/Documents/libs/imgui/backends/imgui_impl_glfw.s
+
+# target to generate assembly for a file
+home/stankiu/Documents/libs/imgui/backends/imgui_impl_glfw.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AccelerateGS.dir/build.make CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/backends/imgui_impl_glfw.cpp.s
+.PHONY : home/stankiu/Documents/libs/imgui/backends/imgui_impl_glfw.cpp.s
+
+home/stankiu/Documents/libs/imgui/backends/imgui_impl_opengl3.o: home/stankiu/Documents/libs/imgui/backends/imgui_impl_opengl3.cpp.o
+.PHONY : home/stankiu/Documents/libs/imgui/backends/imgui_impl_opengl3.o
+
+# target to build an object file
+home/stankiu/Documents/libs/imgui/backends/imgui_impl_opengl3.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AccelerateGS.dir/build.make CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/backends/imgui_impl_opengl3.cpp.o
+.PHONY : home/stankiu/Documents/libs/imgui/backends/imgui_impl_opengl3.cpp.o
+
+home/stankiu/Documents/libs/imgui/backends/imgui_impl_opengl3.i: home/stankiu/Documents/libs/imgui/backends/imgui_impl_opengl3.cpp.i
+.PHONY : home/stankiu/Documents/libs/imgui/backends/imgui_impl_opengl3.i
+
+# target to preprocess a source file
+home/stankiu/Documents/libs/imgui/backends/imgui_impl_opengl3.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AccelerateGS.dir/build.make CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/backends/imgui_impl_opengl3.cpp.i
+.PHONY : home/stankiu/Documents/libs/imgui/backends/imgui_impl_opengl3.cpp.i
+
+home/stankiu/Documents/libs/imgui/backends/imgui_impl_opengl3.s: home/stankiu/Documents/libs/imgui/backends/imgui_impl_opengl3.cpp.s
+.PHONY : home/stankiu/Documents/libs/imgui/backends/imgui_impl_opengl3.s
+
+# target to generate assembly for a file
+home/stankiu/Documents/libs/imgui/backends/imgui_impl_opengl3.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AccelerateGS.dir/build.make CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/backends/imgui_impl_opengl3.cpp.s
+.PHONY : home/stankiu/Documents/libs/imgui/backends/imgui_impl_opengl3.cpp.s
+
+home/stankiu/Documents/libs/imgui/imgui.o: home/stankiu/Documents/libs/imgui/imgui.cpp.o
+.PHONY : home/stankiu/Documents/libs/imgui/imgui.o
+
+# target to build an object file
+home/stankiu/Documents/libs/imgui/imgui.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AccelerateGS.dir/build.make CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui.cpp.o
+.PHONY : home/stankiu/Documents/libs/imgui/imgui.cpp.o
+
+home/stankiu/Documents/libs/imgui/imgui.i: home/stankiu/Documents/libs/imgui/imgui.cpp.i
+.PHONY : home/stankiu/Documents/libs/imgui/imgui.i
+
+# target to preprocess a source file
+home/stankiu/Documents/libs/imgui/imgui.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AccelerateGS.dir/build.make CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui.cpp.i
+.PHONY : home/stankiu/Documents/libs/imgui/imgui.cpp.i
+
+home/stankiu/Documents/libs/imgui/imgui.s: home/stankiu/Documents/libs/imgui/imgui.cpp.s
+.PHONY : home/stankiu/Documents/libs/imgui/imgui.s
+
+# target to generate assembly for a file
+home/stankiu/Documents/libs/imgui/imgui.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AccelerateGS.dir/build.make CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui.cpp.s
+.PHONY : home/stankiu/Documents/libs/imgui/imgui.cpp.s
+
+home/stankiu/Documents/libs/imgui/imgui_demo.o: home/stankiu/Documents/libs/imgui/imgui_demo.cpp.o
+.PHONY : home/stankiu/Documents/libs/imgui/imgui_demo.o
+
+# target to build an object file
+home/stankiu/Documents/libs/imgui/imgui_demo.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AccelerateGS.dir/build.make CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_demo.cpp.o
+.PHONY : home/stankiu/Documents/libs/imgui/imgui_demo.cpp.o
+
+home/stankiu/Documents/libs/imgui/imgui_demo.i: home/stankiu/Documents/libs/imgui/imgui_demo.cpp.i
+.PHONY : home/stankiu/Documents/libs/imgui/imgui_demo.i
+
+# target to preprocess a source file
+home/stankiu/Documents/libs/imgui/imgui_demo.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AccelerateGS.dir/build.make CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_demo.cpp.i
+.PHONY : home/stankiu/Documents/libs/imgui/imgui_demo.cpp.i
+
+home/stankiu/Documents/libs/imgui/imgui_demo.s: home/stankiu/Documents/libs/imgui/imgui_demo.cpp.s
+.PHONY : home/stankiu/Documents/libs/imgui/imgui_demo.s
+
+# target to generate assembly for a file
+home/stankiu/Documents/libs/imgui/imgui_demo.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AccelerateGS.dir/build.make CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_demo.cpp.s
+.PHONY : home/stankiu/Documents/libs/imgui/imgui_demo.cpp.s
+
+home/stankiu/Documents/libs/imgui/imgui_draw.o: home/stankiu/Documents/libs/imgui/imgui_draw.cpp.o
+.PHONY : home/stankiu/Documents/libs/imgui/imgui_draw.o
+
+# target to build an object file
+home/stankiu/Documents/libs/imgui/imgui_draw.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AccelerateGS.dir/build.make CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_draw.cpp.o
+.PHONY : home/stankiu/Documents/libs/imgui/imgui_draw.cpp.o
+
+home/stankiu/Documents/libs/imgui/imgui_draw.i: home/stankiu/Documents/libs/imgui/imgui_draw.cpp.i
+.PHONY : home/stankiu/Documents/libs/imgui/imgui_draw.i
+
+# target to preprocess a source file
+home/stankiu/Documents/libs/imgui/imgui_draw.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AccelerateGS.dir/build.make CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_draw.cpp.i
+.PHONY : home/stankiu/Documents/libs/imgui/imgui_draw.cpp.i
+
+home/stankiu/Documents/libs/imgui/imgui_draw.s: home/stankiu/Documents/libs/imgui/imgui_draw.cpp.s
+.PHONY : home/stankiu/Documents/libs/imgui/imgui_draw.s
+
+# target to generate assembly for a file
+home/stankiu/Documents/libs/imgui/imgui_draw.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AccelerateGS.dir/build.make CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_draw.cpp.s
+.PHONY : home/stankiu/Documents/libs/imgui/imgui_draw.cpp.s
+
+home/stankiu/Documents/libs/imgui/imgui_tables.o: home/stankiu/Documents/libs/imgui/imgui_tables.cpp.o
+.PHONY : home/stankiu/Documents/libs/imgui/imgui_tables.o
+
+# target to build an object file
+home/stankiu/Documents/libs/imgui/imgui_tables.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AccelerateGS.dir/build.make CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_tables.cpp.o
+.PHONY : home/stankiu/Documents/libs/imgui/imgui_tables.cpp.o
+
+home/stankiu/Documents/libs/imgui/imgui_tables.i: home/stankiu/Documents/libs/imgui/imgui_tables.cpp.i
+.PHONY : home/stankiu/Documents/libs/imgui/imgui_tables.i
+
+# target to preprocess a source file
+home/stankiu/Documents/libs/imgui/imgui_tables.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AccelerateGS.dir/build.make CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_tables.cpp.i
+.PHONY : home/stankiu/Documents/libs/imgui/imgui_tables.cpp.i
+
+home/stankiu/Documents/libs/imgui/imgui_tables.s: home/stankiu/Documents/libs/imgui/imgui_tables.cpp.s
+.PHONY : home/stankiu/Documents/libs/imgui/imgui_tables.s
+
+# target to generate assembly for a file
+home/stankiu/Documents/libs/imgui/imgui_tables.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AccelerateGS.dir/build.make CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_tables.cpp.s
+.PHONY : home/stankiu/Documents/libs/imgui/imgui_tables.cpp.s
+
+home/stankiu/Documents/libs/imgui/imgui_widgets.o: home/stankiu/Documents/libs/imgui/imgui_widgets.cpp.o
+.PHONY : home/stankiu/Documents/libs/imgui/imgui_widgets.o
+
+# target to build an object file
+home/stankiu/Documents/libs/imgui/imgui_widgets.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AccelerateGS.dir/build.make CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_widgets.cpp.o
+.PHONY : home/stankiu/Documents/libs/imgui/imgui_widgets.cpp.o
+
+home/stankiu/Documents/libs/imgui/imgui_widgets.i: home/stankiu/Documents/libs/imgui/imgui_widgets.cpp.i
+.PHONY : home/stankiu/Documents/libs/imgui/imgui_widgets.i
+
+# target to preprocess a source file
+home/stankiu/Documents/libs/imgui/imgui_widgets.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AccelerateGS.dir/build.make CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_widgets.cpp.i
+.PHONY : home/stankiu/Documents/libs/imgui/imgui_widgets.cpp.i
+
+home/stankiu/Documents/libs/imgui/imgui_widgets.s: home/stankiu/Documents/libs/imgui/imgui_widgets.cpp.s
+.PHONY : home/stankiu/Documents/libs/imgui/imgui_widgets.s
+
+# target to generate assembly for a file
+home/stankiu/Documents/libs/imgui/imgui_widgets.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AccelerateGS.dir/build.make CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_widgets.cpp.s
+.PHONY : home/stankiu/Documents/libs/imgui/imgui_widgets.cpp.s
+
 src/glad/glad.o: src/glad/glad.c.o
 .PHONY : src/glad/glad.o
 
@@ -186,6 +354,27 @@ help:
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
 	@echo "... AccelerateGS"
+	@echo "... home/stankiu/Documents/libs/imgui/backends/imgui_impl_glfw.o"
+	@echo "... home/stankiu/Documents/libs/imgui/backends/imgui_impl_glfw.i"
+	@echo "... home/stankiu/Documents/libs/imgui/backends/imgui_impl_glfw.s"
+	@echo "... home/stankiu/Documents/libs/imgui/backends/imgui_impl_opengl3.o"
+	@echo "... home/stankiu/Documents/libs/imgui/backends/imgui_impl_opengl3.i"
+	@echo "... home/stankiu/Documents/libs/imgui/backends/imgui_impl_opengl3.s"
+	@echo "... home/stankiu/Documents/libs/imgui/imgui.o"
+	@echo "... home/stankiu/Documents/libs/imgui/imgui.i"
+	@echo "... home/stankiu/Documents/libs/imgui/imgui.s"
+	@echo "... home/stankiu/Documents/libs/imgui/imgui_demo.o"
+	@echo "... home/stankiu/Documents/libs/imgui/imgui_demo.i"
+	@echo "... home/stankiu/Documents/libs/imgui/imgui_demo.s"
+	@echo "... home/stankiu/Documents/libs/imgui/imgui_draw.o"
+	@echo "... home/stankiu/Documents/libs/imgui/imgui_draw.i"
+	@echo "... home/stankiu/Documents/libs/imgui/imgui_draw.s"
+	@echo "... home/stankiu/Documents/libs/imgui/imgui_tables.o"
+	@echo "... home/stankiu/Documents/libs/imgui/imgui_tables.i"
+	@echo "... home/stankiu/Documents/libs/imgui/imgui_tables.s"
+	@echo "... home/stankiu/Documents/libs/imgui/imgui_widgets.o"
+	@echo "... home/stankiu/Documents/libs/imgui/imgui_widgets.i"
+	@echo "... home/stankiu/Documents/libs/imgui/imgui_widgets.s"
 	@echo "... src/glad/glad.o"
 	@echo "... src/glad/glad.i"
 	@echo "... src/glad/glad.s"

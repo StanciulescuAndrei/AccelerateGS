@@ -7,17 +7,36 @@ find_package(OpenGL REQUIRED)
 set(CMAKE_CUDA_ARCHITECTURES 86)
 set(OpenGL_GL_PREFERENCE GLVND)
 
+set(IMGUI_PATH /home/stankiu/Documents/libs/imgui)
+
 include_directories(
 	${GLFW_INCLUDE_PATH}
 	${GLEW_INCLUDE_PATH}
 	${GLM_INCLUDE_PATH}
+	../../libs/imgui/
+	../../libs/imgui/backends/
 )
 
 add_executable(AccelerateGS 
 		src/main.cu 
 		src/glad/glad.h
 		src/glad/glad.c
-		src/PLYReader.h)
+		src/PLYReader.h
+		${IMGUI_PATH}/imgui.h
+		${IMGUI_PATH}/imgui.cpp
+		${IMGUI_PATH}/imconfig.h
+		${IMGUI_PATH}/imgui_demo.cpp
+		${IMGUI_PATH}/imgui_draw.cpp
+		${IMGUI_PATH}/imgui_internal.h
+		${IMGUI_PATH}/imstb_rectpack.h
+		${IMGUI_PATH}/imstb_textedit.h
+		${IMGUI_PATH}/imstb_truetype.h
+		${IMGUI_PATH}/imgui_tables.cpp
+		${IMGUI_PATH}/imgui_widgets.cpp
+		${IMGUI_PATH}/backends/imgui_impl_glfw.h
+		${IMGUI_PATH}/backends/imgui_impl_glfw.cpp
+		${IMGUI_PATH}/backends/imgui_impl_opengl3.h
+		${IMGUI_PATH}/backends/imgui_impl_opengl3.cpp)
 
 target_link_libraries(AccelerateGS
 	${OPENGL_LIBRARY} # filled by "find_package(OpenGL REQUIRED)"

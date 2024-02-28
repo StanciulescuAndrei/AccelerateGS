@@ -1604,4 +1604,8 @@ CMakeFiles/AccelerateGS.dir/src/main.cu.o : /home/stankiu/Documents/Thesis/Accel
     /usr/include/c++/11/bits/stl_multimap.h \
     /usr/include/c++/11/mutex \
     /usr/include/c++/11/bits/std_mutex.h \
-    /usr/include/c++/11/bits/unique_lock.h
+    /usr/include/c++/11/bits/unique_lock.h \
+    /home/stankiu/Documents/Thesis/AccelerateGS/src/../../../libs/imgui/imgui.h \
+    /home/stankiu/Documents/Thesis/AccelerateGS/src/../../../libs/imgui/imconfig.h \
+    /home/stankiu/Documents/Thesis/AccelerateGS/src/../../../libs/imgui/backends/imgui_impl_glfw.h \
+    /home/stankiu/Documents/Thesis/AccelerateGS/src/../../../libs/imgui/backends/imgui_impl_opengl3.h

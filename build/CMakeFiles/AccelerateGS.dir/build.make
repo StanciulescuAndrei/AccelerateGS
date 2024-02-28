@@ -70,6 +70,7 @@ include CMakeFiles/AccelerateGS.dir/progress.make
 include CMakeFiles/AccelerateGS.dir/flags.make
 
 CMakeFiles/AccelerateGS.dir/src/main.cu.o: CMakeFiles/AccelerateGS.dir/flags.make
+CMakeFiles/AccelerateGS.dir/src/main.cu.o: CMakeFiles/AccelerateGS.dir/includes_CUDA.rsp
 CMakeFiles/AccelerateGS.dir/src/main.cu.o: /home/stankiu/Documents/Thesis/AccelerateGS/src/main.cu
 CMakeFiles/AccelerateGS.dir/src/main.cu.o: CMakeFiles/AccelerateGS.dir/compiler_depend.ts
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/stankiu/Documents/Thesis/AccelerateGS/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CUDA object CMakeFiles/AccelerateGS.dir/src/main.cu.o"
@@ -97,24 +98,134 @@ CMakeFiles/AccelerateGS.dir/src/glad/glad.c.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling C source to assembly CMakeFiles/AccelerateGS.dir/src/glad/glad.c.s"
 	/usr/bin/gcc-11 $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -S /home/stankiu/Documents/Thesis/AccelerateGS/src/glad/glad.c -o CMakeFiles/AccelerateGS.dir/src/glad/glad.c.s
 
+CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui.cpp.o: CMakeFiles/AccelerateGS.dir/flags.make
+CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui.cpp.o: /home/stankiu/Documents/libs/imgui/imgui.cpp
+CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui.cpp.o: CMakeFiles/AccelerateGS.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/stankiu/Documents/Thesis/AccelerateGS/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building CXX object CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui.cpp.o"
+	/usr/bin/g++-11 $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui.cpp.o -MF CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui.cpp.o.d -o CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui.cpp.o -c /home/stankiu/Documents/libs/imgui/imgui.cpp
+
+CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui.cpp.i"
+	/usr/bin/g++-11 $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/stankiu/Documents/libs/imgui/imgui.cpp > CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui.cpp.i
+
+CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui.cpp.s"
+	/usr/bin/g++-11 $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/stankiu/Documents/libs/imgui/imgui.cpp -o CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui.cpp.s
+
+CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_demo.cpp.o: CMakeFiles/AccelerateGS.dir/flags.make
+CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_demo.cpp.o: /home/stankiu/Documents/libs/imgui/imgui_demo.cpp
+CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_demo.cpp.o: CMakeFiles/AccelerateGS.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/stankiu/Documents/Thesis/AccelerateGS/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Building CXX object CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_demo.cpp.o"
+	/usr/bin/g++-11 $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_demo.cpp.o -MF CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_demo.cpp.o.d -o CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_demo.cpp.o -c /home/stankiu/Documents/libs/imgui/imgui_demo.cpp
+
+CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_demo.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_demo.cpp.i"
+	/usr/bin/g++-11 $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/stankiu/Documents/libs/imgui/imgui_demo.cpp > CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_demo.cpp.i
+
+CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_demo.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_demo.cpp.s"
+	/usr/bin/g++-11 $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/stankiu/Documents/libs/imgui/imgui_demo.cpp -o CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_demo.cpp.s
+
+CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_draw.cpp.o: CMakeFiles/AccelerateGS.dir/flags.make
+CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_draw.cpp.o: /home/stankiu/Documents/libs/imgui/imgui_draw.cpp
+CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_draw.cpp.o: CMakeFiles/AccelerateGS.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/stankiu/Documents/Thesis/AccelerateGS/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Building CXX object CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_draw.cpp.o"
+	/usr/bin/g++-11 $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_draw.cpp.o -MF CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_draw.cpp.o.d -o CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_draw.cpp.o -c /home/stankiu/Documents/libs/imgui/imgui_draw.cpp
+
+CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_draw.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_draw.cpp.i"
+	/usr/bin/g++-11 $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/stankiu/Documents/libs/imgui/imgui_draw.cpp > CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_draw.cpp.i
+
+CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_draw.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_draw.cpp.s"
+	/usr/bin/g++-11 $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/stankiu/Documents/libs/imgui/imgui_draw.cpp -o CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_draw.cpp.s
+
+CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_tables.cpp.o: CMakeFiles/AccelerateGS.dir/flags.make
+CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_tables.cpp.o: /home/stankiu/Documents/libs/imgui/imgui_tables.cpp
+CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_tables.cpp.o: CMakeFiles/AccelerateGS.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/stankiu/Documents/Thesis/AccelerateGS/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_6) "Building CXX object CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_tables.cpp.o"
+	/usr/bin/g++-11 $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_tables.cpp.o -MF CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_tables.cpp.o.d -o CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_tables.cpp.o -c /home/stankiu/Documents/libs/imgui/imgui_tables.cpp
+
+CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_tables.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_tables.cpp.i"
+	/usr/bin/g++-11 $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/stankiu/Documents/libs/imgui/imgui_tables.cpp > CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_tables.cpp.i
+
+CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_tables.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_tables.cpp.s"
+	/usr/bin/g++-11 $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/stankiu/Documents/libs/imgui/imgui_tables.cpp -o CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_tables.cpp.s
+
+CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_widgets.cpp.o: CMakeFiles/AccelerateGS.dir/flags.make
+CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_widgets.cpp.o: /home/stankiu/Documents/libs/imgui/imgui_widgets.cpp
+CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_widgets.cpp.o: CMakeFiles/AccelerateGS.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/stankiu/Documents/Thesis/AccelerateGS/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Building CXX object CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_widgets.cpp.o"
+	/usr/bin/g++-11 $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_widgets.cpp.o -MF CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_widgets.cpp.o.d -o CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_widgets.cpp.o -c /home/stankiu/Documents/libs/imgui/imgui_widgets.cpp
+
+CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_widgets.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_widgets.cpp.i"
+	/usr/bin/g++-11 $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/stankiu/Documents/libs/imgui/imgui_widgets.cpp > CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_widgets.cpp.i
+
+CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_widgets.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_widgets.cpp.s"
+	/usr/bin/g++-11 $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/stankiu/Documents/libs/imgui/imgui_widgets.cpp -o CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_widgets.cpp.s
+
+CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/backends/imgui_impl_glfw.cpp.o: CMakeFiles/AccelerateGS.dir/flags.make
+CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/backends/imgui_impl_glfw.cpp.o: /home/stankiu/Documents/libs/imgui/backends/imgui_impl_glfw.cpp
+CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/backends/imgui_impl_glfw.cpp.o: CMakeFiles/AccelerateGS.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/stankiu/Documents/Thesis/AccelerateGS/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "Building CXX object CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/backends/imgui_impl_glfw.cpp.o"
+	/usr/bin/g++-11 $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/backends/imgui_impl_glfw.cpp.o -MF CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/backends/imgui_impl_glfw.cpp.o.d -o CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/backends/imgui_impl_glfw.cpp.o -c /home/stankiu/Documents/libs/imgui/backends/imgui_impl_glfw.cpp
+
+CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/backends/imgui_impl_glfw.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/backends/imgui_impl_glfw.cpp.i"
+	/usr/bin/g++-11 $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/stankiu/Documents/libs/imgui/backends/imgui_impl_glfw.cpp > CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/backends/imgui_impl_glfw.cpp.i
+
+CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/backends/imgui_impl_glfw.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/backends/imgui_impl_glfw.cpp.s"
+	/usr/bin/g++-11 $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/stankiu/Documents/libs/imgui/backends/imgui_impl_glfw.cpp -o CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/backends/imgui_impl_glfw.cpp.s
+
+CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/backends/imgui_impl_opengl3.cpp.o: CMakeFiles/AccelerateGS.dir/flags.make
+CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/backends/imgui_impl_opengl3.cpp.o: /home/stankiu/Documents/libs/imgui/backends/imgui_impl_opengl3.cpp
+CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/backends/imgui_impl_opengl3.cpp.o: CMakeFiles/AccelerateGS.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/stankiu/Documents/Thesis/AccelerateGS/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_9) "Building CXX object CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/backends/imgui_impl_opengl3.cpp.o"
+	/usr/bin/g++-11 $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/backends/imgui_impl_opengl3.cpp.o -MF CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/backends/imgui_impl_opengl3.cpp.o.d -o CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/backends/imgui_impl_opengl3.cpp.o -c /home/stankiu/Documents/libs/imgui/backends/imgui_impl_opengl3.cpp
+
+CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/backends/imgui_impl_opengl3.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/backends/imgui_impl_opengl3.cpp.i"
+	/usr/bin/g++-11 $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/stankiu/Documents/libs/imgui/backends/imgui_impl_opengl3.cpp > CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/backends/imgui_impl_opengl3.cpp.i
+
+CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/backends/imgui_impl_opengl3.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/backends/imgui_impl_opengl3.cpp.s"
+	/usr/bin/g++-11 $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/stankiu/Documents/libs/imgui/backends/imgui_impl_opengl3.cpp -o CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/backends/imgui_impl_opengl3.cpp.s
+
 # Object files for target AccelerateGS
 AccelerateGS_OBJECTS = \
 "CMakeFiles/AccelerateGS.dir/src/main.cu.o" \
-"CMakeFiles/AccelerateGS.dir/src/glad/glad.c.o"
+"CMakeFiles/AccelerateGS.dir/src/glad/glad.c.o" \
+"CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui.cpp.o" \
+"CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_demo.cpp.o" \
+"CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_draw.cpp.o" \
+"CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_tables.cpp.o" \
+"CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_widgets.cpp.o" \
+"CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/backends/imgui_impl_glfw.cpp.o" \
+"CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/backends/imgui_impl_opengl3.cpp.o"
 
 # External object files for target AccelerateGS
 AccelerateGS_EXTERNAL_OBJECTS =
 
 AccelerateGS: CMakeFiles/AccelerateGS.dir/src/main.cu.o
 AccelerateGS: CMakeFiles/AccelerateGS.dir/src/glad/glad.c.o
+AccelerateGS: CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui.cpp.o
+AccelerateGS: CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_demo.cpp.o
+AccelerateGS: CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_draw.cpp.o
+AccelerateGS: CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_tables.cpp.o
+AccelerateGS: CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/imgui_widgets.cpp.o
+AccelerateGS: CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/backends/imgui_impl_glfw.cpp.o
+AccelerateGS: CMakeFiles/AccelerateGS.dir/home/stankiu/Documents/libs/imgui/backends/imgui_impl_opengl3.cpp.o
 AccelerateGS: CMakeFiles/AccelerateGS.dir/build.make
 AccelerateGS: /usr/lib/x86_64-linux-gnu/libOpenGL.so
 AccelerateGS: /usr/lib/x86_64-linux-gnu/libGLX.so
 AccelerateGS: /usr/lib/x86_64-linux-gnu/libGLU.so
-AccelerateGS: CMakeFiles/AccelerateGS.dir/linkLibs.rsp
-AccelerateGS: CMakeFiles/AccelerateGS.dir/objects1.rsp
 AccelerateGS: CMakeFiles/AccelerateGS.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/home/stankiu/Documents/Thesis/AccelerateGS/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Linking CUDA executable AccelerateGS"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/home/stankiu/Documents/Thesis/AccelerateGS/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_10) "Linking CXX executable AccelerateGS"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/AccelerateGS.dir/link.txt --verbose=$(VERBOSE)
 
 # Rule to build all files generated by this target.

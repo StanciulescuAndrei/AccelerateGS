@@ -18,6 +18,10 @@
 #include <cub/util_allocator.cuh>
 #include <cub/device/device_radix_sort.cuh>
 
+#include "../../../libs/imgui/imgui.h"
+#include "../../../libs/imgui/backends/imgui_impl_glfw.h"
+#include "../../../libs/imgui/backends/imgui_impl_opengl3.h"
+
 
 #define N 100000000
 #define MAX_ERR 1e-6
@@ -96,6 +100,20 @@ void initGLContextAndWindow(GLFWwindow** window){
     glfwMakeContextCurrent(*window);
     gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
     glfwSwapInterval(0);
+
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+
+    // Setup Dear ImGui style
+    ImGui::StyleColorsDark();
+    //ImGui::StyleColorsLight();
+
+    // Setup Platform/Renderer backends
+    ImGui_ImplGlfw_InitForOpenGL(*window, true);
+    ImGui_ImplOpenGL3_Init();
 }
 
 int main(){
@@ -306,6 +324,20 @@ int main(){
         glDisable(GL_TEXTURE_2D);
 
         /* Swap buffers and handle GLFW events */
+
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+
+        ImGui::Begin("Render Settings");                          // Create a window called "Hello, world!" and append into it.
+
+        ImGui::Text("Placeholder for future reference...");  
+
+        ImGui::End();
+        ImGui::Render();
+
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
         glfwSwapBuffers(window);
         glfwPollEvents();
 
@@ -321,6 +353,10 @@ int main(){
             currentFPSIndex = 0;
         }
     }
+
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
 
     /* Unmap resources and free allocated memory */
     checkCudaErrors(cudaGraphicsUnregisterResource(cuda_pbo_resource));
@@ -338,6 +374,9 @@ int main(){
     cudaFree(d_overlap_sums);
 
     delete [] imageData;
+
+    glfwDestroyWindow(window);
+    glfwTerminate();
 
     return 0;
 }
