@@ -328,22 +328,24 @@ __global__ void render(int num_splats, SplatData * sd,
 
 	float T = 1.0f;
 	float pixColor[4] = { 0, 0, 0, 0 };
-	
-    if(!(thread_x >= SCREEN_WIDTH || thread_y >= SCREEN_HEIGHT)){
-		/* Per-Pixel operations */
-		int array_offset = min_range;
-		while(array_offset < max_range){
-			
-			if(array_offset + thread_rank < max_range){
-				int splat_data_id = splat_ids[array_offset + thread_rank];
-				positions[thread_rank] = image_point[splat_data_id];
-				conics[thread_rank] = conic_opacity[splat_data_id];
-				colors[thread_rank] = rgb[splat_data_id];
-			}
 
-			__syncthreads();
+	bool validPixel = !(thread_x >= SCREEN_WIDTH || thread_y >= SCREEN_HEIGHT);
 
-			for(int i = 0; i < min(BLOCK_SIZE, max_range - array_offset - 1); i++){
+	/* Per-Pixel operations */
+	int array_offset = min_range;
+	while(array_offset < max_range){
+		
+		if(array_offset + thread_rank < max_range){
+			int splat_data_id = splat_ids[array_offset + thread_rank];
+			positions[thread_rank] = image_point[splat_data_id];
+			conics[thread_rank] = conic_opacity[splat_data_id];
+			colors[thread_rank] = rgb[splat_data_id];
+		}
+
+		__syncthreads();
+
+		if(validPixel){
+			for(int i = 0; i < min(BLOCK_SIZE, max_range - array_offset); i++){
 				float2 d = { positions[i].x - thread_x, positions[i].y - thread_y };
 				float4 con_o = conics[i];
 				float power = -0.5f * (con_o.x * d.x * d.x + con_o.z * d.y * d.y) - con_o.y * d.x * d.y;
@@ -365,12 +367,13 @@ __global__ void render(int num_splats, SplatData * sd,
 
 				T = test_T;
 			}
-
-			__syncthreads();
-			array_offset += BLOCK_SIZE;
-
 		}
 
+		__syncthreads();
+		array_offset += BLOCK_SIZE;
+
+	}
+	if(validPixel){
 		imageBuffer[thread_y * SCREEN_WIDTH + thread_x].x = pixColor[0];
 		imageBuffer[thread_y * SCREEN_WIDTH + thread_x].y = pixColor[1];
 		imageBuffer[thread_y * SCREEN_WIDTH + thread_x].z = pixColor[2];
