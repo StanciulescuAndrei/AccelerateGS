@@ -1,5 +1,5 @@
 CMakeFiles/AccelerateGS.dir/src/glad/glad.c.o: \
- /home/stankiu/Documents/Thesis/AccelerateGS/src/glad/glad.c \
+ /home/andrei/Documents/Thesis/AccelerateGS/src/glad/glad.c \
  /usr/include/stdc-predef.h /usr/include/stdio.h \
  /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
  /usr/include/features.h /usr/include/features-time64.h \
@@ -20,7 +20,6 @@ CMakeFiles/AccelerateGS.dir/src/glad/glad.c.o: \
  /usr/include/x86_64-linux-gnu/bits/types/__FILE.h \
  /usr/include/x86_64-linux-gnu/bits/types/FILE.h \
  /usr/include/x86_64-linux-gnu/bits/types/struct_FILE.h \
- /usr/include/x86_64-linux-gnu/bits/types/cookie_io_functions_t.h \
  /usr/include/x86_64-linux-gnu/bits/stdio_lim.h \
  /usr/include/x86_64-linux-gnu/bits/floatn.h \
  /usr/include/x86_64-linux-gnu/bits/floatn-common.h /usr/include/stdlib.h \
@@ -52,8 +51,8 @@ CMakeFiles/AccelerateGS.dir/src/glad/glad.c.o: \
  /usr/include/x86_64-linux-gnu/bits/types/locale_t.h \
  /usr/include/x86_64-linux-gnu/bits/types/__locale_t.h \
  /usr/include/strings.h \
- /home/stankiu/Documents/Thesis/AccelerateGS/src/glad/glad.h \
- /home/stankiu/Documents/Thesis/AccelerateGS/src/glad/khrplatform.h \
+ /home/andrei/Documents/Thesis/AccelerateGS/src/glad/glad.h \
+ /home/andrei/Documents/Thesis/AccelerateGS/src/glad/khrplatform.h \
  /usr/lib/gcc/x86_64-linux-gnu/11/include/stdint.h /usr/include/stdint.h \
  /usr/include/x86_64-linux-gnu/bits/wchar.h \
  /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h

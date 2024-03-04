@@ -33,7 +33,7 @@
 						"gcc_s"
 					]
 				},
-				"path" : "/usr/bin/gcc-11",
+				"path" : "/usr/bin/cc",
 				"version" : "11.4.0"
 			},
 			"language" : "C",
@@ -61,8 +61,8 @@
 					],
 					"linkDirectories" : 
 					[
-						"/usr/local/cuda/targets/x86_64-linux/lib/stubs",
-						"/usr/local/cuda/targets/x86_64-linux/lib",
+						"/usr/local/cuda-12.3/targets/x86_64-linux/lib/stubs",
+						"/usr/local/cuda-12.3/targets/x86_64-linux/lib",
 						"/usr/lib/gcc/x86_64-linux-gnu/11",
 						"/usr/lib/x86_64-linux-gnu",
 						"/usr/lib",
@@ -81,7 +81,7 @@
 						"gcc"
 					]
 				},
-				"path" : "/usr/local/cuda/bin/nvcc",
+				"path" : "/usr/local/cuda-12.3/bin/nvcc",
 				"version" : "12.3.107"
 			},
 			"language" : "CUDA",
@@ -126,7 +126,7 @@
 						"gcc"
 					]
 				},
-				"path" : "/usr/bin/g++-11",
+				"path" : "/usr/bin/c++",
 				"version" : "11.4.0"
 			},
 			"language" : "CXX",
@@ -142,10 +142,7 @@
 				"mpp",
 				"CPP",
 				"ixx",
-				"cppm",
-				"ccm",
-				"cxxm",
-				"c++m"
+				"cppm"
 			]
 		}
 	],

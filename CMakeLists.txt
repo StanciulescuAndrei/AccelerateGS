@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.21)
+cmake_minimum_required(VERSION 3.16)
 project(AccelerateGS VERSION 0.1.0 LANGUAGES C CXX CUDA)
 cmake_policy(SET CMP0072 NEW)
 
@@ -7,7 +7,7 @@ find_package(OpenGL REQUIRED)
 set(CMAKE_CUDA_ARCHITECTURES 86)
 set(OpenGL_GL_PREFERENCE GLVND)
 
-set(IMGUI_PATH /home/stankiu/Documents/libs/imgui)
+set(IMGUI_PATH /home/andrei/Documents/libs/imgui)
 
 include_directories(
 	${GLFW_INCLUDE_PATH}
@@ -22,6 +22,7 @@ add_executable(AccelerateGS
 		src/glad/glad.h
 		src/glad/glad.c
 		src/PLYReader.h
+		src/GUIManager.h
 		${IMGUI_PATH}/imgui.h
 		${IMGUI_PATH}/imgui.cpp
 		${IMGUI_PATH}/imconfig.h

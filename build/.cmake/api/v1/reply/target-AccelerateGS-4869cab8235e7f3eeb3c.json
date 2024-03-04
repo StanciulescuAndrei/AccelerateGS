@@ -32,7 +32,7 @@
 			{
 				"command" : 1,
 				"file" : 0,
-				"line" : 41,
+				"line" : 42,
 				"parent" : 0
 			},
 			{
@@ -49,18 +49,18 @@
 			"compileCommandFragments" : 
 			[
 				{
-					"fragment" : "-g -std=c++17 \"--generate-code=arch=compute_86,code=[compute_86,sm_86]\""
+					"fragment" : " --generate-code=arch=compute_86,code=[compute_86,sm_86]"
 				}
 			],
 			"includes" : 
 			[
 				{
 					"backtrace" : 3,
-					"path" : "/home/stankiu/Documents/Thesis/AccelerateGS/../../libs/imgui"
+					"path" : "/home/andrei/Documents/Thesis/AccelerateGS/../../libs/imgui"
 				},
 				{
 					"backtrace" : 3,
-					"path" : "/home/stankiu/Documents/Thesis/AccelerateGS/../../libs/imgui/backends"
+					"path" : "/home/andrei/Documents/Thesis/AccelerateGS/../../libs/imgui/backends"
 				}
 			],
 			"language" : "CUDA",
@@ -78,21 +78,15 @@
 			]
 		},
 		{
-			"compileCommandFragments" : 
-			[
-				{
-					"fragment" : "-g"
-				}
-			],
 			"includes" : 
 			[
 				{
 					"backtrace" : 3,
-					"path" : "/home/stankiu/Documents/Thesis/AccelerateGS/../../libs/imgui"
+					"path" : "/home/andrei/Documents/Thesis/AccelerateGS/../../libs/imgui"
 				},
 				{
 					"backtrace" : 3,
-					"path" : "/home/stankiu/Documents/Thesis/AccelerateGS/../../libs/imgui/backends"
+					"path" : "/home/andrei/Documents/Thesis/AccelerateGS/../../libs/imgui/backends"
 				}
 			],
 			"language" : "C",
@@ -102,33 +96,27 @@
 			]
 		},
 		{
-			"compileCommandFragments" : 
-			[
-				{
-					"fragment" : "-g"
-				}
-			],
 			"includes" : 
 			[
 				{
 					"backtrace" : 3,
-					"path" : "/home/stankiu/Documents/Thesis/AccelerateGS/../../libs/imgui"
+					"path" : "/home/andrei/Documents/Thesis/AccelerateGS/../../libs/imgui"
 				},
 				{
 					"backtrace" : 3,
-					"path" : "/home/stankiu/Documents/Thesis/AccelerateGS/../../libs/imgui/backends"
+					"path" : "/home/andrei/Documents/Thesis/AccelerateGS/../../libs/imgui/backends"
 				}
 			],
 			"language" : "CXX",
 			"sourceIndexes" : 
 			[
-				5,
-				7,
+				6,
 				8,
-				13,
+				9,
 				14,
-				16,
-				18
+				15,
+				17,
+				19
 			]
 		}
 	],
@@ -138,19 +126,15 @@
 		"commandFragments" : 
 		[
 			{
-				"fragment" : "-g",
-				"role" : "flags"
-			},
-			{
 				"fragment" : "",
 				"role" : "flags"
 			},
 			{
-				"fragment" : "-L/usr/local/cuda/targets/x86_64-linux/lib/stubs",
+				"fragment" : "-L/usr/local/cuda-12.3/targets/x86_64-linux/lib/stubs",
 				"role" : "libraryPath"
 			},
 			{
-				"fragment" : "-L/usr/local/cuda/targets/x86_64-linux/lib",
+				"fragment" : "-L/usr/local/cuda-12.3/targets/x86_64-linux/lib",
 				"role" : "libraryPath"
 			},
 			{
@@ -211,13 +195,13 @@
 			[
 				0,
 				2,
-				5,
-				7,
+				6,
 				8,
-				13,
+				9,
 				14,
-				16,
-				18
+				15,
+				17,
+				19
 			]
 		},
 		{
@@ -227,13 +211,14 @@
 				1,
 				3,
 				4,
-				6,
-				9,
+				5,
+				7,
 				10,
 				11,
 				12,
-				15,
-				17
+				13,
+				16,
+				18
 			]
 		}
 	],
@@ -263,84 +248,89 @@
 		},
 		{
 			"backtrace" : 1,
-			"path" : "/home/stankiu/Documents/libs/imgui/imgui.h",
+			"path" : "src/GUIManager.h",
+			"sourceGroupIndex" : 1
+		},
+		{
+			"backtrace" : 1,
+			"path" : "/home/andrei/Documents/libs/imgui/imgui.h",
 			"sourceGroupIndex" : 1
 		},
 		{
 			"backtrace" : 1,
 			"compileGroupIndex" : 2,
-			"path" : "/home/stankiu/Documents/libs/imgui/imgui.cpp",
+			"path" : "/home/andrei/Documents/libs/imgui/imgui.cpp",
 			"sourceGroupIndex" : 0
 		},
 		{
 			"backtrace" : 1,
-			"path" : "/home/stankiu/Documents/libs/imgui/imconfig.h",
+			"path" : "/home/andrei/Documents/libs/imgui/imconfig.h",
 			"sourceGroupIndex" : 1
 		},
 		{
 			"backtrace" : 1,
 			"compileGroupIndex" : 2,
-			"path" : "/home/stankiu/Documents/libs/imgui/imgui_demo.cpp",
-			"sourceGroupIndex" : 0
-		},
-		{
-			"backtrace" : 1,
-			"compileGroupIndex" : 2,
-			"path" : "/home/stankiu/Documents/libs/imgui/imgui_draw.cpp",
-			"sourceGroupIndex" : 0
-		},
-		{
-			"backtrace" : 1,
-			"path" : "/home/stankiu/Documents/libs/imgui/imgui_internal.h",
-			"sourceGroupIndex" : 1
-		},
-		{
-			"backtrace" : 1,
-			"path" : "/home/stankiu/Documents/libs/imgui/imstb_rectpack.h",
-			"sourceGroupIndex" : 1
-		},
-		{
-			"backtrace" : 1,
-			"path" : "/home/stankiu/Documents/libs/imgui/imstb_textedit.h",
-			"sourceGroupIndex" : 1
-		},
-		{
-			"backtrace" : 1,
-			"path" : "/home/stankiu/Documents/libs/imgui/imstb_truetype.h",
-			"sourceGroupIndex" : 1
-		},
-		{
-			"backtrace" : 1,
-			"compileGroupIndex" : 2,
-			"path" : "/home/stankiu/Documents/libs/imgui/imgui_tables.cpp",
+			"path" : "/home/andrei/Documents/libs/imgui/imgui_demo.cpp",
 			"sourceGroupIndex" : 0
 		},
 		{
 			"backtrace" : 1,
 			"compileGroupIndex" : 2,
-			"path" : "/home/stankiu/Documents/libs/imgui/imgui_widgets.cpp",
+			"path" : "/home/andrei/Documents/libs/imgui/imgui_draw.cpp",
 			"sourceGroupIndex" : 0
 		},
 		{
 			"backtrace" : 1,
-			"path" : "/home/stankiu/Documents/libs/imgui/backends/imgui_impl_glfw.h",
+			"path" : "/home/andrei/Documents/libs/imgui/imgui_internal.h",
+			"sourceGroupIndex" : 1
+		},
+		{
+			"backtrace" : 1,
+			"path" : "/home/andrei/Documents/libs/imgui/imstb_rectpack.h",
+			"sourceGroupIndex" : 1
+		},
+		{
+			"backtrace" : 1,
+			"path" : "/home/andrei/Documents/libs/imgui/imstb_textedit.h",
+			"sourceGroupIndex" : 1
+		},
+		{
+			"backtrace" : 1,
+			"path" : "/home/andrei/Documents/libs/imgui/imstb_truetype.h",
 			"sourceGroupIndex" : 1
 		},
 		{
 			"backtrace" : 1,
 			"compileGroupIndex" : 2,
-			"path" : "/home/stankiu/Documents/libs/imgui/backends/imgui_impl_glfw.cpp",
+			"path" : "/home/andrei/Documents/libs/imgui/imgui_tables.cpp",
 			"sourceGroupIndex" : 0
 		},
 		{
 			"backtrace" : 1,
-			"path" : "/home/stankiu/Documents/libs/imgui/backends/imgui_impl_opengl3.h",
+			"compileGroupIndex" : 2,
+			"path" : "/home/andrei/Documents/libs/imgui/imgui_widgets.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 1,
+			"path" : "/home/andrei/Documents/libs/imgui/backends/imgui_impl_glfw.h",
 			"sourceGroupIndex" : 1
 		},
 		{
 			"backtrace" : 1,
 			"compileGroupIndex" : 2,
-			"path" : "/home/stankiu/Documents/libs/imgui/backends/imgui_impl_opengl3.cpp",
+			"path" : "/home/andrei/Documents/libs/imgui/backends/imgui_impl_glfw.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 1,
+			"path" : "/home/andrei/Documents/libs/imgui/backends/imgui_impl_opengl3.h",
+			"sourceGroupIndex" : 1
+		},
+		{
+			"backtrace" : 1,
+			"compileGroupIndex" : 2,
+			"path" : "/home/andrei/Documents/libs/imgui/backends/imgui_impl_opengl3.cpp",
 			"sourceGroupIndex" : 0
 		}
 	],

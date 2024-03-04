@@ -18,9 +18,7 @@
 #include <cub/util_allocator.cuh>
 #include <cub/device/device_radix_sort.cuh>
 
-#include "../../../libs/imgui/imgui.h"
-#include "../../../libs/imgui/backends/imgui_impl_glfw.h"
-#include "../../../libs/imgui/backends/imgui_impl_opengl3.h"
+#include "GUIManager.h"
 
 
 #define N 100000000
@@ -33,8 +31,6 @@ const int FPS_COUNTER_REFRESH = 60;
 
 glm::vec3 cameraPosition = glm::vec3(0.0f);
 const float movement_step = 0.1f;
-
-float fovy = M_PI / 2.0f;
 
 static void error_callback(int error, const char* description)
 {
@@ -101,19 +97,7 @@ void initGLContextAndWindow(GLFWwindow** window){
     gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
     glfwSwapInterval(0);
 
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO(); (void)io;
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
-
-    // Setup Dear ImGui style
-    ImGui::StyleColorsDark();
-    //ImGui::StyleColorsLight();
-
-    // Setup Platform/Renderer backends
-    ImGui_ImplGlfw_InitForOpenGL(*window, true);
-    ImGui_ImplOpenGL3_Init();
+    setupIMGui(window);
 }
 
 int main(){
@@ -323,21 +307,10 @@ int main(){
         glBindTexture(GL_TEXTURE_2D, 0);
         glDisable(GL_TEXTURE_2D);
 
+        /* Build ImGui interface */
+        buildInterface();
+
         /* Swap buffers and handle GLFW events */
-
-        ImGui_ImplOpenGL3_NewFrame();
-        ImGui_ImplGlfw_NewFrame();
-        ImGui::NewFrame();
-
-        ImGui::Begin("Render Settings");                          // Create a window called "Hello, world!" and append into it.
-
-        ImGui::Text("Placeholder for future reference...");  
-
-        ImGui::End();
-        ImGui::Render();
-
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-
         glfwSwapBuffers(window);
         glfwPollEvents();
 
@@ -354,9 +327,7 @@ int main(){
         }
     }
 
-    ImGui_ImplOpenGL3_Shutdown();
-    ImGui_ImplGlfw_Shutdown();
-    ImGui::DestroyContext();
+    shutdownIMGui();
 
     /* Unmap resources and free allocated memory */
     checkCudaErrors(cudaGraphicsUnregisterResource(cuda_pbo_resource));
