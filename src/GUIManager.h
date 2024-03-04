@@ -27,10 +27,12 @@ void buildInterface(){
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
-    ImGui::Begin("Render Settings");                          // Create a window called "Hello, world!" and append into it.
+    ImGui::Begin("Render Settings");
 
     ImGui::Text("Placeholder for future reference...");  
-    ImGui::SliderFloat("FOV", &fovy, 0.5f, 1.5f, "%.2f");
+    ImGui::SliderFloat("FOV", &fovy, 0.5f, 2.7f, "%.2f");
+
+    ImGui::Button("Test");
 
     ImGui::End();
     ImGui::Render();

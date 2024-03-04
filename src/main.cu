@@ -254,12 +254,17 @@ int main(){
         d_temp_storage = NULL;
         temp_storage_bytes = 0;
 
+        /* Find highest MSB for RadixSort to eliminate a few of the cycles */
+        uint32_t highestKey = grid.x * grid.y;
+        int highestMsb = 32;
+        while(highestKey >> highestMsb == 0) highestMsb--;
+
         /* Determine how much temporary storage we need */
-        cub::DeviceRadixSort::SortPairs(d_temp_storage, temp_storage_bytes, d_sort_keys_in, d_sort_keys_out, d_sort_ids_in, d_sort_ids_out, totalDuplicateGaussians);
+        cub::DeviceRadixSort::SortPairs(d_temp_storage, temp_storage_bytes, d_sort_keys_in, d_sort_keys_out, d_sort_ids_in, d_sort_ids_out, totalDuplicateGaussians, 0, 32 + highestMsb);
         checkCudaErrors(cudaMalloc(&d_temp_storage, temp_storage_bytes));
 
         /* TODO: determine highest MSB to pass to sorting, so we don't use all 64 bits */
-        cub::DeviceRadixSort::SortPairs(d_temp_storage, temp_storage_bytes, d_sort_keys_in, d_sort_keys_out, d_sort_ids_in, d_sort_ids_out, totalDuplicateGaussians);
+        cub::DeviceRadixSort::SortPairs(d_temp_storage, temp_storage_bytes, d_sort_keys_in, d_sort_keys_out, d_sort_ids_in, d_sort_ids_out, totalDuplicateGaussians, 0, 32 + highestMsb);
         checkCudaErrors(cudaFree(d_temp_storage));
 
         uint32_t * d_tile_range_min;
