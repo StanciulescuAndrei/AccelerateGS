@@ -1,1 +1,0 @@
- "/usr/lib/x86_64-linux-gnu/libOpenGL.so" "/usr/lib/x86_64-linux-gnu/libGLX.so" "/usr/lib/x86_64-linux-gnu/libGLU.so" -lglfw -lcudadevrt -lcudart_static -lrt -lpthread -ldl 

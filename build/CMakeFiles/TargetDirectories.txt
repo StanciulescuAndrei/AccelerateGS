@@ -1,3 +1,0 @@
-/home/andrei/Documents/Thesis/AccelerateGS/build/CMakeFiles/AccelerateGS.dir
-/home/andrei/Documents/Thesis/AccelerateGS/build/CMakeFiles/edit_cache.dir
-/home/andrei/Documents/Thesis/AccelerateGS/build/CMakeFiles/rebuild_cache.dir
