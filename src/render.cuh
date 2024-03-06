@@ -81,8 +81,8 @@ __device__ float3 computeCov2D(const glm::vec4& mean, float focal_x, float focal
 	glm::mat3 cov = glm::transpose(T) * glm::transpose(Vrk) * T;
 	// Apply low-pass filter: every Gaussian should be at least
 	// one pixel wide/high. Discard 3rd row and column.
-	cov[0][0] += 0.3f;
-	cov[1][1] += 0.3f;
+	// cov[0][0] += 0.3f;
+	// cov[1][1] += 0.3f;
 	return { float(cov[0][0]), float(cov[0][1]), float(cov[1][1]) };
 }
 
@@ -352,7 +352,7 @@ __global__ void render(int num_splats, SplatData * sd,
 
 				if (power > 0.0f) continue;
 
-				float alpha = min(0.99f, con_o.w * exp(power));
+				float alpha = fminf(0.99f, con_o.w * expf(power));
 
 				float test_T = T * (1 - alpha);
 				if (test_T < 0.0001f)
@@ -361,9 +361,10 @@ __global__ void render(int num_splats, SplatData * sd,
 				}
 
 				// Eq. (3) from 3D Gaussian splatting paper.
-				pixColor[0] += colors[i].x * alpha * T;
-				pixColor[1] += colors[i].y * alpha * T;
-				pixColor[2] += colors[i].z * alpha * T;
+				float scaling = alpha * T;
+				pixColor[0] = fmaf(colors[i].x, scaling, pixColor[0]);
+				pixColor[1] = fmaf(colors[i].y, scaling, pixColor[1]);
+				pixColor[2] = fmaf(colors[i].z, scaling, pixColor[2]);
 
 				T = test_T;
 			}

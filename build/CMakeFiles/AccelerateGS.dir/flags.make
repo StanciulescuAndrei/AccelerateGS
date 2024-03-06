@@ -8,17 +8,17 @@ C_DEFINES =
 
 C_INCLUDES = -I/home/andrei/Documents/Thesis/AccelerateGS/../../libs/imgui -I/home/andrei/Documents/Thesis/AccelerateGS/../../libs/imgui/backends
 
-C_FLAGS = 
+C_FLAGS = -g
 
 CUDA_DEFINES = 
 
 CUDA_INCLUDES = -I/home/andrei/Documents/Thesis/AccelerateGS/../../libs/imgui -I/home/andrei/Documents/Thesis/AccelerateGS/../../libs/imgui/backends
 
-CUDA_FLAGS =  --generate-code=arch=compute_86,code=[compute_86,sm_86]
+CUDA_FLAGS = -O0 -lineinfo --generate-code=arch=compute_86,code=[compute_86,sm_86]
 
 CXX_DEFINES = 
 
 CXX_INCLUDES = -I/home/andrei/Documents/Thesis/AccelerateGS/../../libs/imgui -I/home/andrei/Documents/Thesis/AccelerateGS/../../libs/imgui/backends
 
-CXX_FLAGS = 
+CXX_FLAGS = -g
 
