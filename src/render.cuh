@@ -252,7 +252,8 @@ __global__ void preprocessGaussians(int num_splats, SplatData * sd,
     int * num_tiles_overlap,
     const int SCREEN_WIDTH,
     const int SCREEN_HEIGHT,
-    dim3 grid)
+    dim3 grid,
+	int renderMode)
 {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if(idx >= num_splats)
@@ -314,8 +315,18 @@ __global__ void preprocessGaussians(int num_splats, SplatData * sd,
 	if ((rect_max.x - rect_min.x) * (rect_max.y - rect_min.y) == 0)
 		return;
 	
-    glm::vec3 result = computeColorFromSH(idx, 3, sd[idx].fields, camPos);
-    rgb[idx] = {result.x, result.y, result.z};
+	if(renderMode == 0){
+		glm::vec3 result = computeColorFromSH(idx, 3, sd[idx].fields, camPos);
+		rgb[idx] = {result.x, result.y, result.z};
+	}
+	else if(renderMode == 1){
+		rgb[idx] = {1.0f - position_viewport.z / 10.0f, 1.0f - position_viewport.z / 10.0f, 1.0f - position_viewport.z / 10.0f};
+	}
+	else{
+		glm::vec3 norm_cov = glm::normalize(glm::vec3(cov.x, cov.y, cov.z));
+		rgb[idx] = {norm_cov.x, norm_cov.y, norm_cov.z};
+	}
+
 
 	// Store some useful helper data for the next steps.
 	depth[idx] = position_viewport.z;
@@ -340,13 +351,20 @@ __global__ void debugInfo(int num_splats, SplatData * sd,
     const int SCREEN_HEIGHT,
     dim3 grid)
 {
-    printf("Conics  : %f, %f, %f, %f\n", conic_opacity[0].x, conic_opacity[0].y, conic_opacity[0].z, conic_opacity[0].w);
-    printf("RGB     : %f, %f, %f\n", rgb[0].x, rgb[0].y, rgb[0].z);
-    printf("I. P.   : %f, %f\n", image_point[0].x, image_point[0].y);
-    printf("Radius  : %d\n", radius[0]);
-    printf("Depth   : %f\n", depth[0]);
-    printf("Overlap : %d\n", num_tiles_overlap[0]);
-    printf("----------------------------------------------\n");
+	int num_proc = 0;
+	for(int i=0;i<num_splats;i++){
+		if(radius[i] > 0)
+			num_proc++;
+	}
+	float perc = (float) num_proc * 100.0f / num_splats;
+	printf("Processing %d out of %d gaussians (%f%%)\n-------------------------------------------\n", num_proc, num_splats, perc);
+    // printf("Conics  : %f, %f, %f, %f\n", conic_opacity[0].x, conic_opacity[0].y, conic_opacity[0].z, conic_opacity[0].w);
+    // printf("RGB     : %f, %f, %f\n", rgb[0].x, rgb[0].y, rgb[0].z);
+    // printf("I. P.   : %f, %f\n", image_point[0].x, image_point[0].y);
+    // printf("Radius  : %d\n", radius[0]);
+    // printf("Depth   : %f\n", depth[0]);
+    // printf("Overlap : %d\n", num_tiles_overlap[0]);
+    // printf("----------------------------------------------\n");
 }
 
 __global__ void getTileRanges(uint64_t * sorted_keys, int array_len, uint32_t * tile_range_min, uint32_t * tile_range_max){

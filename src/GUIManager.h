@@ -5,6 +5,7 @@
 #include "../../../libs/imgui/backends/imgui_impl_opengl3.h"
 
 float fovy = M_PI / 2.0f;
+int selectedViewMode = 0;
 
 void setupIMGui(GLFWwindow** window){
     IMGUI_CHECKVERSION();
@@ -32,7 +33,8 @@ void buildInterface(){
     ImGui::Text("Placeholder for future reference...");  
     ImGui::SliderFloat("FOV", &fovy, 0.5f, 2.7f, "%.2f");
 
-    ImGui::Button("Test");
+    const char * viewMode[]{"Colors", "Depth", "Covariance"};
+    ImGui::Combo("View mode", &selectedViewMode, viewMode, 3);
 
     ImGui::End();
     ImGui::Render();

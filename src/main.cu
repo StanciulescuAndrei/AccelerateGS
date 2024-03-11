@@ -115,7 +115,7 @@ int main(){
     /* Load splat scene data from file */
     SplatData * sd;
     int num_elements = 0;
-    int res = loadSplatData("../../models/bicycle/point_cloud/iteration_30000/point_cloud.ply", &sd, &num_elements);
+    int res = loadSplatData("../../models/garden/point_cloud/iteration_30000/point_cloud.ply", &sd, &num_elements);
 
     // num_elements = 100000;
 
@@ -221,13 +221,13 @@ int main(){
 
         /* --------- RENDERING ------------*/
         glm::mat4 modelview = glm::lookAt(cameraPosition, lookDirection + cameraPosition, glm::vec3(0.0f, 1.0f, 0.0f));
-        glm::mat4 perspective = glm::perspective(fovy, 16.0f/9.0f, 0.9f, 100.0f) * modelview;
+        glm::mat4 perspective = glm::perspective(fovy, 16.0f/9.0f, 0.009f, 1100.0f) * modelview;
 
         /* Call the main CUDA render kernel */
         dim3 block(BLOCK_X, BLOCK_Y, 1); // One thread per pixel!
         dim3 grid(SCREEN_WIDTH / BLOCK_X + 1, SCREEN_HEIGHT / BLOCK_Y + 1, 1);
 
-        preprocessGaussians<<<num_elements / LINE_BLOCK + 1, LINE_BLOCK>>>(num_elements, d_sd, perspective, modelview, cameraPosition, fovy, d_conic_opacity, d_rgb, d_image_point, d_radius, d_depth, d_overlap, SCREEN_WIDTH, SCREEN_HEIGHT, grid);
+        preprocessGaussians<<<num_elements / LINE_BLOCK + 1, LINE_BLOCK>>>(num_elements, d_sd, perspective, modelview, cameraPosition, fovy, d_conic_opacity, d_rgb, d_image_point, d_radius, d_depth, d_overlap, SCREEN_WIDTH, SCREEN_HEIGHT, grid, selectedViewMode);
         checkCudaErrors(cudaDeviceSynchronize());
 
         // Determine temporary device storage requirements for inclusive prefix sum
@@ -288,6 +288,7 @@ int main(){
 
         // debugInfo<<<1, 1>>>(num_elements, d_sd, perspective, modelview, d_conic_opacity, d_rgb, d_image_point, d_radius, d_depth, d_overlap, SCREEN_HEIGHT, SCREEN_WIDTH, grid);
         // checkCudaErrors(cudaDeviceSynchronize());
+
         render<<<grid, block>>>(num_elements, d_sd, d_conic_opacity, d_rgb, d_image_point, d_depth, d_tile_range_min, d_tile_range_max, d_sort_ids_out, SCREEN_WIDTH, SCREEN_HEIGHT, grid, dataPointer);
         checkCudaErrors(cudaDeviceSynchronize());
 
