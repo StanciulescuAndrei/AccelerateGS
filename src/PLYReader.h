@@ -27,6 +27,8 @@ int loadSplatData(char* path, SplatData ** dataBuffer, int * numElements){
 
     int dataSize = 0;
 
+    float shBuffer[48];
+
     std::ifstream is(path);
     if(is.is_open()){
         std::string crt_line;
@@ -66,6 +68,12 @@ int loadSplatData(char* path, SplatData ** dataBuffer, int * numElements){
                 (*dataBuffer)[i].fields.scale[comp] = exp((*dataBuffer)[i].fields.scale[comp]);
             }
             (*dataBuffer)[i].fields.opacity = 1.0f / (1.0f + exp(-(*dataBuffer)[i].fields.opacity));
+            memcpy(shBuffer, (*dataBuffer)[i].fields.SH, 48 * sizeof(float));
+            for(int j=1;j<16;j++){
+                (*dataBuffer)[i].fields.SH[j * 3 + 0] = shBuffer[(j-1) + 3];
+                (*dataBuffer)[i].fields.SH[j * 3 + 1] = shBuffer[(j-1) + 16 + 2];
+                (*dataBuffer)[i].fields.SH[j * 3 + 2] = shBuffer[(j-1) + 2 * 16 + 1];
+            }
             
         }
 

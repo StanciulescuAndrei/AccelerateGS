@@ -4,6 +4,7 @@
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 #include "PLYReader.h"
 
@@ -11,7 +12,27 @@
 #define BLOCK_Y 16
 #define BLOCK_SIZE (BLOCK_X * BLOCK_Y)
 
-__device__ const float SH_C0 = 0.28209479177387814;
+#define LINE_BLOCK 256
+
+// Spherical harmonics coefficients
+__device__ const float SH_C0 = 0.28209479177387814f;
+__device__ const float SH_C1 = 0.4886025119029199f;
+__device__ const float SH_C2[] = {
+	1.0925484305920792f,
+	-1.0925484305920792f,
+	0.31539156525252005f,
+	-1.0925484305920792f,
+	0.5462742152960396f
+};
+__device__ const float SH_C3[] = {
+	-0.5900435899266435f,
+	2.890611442640554f,
+	-0.4570457994644658f,
+	0.3731763325901154f,
+	-0.4570457994644658f,
+	1.445305721320277f,
+	-0.5900435899266435f
+};
 
 __device__ float clip(float in, float min_val, float max_val){
     return min(max_val, max(in, min_val));
@@ -34,6 +55,54 @@ __device__ void printMat(glm::mat3 m){
 		printf("\n");
 	}
 	printf("-----------------------------\n");
+}
+
+__device__ glm::vec3 computeColorFromSH(int idx, int deg, const SplatData::Fields & sdFields, glm::vec3 & campos)
+{
+	// The implementation is loosely based on code for 
+	// "Differentiable Point-Based Radiance Fields for 
+	// Efficient View Synthesis" by Zhang et al. (2022)
+	glm::vec3 pos = glm::make_vec3(sdFields.position);
+	glm::vec3 dir = pos - campos;
+	dir = dir / glm::length(dir);
+
+	glm::vec3 * sh = (glm::vec3*) sdFields.SH;
+
+	glm::vec3 result = SH_C0 * sh[0];
+
+	if (deg > 0)
+	{
+		float x = dir.x;
+		float y = dir.y;
+		float z = dir.z;
+		result = result - SH_C1 * y * sh[1] + SH_C1 * z * sh[2] - SH_C1 * x * sh[3];
+
+		if (deg > 1)
+		{
+			float xx = x * x, yy = y * y, zz = z * z;
+			float xy = x * y, yz = y * z, xz = x * z;
+			result = result +
+				SH_C2[0] * xy * sh[4] +
+				SH_C2[1] * yz * sh[5] +
+				SH_C2[2] * (2.0f * zz - xx - yy) * sh[6] +
+				SH_C2[3] * xz * sh[7] +
+				SH_C2[4] * (xx - yy) * sh[8];
+
+			if (deg > 2)
+			{
+				result = result +
+					SH_C3[0] * y * (3.0f * xx - yy) * sh[9] +
+					SH_C3[1] * xy * z * sh[10] +
+					SH_C3[2] * y * (4.0f * zz - xx - yy) * sh[11] +
+					SH_C3[3] * z * (2.0f * zz - 3.0f * xx - 3.0f * yy) * sh[12] +
+					SH_C3[4] * x * (4.0f * zz - xx - yy) * sh[13] +
+					SH_C3[5] * z * (xx - yy) * sh[14] +
+					SH_C3[6] * x * (xx - 3.0f * yy) * sh[15];
+			}
+		}
+	}
+	result += 0.5f;
+	return glm::max(result, 0.0f);
 }
 
 __forceinline__ __device__ float3 transformPoint4x3(const float3& p, const float* matrix)
@@ -71,6 +140,8 @@ __device__ float3 computeCov2D(const glm::vec4& mean, float focal_x, float focal
 		view[0][1], view[1][1], view[2][1],
 		view[0][2], view[1][2], view[2][2]);
 
+	// W = glm::transpose(W);
+
 	glm::mat3 T = W * J;
 
 	glm::mat3 Vrk = glm::mat3(
@@ -81,8 +152,8 @@ __device__ float3 computeCov2D(const glm::vec4& mean, float focal_x, float focal
 	glm::mat3 cov = glm::transpose(T) * glm::transpose(Vrk) * T;
 	// Apply low-pass filter: every Gaussian should be at least
 	// one pixel wide/high. Discard 3rd row and column.
-	// cov[0][0] += 0.3f;
-	// cov[1][1] += 0.3f;
+	cov[0][0] += 0.3f;
+	cov[1][1] += 0.3f;
 	return { float(cov[0][0]), float(cov[0][1]), float(cov[1][1]) };
 }
 
@@ -147,7 +218,8 @@ __global__ void duplicateGaussians(int num_splats,
 	if(idx >= num_splats) return;
 
 	uint2 rect_min, rect_max;
-	if(radius[idx] == 0) return;
+	if(radius[idx] <= 0) return;
+
 	getRect(image_point[idx], radius[idx], rect_min, rect_max, grid);
 
 	int offset = 0;
@@ -155,11 +227,10 @@ __global__ void duplicateGaussians(int num_splats,
 
 	for(int x = rect_min.x; x < rect_max.x; x++){
 		for(int y = rect_min.y; y < rect_max.y; y++){
-			uint32_t tile_id = y * grid.x + x;
-			sort_keys[offset] = (uint64_t)0;
-			sort_keys[offset] += tile_id;
-			sort_keys[offset] <<= 32;
-			sort_keys[offset] += (*((uint32_t *)&(depth[idx]))); // Move the bits of the depth, which is float, to the lowest 32 bits of the sorting key
+			uint64_t splat_key = y * grid.x + x;
+			splat_key <<= 32;
+			splat_key |= (*((uint32_t *)&(depth[idx])));
+			sort_keys[offset] = splat_key; // Move the bits of the depth, which is float, to the lowest 32 bits of the sorting key
 
 			gaussian_ids[offset] = idx;
 
@@ -171,6 +242,7 @@ __global__ void duplicateGaussians(int num_splats,
 __global__ void preprocessGaussians(int num_splats, SplatData * sd, 
     glm::mat4 projection, 
     glm::mat4 view, 
+	glm::vec3 camPos,
 	float fovy,
     float4 * conic_opacity, 
     float3 * rgb, 
@@ -197,10 +269,16 @@ __global__ void preprocessGaussians(int num_splats, SplatData * sd,
     glm::vec4 position_viewport = view * pOrig;
 	// float p_w = 1.0f / (position.w + 0.000000001f);
 	// position = position * p_w;
+
 	position_viewport *= (-1.0f);
+
     if(position_viewport.z <= 0.2f){
         return;
     }
+
+	if(fabsf(p_proj.x) > 1.3f || fabsf(p_proj.y) > 1.3f){
+		return;
+	}
 
     /* Compute world-space covariance */
     float cov3D[6];
@@ -236,12 +314,8 @@ __global__ void preprocessGaussians(int num_splats, SplatData * sd,
 	if ((rect_max.x - rect_min.x) * (rect_max.y - rect_min.y) == 0)
 		return;
 	
-    // glm::vec3 result = computeColorFromSH(idx, D, M, (glm::vec3*)orig_points, *cam_pos, shs, clamped);
-    rgb[idx] = {
-        clip(0.5 + SH_C0 * sd[idx].fields.SH[0], 0.0f, 1.0f),
-        clip(0.5 + SH_C0 * sd[idx].fields.SH[1], 0.0f, 1.0f),
-        clip(0.5 + SH_C0 * sd[idx].fields.SH[2], 0.0f, 1.0f)
-    };
+    glm::vec3 result = computeColorFromSH(idx, 3, sd[idx].fields, camPos);
+    rgb[idx] = {result.x, result.y, result.z};
 
 	// Store some useful helper data for the next steps.
 	depth[idx] = position_viewport.z;
@@ -302,6 +376,7 @@ __global__ void render(int num_splats, SplatData * sd,
     float4 * conic_opacity, 
     float3 * rgb, 
     float2 * image_point,
+	float * depth,
 	uint32_t * tile_range_min,
 	uint32_t * tile_range_max,
 	uint32_t * splat_ids,
@@ -324,7 +399,8 @@ __global__ void render(int num_splats, SplatData * sd,
 
 	__shared__ float2 positions[BLOCK_SIZE];
 	__shared__ float4 conics[BLOCK_SIZE];
-	__shared__ float3 colors[BLOCK_SIZE];
+	__shared__ uint32_t splat_data_id[BLOCK_SIZE];
+	// __shared__ float3 colors[BLOCK_SIZE];
 
 	float T = 1.0f;
 	float pixColor[4] = { 0, 0, 0, 0 };
@@ -336,15 +412,14 @@ __global__ void render(int num_splats, SplatData * sd,
 	while(array_offset < max_range){
 		
 		if(array_offset + thread_rank < max_range){
-			int splat_data_id = splat_ids[array_offset + thread_rank];
-			positions[thread_rank] = image_point[splat_data_id];
-			conics[thread_rank] = conic_opacity[splat_data_id];
-			colors[thread_rank] = rgb[splat_data_id];
+			splat_data_id[thread_rank] = splat_ids[array_offset + thread_rank];
+			positions[thread_rank] = image_point[splat_data_id[thread_rank]];
+			conics[thread_rank] = conic_opacity[splat_data_id[thread_rank]];
 		}
 
 		__syncthreads();
 
-		if(validPixel){
+		if(validPixel && T > 0.0001f){
 			for(int i = 0; i < min(BLOCK_SIZE, max_range - array_offset); i++){
 				float2 d = { positions[i].x - thread_x, positions[i].y - thread_y };
 				float4 con_o = conics[i];
@@ -354,6 +429,8 @@ __global__ void render(int num_splats, SplatData * sd,
 
 				float alpha = fminf(0.99f, con_o.w * expf(power));
 
+				if(alpha < 1.0f / 255.0f) continue;
+
 				float test_T = T * (1 - alpha);
 				if (test_T < 0.0001f)
 				{
@@ -362,9 +439,18 @@ __global__ void render(int num_splats, SplatData * sd,
 
 				// Eq. (3) from 3D Gaussian splatting paper.
 				float scaling = alpha * T;
-				pixColor[0] = fmaf(colors[i].x, scaling, pixColor[0]);
-				pixColor[1] = fmaf(colors[i].y, scaling, pixColor[1]);
-				pixColor[2] = fmaf(colors[i].z, scaling, pixColor[2]);
+				float3 collected_rgb = rgb[splat_data_id[i]];
+
+				pixColor[0] = fmaf(collected_rgb.x, scaling, pixColor[0]);
+				pixColor[1] = fmaf(collected_rgb.y, scaling, pixColor[1]);
+				pixColor[2] = fmaf(collected_rgb.z, scaling, pixColor[2]);
+				// pixColor[0] = fmaf(1.0f - depth[splat_data_id[i]] / 20.0f, scaling, pixColor[0]);
+				// pixColor[1] = fmaf(1.0f - depth[splat_data_id[i]] / 20.0f, scaling, pixColor[1]);
+				// pixColor[2] = fmaf(1.0f - depth[splat_data_id[i]] / 20.0f, scaling, pixColor[2]);
+
+				// pixColor[0] = depth[splat_data_id[i]];
+				// pixColor[1] = depth[splat_data_id[i]];
+				// pixColor[2] = depth[splat_data_id[i]];
 
 				T = test_T;
 			}

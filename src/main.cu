@@ -30,6 +30,9 @@ const int SCREEN_HEIGHT = 1080;
 const int FPS_COUNTER_REFRESH = 60;
 
 glm::vec3 cameraPosition = glm::vec3(0.0f);
+float angleDirection = 0.0f;
+glm::vec3 lookDirection = glm::vec3(0.0f, 0.0f, 1.0f);
+glm::vec3 rightDirection = glm::vec3(-1.0f, 0.0f, 0.0f);
 const float movement_step = 0.1f;
 
 static void error_callback(int error, const char* description)
@@ -48,22 +51,26 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
         cameraPosition += glm::vec3(0.0f, -movement_step, 0.0f);
     }
     if(key == GLFW_KEY_A && (action == GLFW_REPEAT || action == GLFW_PRESS)){
-        cameraPosition += glm::vec3(-movement_step, 0.0f, 0.0f);
+        cameraPosition += movement_step * rightDirection;
     }
     if(key == GLFW_KEY_D && (action == GLFW_REPEAT || action == GLFW_PRESS)){
-        cameraPosition += glm::vec3(movement_step, 0.0f, 0.0f);
+        cameraPosition -= movement_step * rightDirection;
     }
     if(key == GLFW_KEY_W && (action == GLFW_REPEAT || action == GLFW_PRESS)){
-        cameraPosition += glm::vec3(0.0f, 0.0f, movement_step);
+        cameraPosition += movement_step * lookDirection;
     }
     if(key == GLFW_KEY_S && (action == GLFW_REPEAT || action == GLFW_PRESS)){
-        cameraPosition += glm::vec3(0.0f, 0.0f, -movement_step);
+        cameraPosition -= movement_step * lookDirection;
     }
-    if(key == GLFW_KEY_1 && (action == GLFW_PRESS)){
-        fovy -= M_PI_4 / 10.0f;
+    if(key == GLFW_KEY_Q && (action == GLFW_REPEAT || action == GLFW_PRESS)){
+        angleDirection -= 0.01f;
+        lookDirection  = glm::vec3(sin(angleDirection), 0.f, cos(angleDirection));
+        rightDirection = glm::vec3(-cos(angleDirection), 0.f, sin(angleDirection));
     }
-    if(key == GLFW_KEY_2 && (action == GLFW_PRESS)){
-        fovy += M_PI_4 / 10.0f;
+    if(key == GLFW_KEY_E && (action == GLFW_REPEAT || action == GLFW_PRESS)){
+        angleDirection += 0.01f;
+        lookDirection  = glm::vec3(sin(angleDirection), 0.f, cos(angleDirection));
+        rightDirection = glm::vec3(-cos(angleDirection), 0.f, sin(angleDirection));
     }
 }
 
@@ -213,14 +220,14 @@ int main(){
         assert(dataPointer != nullptr);
 
         /* --------- RENDERING ------------*/
-        glm::mat4 modelview = glm::lookAt(cameraPosition, glm::vec3(0.0f, 0.0f, 1.0f) + cameraPosition, glm::vec3(0.0f, 1.0f, 0.0f));
+        glm::mat4 modelview = glm::lookAt(cameraPosition, lookDirection + cameraPosition, glm::vec3(0.0f, 1.0f, 0.0f));
         glm::mat4 perspective = glm::perspective(fovy, 16.0f/9.0f, 0.9f, 100.0f) * modelview;
 
         /* Call the main CUDA render kernel */
         dim3 block(BLOCK_X, BLOCK_Y, 1); // One thread per pixel!
         dim3 grid(SCREEN_WIDTH / BLOCK_X + 1, SCREEN_HEIGHT / BLOCK_Y + 1, 1);
 
-        preprocessGaussians<<<num_elements / 1024 + 1, 1024>>>(num_elements, d_sd, perspective, modelview, fovy, d_conic_opacity, d_rgb, d_image_point, d_radius, d_depth, d_overlap, SCREEN_WIDTH, SCREEN_HEIGHT, grid);
+        preprocessGaussians<<<num_elements / LINE_BLOCK + 1, LINE_BLOCK>>>(num_elements, d_sd, perspective, modelview, cameraPosition, fovy, d_conic_opacity, d_rgb, d_image_point, d_radius, d_depth, d_overlap, SCREEN_WIDTH, SCREEN_HEIGHT, grid);
         checkCudaErrors(cudaDeviceSynchronize());
 
         // Determine temporary device storage requirements for inclusive prefix sum
@@ -248,7 +255,7 @@ int main(){
         checkCudaErrors(cudaMalloc(&d_sort_ids_out, sizeof(uint32_t) * totalDuplicateGaussians));
 
         /* Populate sorting keys array */
-        duplicateGaussians<<<num_elements / 1024 + 1, 1024>>>(num_elements, d_image_point, d_radius, d_depth, d_overlap_sums, d_sort_keys_in, d_sort_ids_in, grid);
+        duplicateGaussians<<<num_elements / LINE_BLOCK + 1, LINE_BLOCK>>>(num_elements, d_image_point, d_radius, d_depth, d_overlap_sums, d_sort_keys_in, d_sort_ids_in, grid);
         checkCudaErrors(cudaDeviceSynchronize());
 
         d_temp_storage = NULL;
@@ -276,12 +283,12 @@ int main(){
         checkCudaErrors(cudaMemset(d_tile_range_min, 0, sizeof(uint32_t) * grid.x * grid.y));
         checkCudaErrors(cudaMemset(d_tile_range_max, 0, sizeof(uint32_t) * grid.x * grid.y));
 
-        getTileRanges<<<(totalDuplicateGaussians) / 512 + 1, 512>>>(d_sort_keys_out, totalDuplicateGaussians, d_tile_range_min, d_tile_range_max);
+        getTileRanges<<<(totalDuplicateGaussians) / LINE_BLOCK + 1, LINE_BLOCK>>>(d_sort_keys_out, totalDuplicateGaussians, d_tile_range_min, d_tile_range_max);
         checkCudaErrors(cudaDeviceSynchronize());
 
         // debugInfo<<<1, 1>>>(num_elements, d_sd, perspective, modelview, d_conic_opacity, d_rgb, d_image_point, d_radius, d_depth, d_overlap, SCREEN_HEIGHT, SCREEN_WIDTH, grid);
         // checkCudaErrors(cudaDeviceSynchronize());
-        render<<<grid, block>>>(num_elements, d_sd, d_conic_opacity, d_rgb, d_image_point, d_tile_range_min, d_tile_range_max, d_sort_ids_out, SCREEN_WIDTH, SCREEN_HEIGHT, grid, dataPointer);
+        render<<<grid, block>>>(num_elements, d_sd, d_conic_opacity, d_rgb, d_image_point, d_depth, d_tile_range_min, d_tile_range_max, d_sort_ids_out, SCREEN_WIDTH, SCREEN_HEIGHT, grid, dataPointer);
         checkCudaErrors(cudaDeviceSynchronize());
 
         checkCudaErrors(cudaFree(d_sort_keys_in));
