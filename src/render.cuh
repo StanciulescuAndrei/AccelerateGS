@@ -6,6 +6,8 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#include <Eigen/Dense>
+
 #include "PLYReader.h"
 
 #define BLOCK_X 16
@@ -152,12 +154,12 @@ __device__ float3 computeCov2D(const glm::vec4& mean, float focal_x, float focal
 	glm::mat3 cov = glm::transpose(T) * glm::transpose(Vrk) * T;
 	// Apply low-pass filter: every Gaussian should be at least
 	// one pixel wide/high. Discard 3rd row and column.
-	cov[0][0] += 0.3f;
-	cov[1][1] += 0.3f;
+	// cov[0][0] += 0.3f;
+	// cov[1][1] += 0.3f;
 	return { float(cov[0][0]), float(cov[0][1]), float(cov[1][1]) };
 }
 
-__device__ void computeCov3D(const float * scale, float mod, const float * rot, float* cov3D)
+__device__ void computeCov3D(const float * scale, float mod, const float * rot, float* cov3D, glm::vec3 & normal)
 {
 	// Create scaling matrix
 	glm::mat3 S = glm::mat3(1.0f);
@@ -178,6 +180,19 @@ __device__ void computeCov3D(const float * scale, float mod, const float * rot, 
 		2.f * (x * y + r * z), 1.f - 2.f * (x * x + z * z), 2.f * (y * z - r * x),
 		2.f * (x * z - r * y), 2.f * (y * z + r * x), 1.f - 2.f * (x * x + y * y)
 	);
+
+	// Compute the normal orientation
+	if(scale[0] < scale[1] && scale[0] < scale[2]){
+		normal = glm::vec3(1.0f, 0.0f, 0.0f);
+	}
+	else if(scale[1] < scale[0] && scale[1] < scale[2]){
+		normal = glm::vec3(0.0f, 1.0f, 0.0f);
+	}
+	else{
+		normal = glm::vec3(0.0f, 0.0f, 1.0f);
+	}
+
+	normal = R * normal;
 
 	glm::mat3 M = S * R;
 
@@ -283,7 +298,9 @@ __global__ void preprocessGaussians(int num_splats, SplatData * sd,
 
     /* Compute world-space covariance */
     float cov3D[6];
-    computeCov3D(sd[idx].fields.scale, 1.0f, sd[idx].fields.rotation, cov3D);
+	glm::vec3 splatNormal;
+
+    computeCov3D(sd[idx].fields.scale, 1.0f, sd[idx].fields.rotation, cov3D, splatNormal);
 
     /* Compute 2D screen-space covariance matrix */
 	float tan_fovy = tanf(fovy * 0.5f);
@@ -293,6 +310,10 @@ __global__ void preprocessGaussians(int num_splats, SplatData * sd,
 	float focal_y = SCREEN_HEIGHT / (2.0f * tan_fovy);
 
 	float3 cov = computeCov2D(pOrig, focal_x, focal_y, tan_fovx, tan_fovy, cov3D, view);
+
+	if(cov.x < 0.3 || cov.z < 0.3){
+		return;
+	}
 
     // Invert covariance (EWA algorithm)
 	float det = (cov.x * cov.z - cov.y * cov.y);
@@ -324,7 +345,7 @@ __global__ void preprocessGaussians(int num_splats, SplatData * sd,
 	}
 	else{
 		glm::vec3 norm_cov = glm::normalize(glm::vec3(cov.x, cov.y, cov.z));
-		rgb[idx] = {norm_cov.x, norm_cov.y, norm_cov.z};
+		rgb[idx] = {splatNormal.x, splatNormal.y, splatNormal.z};
 	}
 
 

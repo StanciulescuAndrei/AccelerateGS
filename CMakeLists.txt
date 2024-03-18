@@ -4,6 +4,8 @@ cmake_policy(SET CMP0072 NEW)
 
 find_package(OpenGL REQUIRED)
 
+find_package (Eigen3 3.4 REQUIRED NO_MODULE)
+
 set(CMAKE_CUDA_ARCHITECTURES 86)
 set(OpenGL_GL_PREFERENCE GLVND)
 
@@ -43,5 +45,6 @@ target_link_libraries(AccelerateGS
 	${OPENGL_LIBRARY} # filled by "find_package(OpenGL REQUIRED)"
 	glfw
 	${GLEW_LIBRARY}
+	Eigen3::Eigen
 )
 

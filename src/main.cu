@@ -117,7 +117,7 @@ int main(){
     int num_elements = 0;
     int res = loadSplatData("../../models/garden/point_cloud/iteration_30000/point_cloud.ply", &sd, &num_elements);
 
-    // num_elements = 100000;
+    // num_elements = num_elements/16;
 
     /* Allocate and send splat data to GPU memory */
     SplatData * d_sd;
@@ -190,6 +190,7 @@ int main(){
     glClearDepth(1.0f);                         // 0 is near, 1 is far
     glEnable(GL_BLEND);  
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);  
+    
 
     /* Very basic FPS metrics */
     int currentFPSIndex = 0;
