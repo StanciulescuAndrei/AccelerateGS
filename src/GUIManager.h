@@ -6,6 +6,7 @@
 
 float fovy = M_PI / 2.0f;
 int selectedViewMode = 0;
+int renderPrimitive = 0;
 
 void setupIMGui(GLFWwindow** window){
     IMGUI_CHECKVERSION();
@@ -35,6 +36,8 @@ void buildInterface(){
 
     const char * viewMode[]{"Colors", "Depth", "Covariance"};
     ImGui::Combo("View mode", &selectedViewMode, viewMode, 3);
+    ImGui::RadioButton("Splats", &renderPrimitive, 0); ImGui::SameLine();
+    ImGui::RadioButton("Points", &renderPrimitive, 1);
 
     ImGui::End();
     ImGui::Render();

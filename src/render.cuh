@@ -311,8 +311,10 @@ __global__ void preprocessGaussians(int num_splats, SplatData * sd,
 
 	float3 cov = computeCov2D(pOrig, focal_x, focal_y, tan_fovx, tan_fovy, cov3D, view);
 
-	if(cov.x < 0.3 || cov.z < 0.3){
-		return;
+	if((renderMode & 0b1111) == 1){
+		cov.x = 0.31f;
+		cov.y = 0.0f;
+		cov.z = 0.31f;
 	}
 
     // Invert covariance (EWA algorithm)
@@ -335,18 +337,24 @@ __global__ void preprocessGaussians(int num_splats, SplatData * sd,
 	getRect(point_image, my_radius, rect_min, rect_max, grid);
 	if ((rect_max.x - rect_min.x) * (rect_max.y - rect_min.y) == 0)
 		return;
-	
-	if(renderMode == 0){
+
+	if(renderMode>>4 == 0){
 		glm::vec3 result = computeColorFromSH(idx, 3, sd[idx].fields, camPos);
 		rgb[idx] = {result.x, result.y, result.z};
 	}
-	else if(renderMode == 1){
+	else if(renderMode>>4 == 1){
 		rgb[idx] = {1.0f - position_viewport.z / 10.0f, 1.0f - position_viewport.z / 10.0f, 1.0f - position_viewport.z / 10.0f};
 	}
-	else{
+	else if(renderMode>>4 == 2){
 		glm::vec3 norm_cov = glm::normalize(glm::vec3(cov.x, cov.y, cov.z));
 		rgb[idx] = {splatNormal.x, splatNormal.y, splatNormal.z};
 	}
+
+	if(cov.x < 0.3 || cov.z < 0.3){
+		rgb[idx] = {1.0f, 0.0f, 0.0f};
+	}
+
+	
 
 
 	// Store some useful helper data for the next steps.
