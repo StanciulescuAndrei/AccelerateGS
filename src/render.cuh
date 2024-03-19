@@ -350,9 +350,9 @@ __global__ void preprocessGaussians(int num_splats, SplatData * sd,
 		rgb[idx] = {splatNormal.x, splatNormal.y, splatNormal.z};
 	}
 
-	if(cov.x < 0.3 || cov.z < 0.3){
-		rgb[idx] = {1.0f, 0.0f, 0.0f};
-	}
+	// if(cov.x < 0.3 || cov.z < 0.3){
+	// 	rgb[idx] = {1.0f, 0.0f, 0.0f};
+	// }
 
 	
 
