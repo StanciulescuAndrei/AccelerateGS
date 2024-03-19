@@ -25,6 +25,7 @@ add_executable(AccelerateGS
 		src/glad/glad.c
 		src/PLYReader.h
 		src/GUIManager.h
+		src/GaussianOctree.h
 		${IMGUI_PATH}/imgui.h
 		${IMGUI_PATH}/imgui.cpp
 		${IMGUI_PATH}/imconfig.h
