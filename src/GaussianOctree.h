@@ -1,7 +1,7 @@
 #ifndef __GAUSSIAN_OCTREE__
 #define __GAUSSIAN_OCTREE__
 
-#define MAX_OCTREE_LEVEL 6
+#define MAX_OCTREE_LEVEL 2
 
 #pragma once
 #include "PLYReader.h"
@@ -23,7 +23,7 @@ class GaussianOctree
 {
 public:
     GaussianOctree* children[8] = {nullptr};
-    std::vector<uint32_t> containedSplats = nullptr;
+    std::vector<uint32_t> containedSplats;
     uint8_t level = 0;
     bool isLeaf = false;
     glm::vec3 bbox[2];
@@ -41,6 +41,10 @@ GaussianOctree::GaussianOctree(glm::vec3 * _bbox)
 }
 
 void GaussianOctree::processSplats(uint8_t _level, SplatData * sd){
+    level = _level;
+
+    printf("level: %d\n", level);
+
     if(containedSplats.size() == 0){
         isLeaf = true;
         return;
@@ -53,6 +57,9 @@ void GaussianOctree::processSplats(uint8_t _level, SplatData * sd){
 
     glm::vec3 halfSize = (bbox[1] - bbox[0]) * 0.5f;
 
+    bool * distributed_splats = new bool[containedSplats.size()];
+    memset(distributed_splats, 0, sizeof(bool) * containedSplats.size());
+
     for (int i=0;i<8;i++){
         // Define node's BBox
         glm::vec3 childBbox[2];
@@ -64,30 +71,83 @@ void GaussianOctree::processSplats(uint8_t _level, SplatData * sd){
         children[i] = new GaussianOctree(childBbox);
 
         // See which of the splats go into the newly created node
-        for(auto splat : containedSplats){
+        for(int k = 0; k < containedSplats.size(); k++){
+            auto splat = containedSplats[k];
             if(insideBBox(children[i]->bbox, splat, sd)){
+                distributed_splats[k] = true;
                 children[i]->containedSplats.push_back(splat);
             }
         }
         if(level < MAX_OCTREE_LEVEL){
             children[i]->isLeaf = false;
-            children[i]->processSplats(_level+1, sd);
+            children[i]->processSplats(level+1, sd);
         }
         else
-            currentNode->children[i]->isLeaf=true;
+            children[i]->isLeaf=true;
     }
+    std::vector<uint32_t> temp_buffer(containedSplats);
+    containedSplats.clear();
+    for(int k = 0; k < containedSplats.size(); k++){
+        if(!distributed_splats[k])
+            containedSplats.push_back(temp_buffer[k]);
+    }
+    temp_buffer.clear();
+
+    delete [] distributed_splats;
 
 }
 
 GaussianOctree::~GaussianOctree()
 {
-    if(containedSplats != nullptr){
-        delete [] containedSplats; 
-    }
-    if(children != nullptr){
-        delete [] children;
-    }
+    for(int i=0;i<8;i++)
+        if(children[i] != nullptr){
+            delete children[i];
+        }
 }
 
+GaussianOctree * buildOctree(SplatData * sd, uint32_t num_primitives){
+    glm::vec3 minBound(1e13, 1e13, 1e13);
+    glm::vec3 maxBound(-1e13, -1e13, -1e13);
+
+    for(int i = 0; i < num_primitives; i++){
+        float maxRadius = max(sd[i].fields.scale[0], max(sd[i].fields.scale[1], sd[i].fields.scale[2]));
+        glm::vec3 splatMinBound = glm::make_vec3(sd[i].fields.position) - maxRadius;
+        glm::vec3 splatMaxBound = glm::make_vec3(sd[i].fields.position) + maxRadius;
+        minBound.x = min(minBound.x, splatMinBound.x);
+        minBound.y = min(minBound.y, splatMinBound.y);
+        minBound.z = min(minBound.z, splatMinBound.z);
+        maxBound.x = max(maxBound.x, splatMaxBound.x);
+        maxBound.y = max(maxBound.y, splatMaxBound.y);
+        maxBound.z = max(maxBound.z, splatMaxBound.z);
+    }
+
+    glm::vec3 center = (minBound + maxBound) * 0.5f;
+
+    float maxSpan = max(maxBound.x - minBound.x, max(maxBound.y - minBound.y, maxBound.z - minBound.z));
+
+    glm::vec3 rootBbox[2];
+    rootBbox[0] = center - maxSpan;
+    rootBbox[1] = center + maxSpan;
+
+    GaussianOctree * root = new GaussianOctree(rootBbox);
+    for(int i = 0; i < num_primitives; i++)
+        root->containedSplats.push_back(i);
+
+    root->processSplats(0, sd);
+
+    return root;
+
+}
+
+void markForRender(bool * renderMask, uint32_t num_primitives, GaussianOctree * root){
+    for(auto splat : root->containedSplats){
+        renderMask[splat] = true;
+    }
+    if(!root->isLeaf){
+        for(int i=0;i<8;i++){
+            markForRender(renderMask, num_primitives, root->children[i]);
+        }
+    }
+}
 
 #endif

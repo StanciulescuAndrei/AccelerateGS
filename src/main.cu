@@ -114,8 +114,22 @@ int main(){
 
     /* Load splat scene data from file */
     SplatData * sd;
+    bool * renderMask;
     int num_elements = 0;
     int res = loadSplatData("../../models/garden/point_cloud/iteration_30000/point_cloud.ply", &sd, &num_elements);
+
+    // First of all, build da octree
+
+    renderMask = (bool *)malloc(sizeof(bool) * num_elements);
+    memset(renderMask, 0, sizeof(bool) * num_elements);
+    GaussianOctree * octreeRoot = buildOctree(sd, num_elements);
+
+    printf("Root: %d\n", octreeRoot->containedSplats.size());
+    for(int i=0;i<8;i++){
+        printf("---- Child %d: %d\n", i, octreeRoot->children[i]->containedSplats.size());
+    }
+
+    markForRender(renderMask, num_elements, octreeRoot);
 
     // num_elements = num_elements/16;
 
@@ -133,6 +147,7 @@ int main(){
     float * d_depth;
     int * d_overlap;
     int * d_overlap_sums;
+    bool * d_renderMask;
 
     float * d_cov3ds;
 
@@ -159,6 +174,10 @@ int main(){
 
     checkCudaErrors(cudaMalloc(&d_cov3ds, sizeof(int) * num_elements * 6));
     assert(d_cov3ds != NULL);
+
+    checkCudaErrors(cudaMalloc(&d_renderMask, sizeof(bool) * num_elements));
+    assert(d_renderMask != NULL);
+    checkCudaErrors(cudaMemcpy(d_renderMask, renderMask, sizeof(bool) * num_elements, cudaMemcpyHostToDevice));
 
     /* Set up resources for texture writing */
     GLuint pboId;
@@ -235,7 +254,9 @@ int main(){
 
         int renderMode = (selectedViewMode<<4) + renderPrimitive;
 
-        preprocessGaussians<<<num_elements / LINE_BLOCK + 1, LINE_BLOCK>>>(num_elements, d_sd, perspective, modelview, cameraPosition, fovy, d_conic_opacity, d_rgb, d_image_point, d_radius, d_depth, d_overlap, SCREEN_WIDTH, SCREEN_HEIGHT, grid, renderMode);
+        checkCudaErrors(cudaMemcpy(d_renderMask, renderMask, sizeof(bool) * num_elements, cudaMemcpyHostToDevice));
+
+        preprocessGaussians<<<num_elements / LINE_BLOCK + 1, LINE_BLOCK>>>(num_elements, d_sd, perspective, modelview, cameraPosition, fovy, d_conic_opacity, d_rgb, d_image_point, d_radius, d_depth, d_overlap, SCREEN_WIDTH, SCREEN_HEIGHT, grid, renderMode, d_renderMask);
         checkCudaErrors(cudaDeviceSynchronize());
 
         // Determine temporary device storage requirements for inclusive prefix sum
@@ -365,8 +386,10 @@ int main(){
     cudaFree(d_overlap);
     cudaFree(d_overlap_sums);
     cudaFree(d_cov3ds);
+    cudaFree(d_renderMask);
 
     delete [] imageData;
+    free(renderMask);
 
     glfwDestroyWindow(window);
     glfwTerminate();

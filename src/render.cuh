@@ -269,11 +269,15 @@ __global__ void preprocessGaussians(int num_splats, SplatData * sd,
     const int SCREEN_WIDTH,
     const int SCREEN_HEIGHT,
     dim3 grid,
-	int renderMode)
+	int renderMode,
+	bool * renderMask)
 {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if(idx >= num_splats)
         return;
+
+	if(renderMask[idx] == false)
+		return;
 
     radius[idx] = 0;
     num_tiles_overlap[idx] = 0;
