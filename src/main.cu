@@ -134,6 +134,8 @@ int main(){
     int * d_overlap;
     int * d_overlap_sums;
 
+    float * d_cov3ds;
+
     checkCudaErrors(cudaMalloc(&d_conic_opacity, sizeof(float4) * num_elements));
     assert(d_conic_opacity != NULL);
 
@@ -154,6 +156,9 @@ int main(){
 
     checkCudaErrors(cudaMalloc(&d_overlap_sums, sizeof(int) * num_elements));
     assert(d_overlap_sums != NULL);
+
+    checkCudaErrors(cudaMalloc(&d_cov3ds, sizeof(int) * num_elements * 6));
+    assert(d_cov3ds != NULL);
 
     /* Set up resources for texture writing */
     GLuint pboId;
@@ -359,6 +364,7 @@ int main(){
     cudaFree(d_depth);
     cudaFree(d_overlap);
     cudaFree(d_overlap_sums);
+    cudaFree(d_cov3ds);
 
     delete [] imageData;
 
