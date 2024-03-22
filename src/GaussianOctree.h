@@ -1,7 +1,7 @@
 #ifndef __GAUSSIAN_OCTREE__
 #define __GAUSSIAN_OCTREE__
 
-#define MAX_OCTREE_LEVEL 13
+#define MAX_OCTREE_LEVEL 12
 
 #pragma once
 #include "PLYReader.h"
@@ -40,6 +40,61 @@ GaussianOctree::GaussianOctree(glm::vec3 * _bbox)
 {
     bbox[0] = _bbox[0];
     bbox[1] = _bbox[1];
+}
+
+void computeNodeRepresentative(GaussianOctree * node, std::vector<SplatData>& sd){
+    
+    if(node->isLeaf){
+        if(node->containedSplats.size() == 0)
+            return;
+
+        SplatData representative;
+        for(int i=0;i<62;i++){
+            representative.rawData[i] = 0.0f;
+        }
+        for(auto splat : node->containedSplats){
+            for(int i=0;i<62;i++){
+                representative.rawData[i] += sd[splat].rawData[i];
+            }
+        }
+        for(int i=0;i<62;i++){
+            representative.rawData[i] /= node->containedSplats.size();
+        }
+        sd.push_back(representative);
+        node->representative = sd.size() - 1;
+    }
+    else{
+        int averageNo = 0;
+        averageNo += node->containedSplats.size();
+
+        SplatData representative;
+        for(int i=0;i<62;i++){
+            representative.rawData[i] = 0.0f;
+        }
+
+        for(auto splat : node->containedSplats){
+            for(int i=0;i<62;i++){
+                representative.rawData[i] += sd[splat].rawData[i];
+            }
+        }
+
+        for(int k=0;k<8;k++){
+            if(node->children[k]->representative!=0){
+                averageNo++;
+                for(int i=0;i<62;i++){
+                    representative.rawData[i] += sd[node->children[k]->representative].rawData[i];
+                }
+            }
+        }
+        if(averageNo == 0)
+            return;
+
+        for(int i=0;i<62;i++){
+            representative.rawData[i] /= averageNo;
+        }
+        sd.push_back(representative);
+        node->representative = sd.size() - 1;
+    }
 }
 
 void GaussianOctree::processSplats(uint8_t _level, std::vector<SplatData> & sd){
@@ -82,8 +137,10 @@ void GaussianOctree::processSplats(uint8_t _level, std::vector<SplatData> & sd){
             children[i]->isLeaf = false;
             children[i]->processSplats(level+1, sd);
         }
-        else
+        else{
             children[i]->isLeaf=true;
+            computeNodeRepresentative(children[i], sd);
+        }
 
         if(level == 0){
             printf("%i / %i\n", i+1, 8);
@@ -96,6 +153,8 @@ void GaussianOctree::processSplats(uint8_t _level, std::vector<SplatData> & sd){
             containedSplats.push_back(temp_buffer[k]);
     }
     temp_buffer.clear();
+
+    computeNodeRepresentative(this, sd);
 
     delete [] distributed_splats;
 
@@ -144,23 +203,17 @@ GaussianOctree * buildOctree(std::vector<SplatData> & sd, uint32_t num_primitive
 }
 
 void markForRender(bool * renderMask, uint32_t num_primitives, GaussianOctree * root, std::vector<SplatData> & sd){
-    for(auto splat : root->containedSplats){
-        renderMask[splat] = true;
-        // if(root->isLeaf){
-        //     sd[splat].fields.SH[0] = 0.0f;
-        //     sd[splat].fields.SH[1] = 1.5f;
-        //     sd[splat].fields.SH[2] = 0.0f;
-        // }
-        // else{
-        //     sd[splat].fields.SH[0] = 1.5f;
-        //     sd[splat].fields.SH[1] = 0.0f;
-        //     sd[splat].fields.SH[2] = 0.0f;
-        // }
+    if(root->isLeaf){
+        renderMask[root->representative] = true;
     }
-    if(!root->isLeaf){
+    else{
+        for(auto splat : root->containedSplats){
+            renderMask[splat] = true;
+        }
+    }
+    if(!root->isLeaf || root->level < 6){ /* can have leaves higher up! Fix this!*/
         for(int i=0;i<8;i++){
             markForRender(renderMask, num_primitives, root->children[i], sd);
-            
         }
     }
 

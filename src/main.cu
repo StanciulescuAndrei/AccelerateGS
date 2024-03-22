@@ -121,19 +121,19 @@ int main(){
     const uint32_t maxDuplicatedGaussians = num_elements * 4;
 
     // First of all, build da octree
+    GaussianOctree * octreeRoot = buildOctree(sd, num_elements);
 
-    renderMask = (bool *)malloc(sizeof(bool) * num_elements);
-    memset(renderMask, 1, sizeof(bool) * num_elements);
-    // GaussianOctree * octreeRoot = buildOctree(sd, num_elements);
-
-    // printf("\nRoot: %d\n", octreeRoot->containedSplats.size());
-    // for(int i=0;i<8;i++){
-    //     printf("---- Child %d: %d\n", i, octreeRoot->children[i]->containedSplats.size());
-    // }
-
-    // markForRender(renderMask, num_elements, octreeRoot, sd);
+    printf("\nRoot: %d\n", octreeRoot->containedSplats.size());
+    for(int i=0;i<8;i++){
+        printf("---- Child %d: %d\n", i, octreeRoot->children[i]->containedSplats.size());
+    }
 
     num_elements = sd.size();
+    renderMask = (bool *)malloc(sizeof(bool) * num_elements);
+    memset(renderMask, 0, sizeof(bool) * num_elements);
+
+    markForRender(renderMask, num_elements, octreeRoot, sd);
+    
     printf("Number of splats: %d\n", num_elements);
 
     // num_elements = num_elements/16;
