@@ -126,12 +126,12 @@ int main(){
     memset(renderMask, 0, sizeof(bool) * num_elements);
     GaussianOctree * octreeRoot = buildOctree(sd, num_elements);
 
-    printf("Root: %d\n", octreeRoot->containedSplats.size());
+    printf("\nRoot: %d\n", octreeRoot->containedSplats.size());
     for(int i=0;i<8;i++){
         printf("---- Child %d: %d\n", i, octreeRoot->children[i]->containedSplats.size());
     }
 
-    markForRender(renderMask, num_elements, octreeRoot);
+    markForRender(renderMask, num_elements, octreeRoot, sd);
 
     // num_elements = num_elements/16;
 
@@ -291,7 +291,6 @@ int main(){
         int totalDuplicateGaussians = 0;
         checkCudaErrors(cudaMemcpy(&totalDuplicateGaussians, d_overlap_sums + num_elements - 1, sizeof(int), cudaMemcpyDeviceToHost));
 
-        printf("Total DG: %d\n", totalDuplicateGaussians);
         totalDuplicateGaussians = min(totalDuplicateGaussians, maxDuplicatedGaussians);
 
         /* Populate sorting keys array */

@@ -1,7 +1,7 @@
 #ifndef __GAUSSIAN_OCTREE__
 #define __GAUSSIAN_OCTREE__
 
-#define MAX_OCTREE_LEVEL 2
+#define MAX_OCTREE_LEVEL 12
 
 #pragma once
 #include "PLYReader.h"
@@ -28,6 +28,8 @@ public:
     bool isLeaf = false;
     glm::vec3 bbox[2];
 
+    uint32_t representative = 0; /* Will be the splat that is the approximation of all splats contained, will be dynamically added to the array I guess */
+
 
     void processSplats(uint8_t _level, SplatData * sd); 
     GaussianOctree( glm::vec3 * _bbox);
@@ -42,8 +44,6 @@ GaussianOctree::GaussianOctree(glm::vec3 * _bbox)
 
 void GaussianOctree::processSplats(uint8_t _level, SplatData * sd){
     level = _level;
-
-    printf("level: %d\n", level);
 
     if(containedSplats.size() == 0){
         isLeaf = true;
@@ -84,10 +84,14 @@ void GaussianOctree::processSplats(uint8_t _level, SplatData * sd){
         }
         else
             children[i]->isLeaf=true;
+
+        if(level == 0){
+            printf("%i / %i\n", i+1, 8);
+        }
     }
-    std::vector<uint32_t> temp_buffer(containedSplats);
+    std::vector<uint32_t> temp_buffer = containedSplats;
     containedSplats.clear();
-    for(int k = 0; k < containedSplats.size(); k++){
+    for(int k = 0; k < temp_buffer.size(); k++){
         if(!distributed_splats[k])
             containedSplats.push_back(temp_buffer[k]);
     }
@@ -139,15 +143,27 @@ GaussianOctree * buildOctree(SplatData * sd, uint32_t num_primitives){
 
 }
 
-void markForRender(bool * renderMask, uint32_t num_primitives, GaussianOctree * root){
+void markForRender(bool * renderMask, uint32_t num_primitives, GaussianOctree * root, SplatData * sd){
     for(auto splat : root->containedSplats){
         renderMask[splat] = true;
+        // if(root->isLeaf){
+        //     sd[splat].fields.SH[0] = 0.0f;
+        //     sd[splat].fields.SH[1] = 1.5f;
+        //     sd[splat].fields.SH[2] = 0.0f;
+        // }
+        // else{
+        //     sd[splat].fields.SH[0] = 1.5f;
+        //     sd[splat].fields.SH[1] = 0.0f;
+        //     sd[splat].fields.SH[2] = 0.0f;
+        // }
     }
     if(!root->isLeaf){
         for(int i=0;i<8;i++){
-            markForRender(renderMask, num_primitives, root->children[i]);
+            markForRender(renderMask, num_primitives, root->children[i], sd);
+            
         }
     }
+
 }
 
 #endif
