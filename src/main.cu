@@ -113,25 +113,28 @@ int main(){
     initGLContextAndWindow(&window);
 
     /* Load splat scene data from file */
-    SplatData * sd;
+    std::vector<SplatData> sd;
     bool * renderMask;
     int num_elements = 0;
-    int res = loadSplatData("../../models/garden/point_cloud/iteration_30000/point_cloud.ply", &sd, &num_elements);
+    int res = loadSplatData("../../models/garden/point_cloud/iteration_30000/point_cloud.ply", sd, &num_elements);
 
     const uint32_t maxDuplicatedGaussians = num_elements * 4;
 
     // First of all, build da octree
 
     renderMask = (bool *)malloc(sizeof(bool) * num_elements);
-    memset(renderMask, 0, sizeof(bool) * num_elements);
-    GaussianOctree * octreeRoot = buildOctree(sd, num_elements);
+    memset(renderMask, 1, sizeof(bool) * num_elements);
+    // GaussianOctree * octreeRoot = buildOctree(sd, num_elements);
 
-    printf("\nRoot: %d\n", octreeRoot->containedSplats.size());
-    for(int i=0;i<8;i++){
-        printf("---- Child %d: %d\n", i, octreeRoot->children[i]->containedSplats.size());
-    }
+    // printf("\nRoot: %d\n", octreeRoot->containedSplats.size());
+    // for(int i=0;i<8;i++){
+    //     printf("---- Child %d: %d\n", i, octreeRoot->children[i]->containedSplats.size());
+    // }
 
-    markForRender(renderMask, num_elements, octreeRoot, sd);
+    // markForRender(renderMask, num_elements, octreeRoot, sd);
+
+    num_elements = sd.size();
+    printf("Number of splats: %d\n", num_elements);
 
     // num_elements = num_elements/16;
 
@@ -139,7 +142,7 @@ int main(){
     SplatData * d_sd;
     checkCudaErrors(cudaMalloc(&d_sd, sizeof(SplatData) * num_elements));
     assert(d_sd != NULL);
-    checkCudaErrors(cudaMemcpy((void*)d_sd, (void*) sd, sizeof(SplatData) * num_elements, cudaMemcpyHostToDevice));
+    checkCudaErrors(cudaMemcpy((void*)d_sd, (void*) sd.data(), sizeof(SplatData) * num_elements, cudaMemcpyHostToDevice));
 
     /* Allocate additional data buffers */
     float4 * d_conic_opacity;

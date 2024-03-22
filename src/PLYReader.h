@@ -18,7 +18,7 @@ union SplatData
     } fields;
 };
 
-int loadSplatData(char* path, SplatData ** dataBuffer, int * numElements){
+int loadSplatData(char* path, std::vector<SplatData> & dataBuffer, int * numElements){
     if(path == nullptr)
     {
         // invalid path
@@ -47,7 +47,6 @@ int loadSplatData(char* path, SplatData ** dataBuffer, int * numElements){
         is >> crt_line; // vertex
         is >> dataSize; // number of elements
 
-        printf("Number of splats: %d\n", dataSize);
         std::getline(is, crt_line); // finish line
 
         for(int i=0;i<62;i++){
@@ -58,21 +57,22 @@ int loadSplatData(char* path, SplatData ** dataBuffer, int * numElements){
         std::getline(is, crt_line); // end_header
 
         // Now we read the binary data
-        *dataBuffer = (SplatData*)malloc(sizeof(SplatData) * dataSize);
-        is.read((char*)*dataBuffer, sizeof(SplatData) * dataSize);
+        dataBuffer.reserve(dataSize);
+        dataBuffer.resize(dataSize);
+        is.read((char*)dataBuffer.data(), sizeof(SplatData) * dataSize);
 
         /* Convert data to correct format: scale as exponential, opacity is sigmoid */
 
         for(int i = 0; i < dataSize; i++){
             for(int comp = 0; comp < 3; comp++){
-                (*dataBuffer)[i].fields.scale[comp] = exp((*dataBuffer)[i].fields.scale[comp]);
+                dataBuffer[i].fields.scale[comp] = exp(dataBuffer[i].fields.scale[comp]);
             }
-            (*dataBuffer)[i].fields.opacity = 1.0f / (1.0f + exp(-(*dataBuffer)[i].fields.opacity));
-            memcpy(shBuffer, (*dataBuffer)[i].fields.SH, 48 * sizeof(float));
+            dataBuffer[i].fields.opacity = 1.0f / (1.0f + exp(-dataBuffer[i].fields.opacity));
+            memcpy(shBuffer, dataBuffer[i].fields.SH, 48 * sizeof(float));
             for(int j=1;j<16;j++){
-                (*dataBuffer)[i].fields.SH[j * 3 + 0] = shBuffer[(j-1) + 3];
-                (*dataBuffer)[i].fields.SH[j * 3 + 1] = shBuffer[(j-1) + 16 + 2];
-                (*dataBuffer)[i].fields.SH[j * 3 + 2] = shBuffer[(j-1) + 2 * 16 + 1];
+                dataBuffer[i].fields.SH[j * 3 + 0] = shBuffer[(j-1) + 3];
+                dataBuffer[i].fields.SH[j * 3 + 1] = shBuffer[(j-1) + 16 + 2];
+                dataBuffer[i].fields.SH[j * 3 + 2] = shBuffer[(j-1) + 2 * 16 + 1];
             }
             
         }

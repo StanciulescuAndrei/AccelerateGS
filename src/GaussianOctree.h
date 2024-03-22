@@ -1,13 +1,13 @@
 #ifndef __GAUSSIAN_OCTREE__
 #define __GAUSSIAN_OCTREE__
 
-#define MAX_OCTREE_LEVEL 12
+#define MAX_OCTREE_LEVEL 13
 
 #pragma once
 #include "PLYReader.h"
 #include <vector>
 
-bool insideBBox(glm::vec3 * bbox, uint32_t splatId, SplatData * sd){
+bool insideBBox(glm::vec3 * bbox, uint32_t splatId, std::vector<SplatData> & sd){
     float maxRadius = max(sd[splatId].fields.scale[0], max(sd[splatId].fields.scale[1], sd[splatId].fields.scale[2]));
     glm::vec3 minBound = glm::make_vec3(sd[splatId].fields.position) - maxRadius;
     glm::vec3 maxBound = glm::make_vec3(sd[splatId].fields.position) + maxRadius;
@@ -31,7 +31,7 @@ public:
     uint32_t representative = 0; /* Will be the splat that is the approximation of all splats contained, will be dynamically added to the array I guess */
 
 
-    void processSplats(uint8_t _level, SplatData * sd); 
+    void processSplats(uint8_t _level, std::vector<SplatData> & sd); 
     GaussianOctree( glm::vec3 * _bbox);
     ~GaussianOctree();
 };
@@ -42,7 +42,7 @@ GaussianOctree::GaussianOctree(glm::vec3 * _bbox)
     bbox[1] = _bbox[1];
 }
 
-void GaussianOctree::processSplats(uint8_t _level, SplatData * sd){
+void GaussianOctree::processSplats(uint8_t _level, std::vector<SplatData> & sd){
     level = _level;
 
     if(containedSplats.size() == 0){
@@ -109,7 +109,7 @@ GaussianOctree::~GaussianOctree()
         }
 }
 
-GaussianOctree * buildOctree(SplatData * sd, uint32_t num_primitives){
+GaussianOctree * buildOctree(std::vector<SplatData> & sd, uint32_t num_primitives){
     glm::vec3 minBound(1e13, 1e13, 1e13);
     glm::vec3 maxBound(-1e13, -1e13, -1e13);
 
@@ -143,7 +143,7 @@ GaussianOctree * buildOctree(SplatData * sd, uint32_t num_primitives){
 
 }
 
-void markForRender(bool * renderMask, uint32_t num_primitives, GaussianOctree * root, SplatData * sd){
+void markForRender(bool * renderMask, uint32_t num_primitives, GaussianOctree * root, std::vector<SplatData> & sd){
     for(auto splat : root->containedSplats){
         renderMask[splat] = true;
         // if(root->isLeaf){
