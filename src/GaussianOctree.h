@@ -60,6 +60,9 @@ void computeNodeRepresentative(GaussianOctree * node, std::vector<SplatData>& sd
         for(int i=0;i<62;i++){
             representative.rawData[i] /= node->containedSplats.size();
         }
+        representative.fields.scale[0] *= node->containedSplats.size();
+        representative.fields.scale[1] *= node->containedSplats.size();
+        representative.fields.scale[2] *= node->containedSplats.size();
         sd.push_back(representative);
         node->representative = sd.size() - 1;
     }
@@ -78,6 +81,18 @@ void computeNodeRepresentative(GaussianOctree * node, std::vector<SplatData>& sd
             }
         }
 
+        if(averageNo == 0)
+            return;
+
+        for(int i=0;i<62;i++){
+            representative.rawData[i] /= averageNo;
+        }
+
+        representative.fields.scale[0] *= averageNo;
+        representative.fields.scale[1] *= averageNo;
+        representative.fields.scale[2] *= averageNo;
+
+        averageNo = 1;
         for(int k=0;k<8;k++){
             if(node->children[k]->representative!=0){
                 averageNo++;
@@ -86,12 +101,15 @@ void computeNodeRepresentative(GaussianOctree * node, std::vector<SplatData>& sd
                 }
             }
         }
-        if(averageNo == 0)
-            return;
 
         for(int i=0;i<62;i++){
             representative.rawData[i] /= averageNo;
         }
+
+        representative.fields.scale[0] *= averageNo;
+        representative.fields.scale[1] *= averageNo;
+        representative.fields.scale[2] *= averageNo;
+
         sd.push_back(representative);
         node->representative = sd.size() - 1;
     }
@@ -203,6 +221,7 @@ GaussianOctree * buildOctree(std::vector<SplatData> & sd, uint32_t num_primitive
 }
 
 void markForRender(bool * renderMask, uint32_t num_primitives, GaussianOctree * root, std::vector<SplatData> & sd){
+    // renderMask[root->representative] = true;
     if(root->isLeaf){
         renderMask[root->representative] = true;
     }
@@ -211,7 +230,7 @@ void markForRender(bool * renderMask, uint32_t num_primitives, GaussianOctree * 
             renderMask[splat] = true;
         }
     }
-    if(!root->isLeaf || root->level < 6){ /* can have leaves higher up! Fix this!*/
+    if(!root->isLeaf && root->level < 10){
         for(int i=0;i<8;i++){
             markForRender(renderMask, num_primitives, root->children[i], sd);
         }
