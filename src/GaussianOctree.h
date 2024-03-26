@@ -8,12 +8,16 @@
 #include <vector>
 
 bool insideBBox(glm::vec3 * bbox, uint32_t splatId, std::vector<SplatData> & sd){
-    float maxRadius = max(sd[splatId].fields.scale[0], max(sd[splatId].fields.scale[1], sd[splatId].fields.scale[2]));
-    glm::vec3 minBound = glm::make_vec3(sd[splatId].fields.position) - maxRadius;
-    glm::vec3 maxBound = glm::make_vec3(sd[splatId].fields.position) + maxRadius;
+    // float maxRadius = max(sd[splatId].fields.scale[0], max(sd[splatId].fields.scale[1], sd[splatId].fields.scale[2]));
+    // glm::vec3 minBound = glm::make_vec3(sd[splatId].fields.position) - maxRadius;
+    // glm::vec3 maxBound = glm::make_vec3(sd[splatId].fields.position) + maxRadius;
 
-    if(minBound.x >= bbox[0].x && minBound.y >= bbox[0].y && minBound.z >= bbox[0].z &&
-       maxBound.x < bbox[1].x && maxBound.y < bbox[1].y && maxBound.z < bbox[1].z)
+    // if(minBound.x >= bbox[0].x && minBound.y >= bbox[0].y && minBound.z >= bbox[0].z &&
+    //    maxBound.x < bbox[1].x && maxBound.y < bbox[1].y && maxBound.z < bbox[1].z)
+    //    return true;
+
+    if(sd[splatId].fields.position[0] >= bbox[0].x && sd[splatId].fields.position[1] >= bbox[0].y && sd[splatId].fields.position[2] >= bbox[0].z &&
+       sd[splatId].fields.position[0] < bbox[1].x && sd[splatId].fields.position[1] < bbox[1].y && sd[splatId].fields.position[2] < bbox[1].z)
        return true;
 
     return false;
@@ -45,6 +49,9 @@ GaussianOctree::GaussianOctree(glm::vec3 * _bbox)
 void computeNodeRepresentative(GaussianOctree * node, std::vector<SplatData>& sd){
     
     if(node->isLeaf){
+        float opacityWeight = 0.0f;
+        float volumeWeight = 0.0f;
+
         if(node->containedSplats.size() == 0)
             return;
 
@@ -53,46 +60,65 @@ void computeNodeRepresentative(GaussianOctree * node, std::vector<SplatData>& sd
             representative.rawData[i] = 0.0f;
         }
         for(auto splat : node->containedSplats){
-            for(int i=0;i<62;i++){
-                representative.rawData[i] += sd[splat].rawData[i];
+            float opacity = sd[splat].fields.opacity;
+            float volume = sd[splat].fields.scale[0] * sd[splat].fields.scale[1] * sd[splat].fields.scale[2];
+            opacityWeight += opacity;
+            volumeWeight += volume;
+
+            /* Scaling */
+            for(int i = 0; i < 3; i++){
+                representative.fields.scale[i] += sd[splat].fields.scale[i];
             }
+
+            /* Colors (a.k.a. Sphere harmonics) */
+            for(int i = 0; i < 48; i++){
+                representative.fields.SH[i] += sd[splat].fields.SH[i] * opacity;
+            }
+
+            /* Quaternion */
+            for(int i = 0; i < 4; i++){
+                representative.fields.rotation[i] += sd[splat].fields.rotation[i] * volume;
+            }
+
+            /* Opacity */
+            representative.fields.opacity += sd[splat].fields.opacity * volume;
+
+            /* Mean */
+            for(int i = 0; i < 3; i++){
+                representative.fields.position[i] += sd[splat].fields.position[i] * opacity;
+            }
+
         }
-        for(int i=0;i<62;i++){
-            representative.rawData[i] /= node->containedSplats.size();
+
+        /* Colors (a.k.a. Sphere harmonics) */
+        for(int i = 0; i < 48; i++){
+            representative.fields.SH[i] /= opacityWeight;
         }
-        representative.fields.scale[0] *= node->containedSplats.size();
-        representative.fields.scale[1] *= node->containedSplats.size();
-        representative.fields.scale[2] *= node->containedSplats.size();
+
+        /* Quaternion */
+        for(int i = 0; i < 4; i++){
+            representative.fields.rotation[i] /= volumeWeight;
+        }
+
+        /* Opacity */
+        representative.fields.opacity /= volumeWeight;
+
+        /* Mean */
+        for(int i = 0; i < 3; i++){
+            representative.fields.position[i] /= opacityWeight;
+        }
+        
         sd.push_back(representative);
         node->representative = sd.size() - 1;
     }
     else{
         int averageNo = 0;
-        averageNo += node->containedSplats.size();
 
         SplatData representative;
         for(int i=0;i<62;i++){
             representative.rawData[i] = 0.0f;
         }
 
-        for(auto splat : node->containedSplats){
-            for(int i=0;i<62;i++){
-                representative.rawData[i] += sd[splat].rawData[i];
-            }
-        }
-
-        if(averageNo == 0)
-            return;
-
-        for(int i=0;i<62;i++){
-            representative.rawData[i] /= averageNo;
-        }
-
-        representative.fields.scale[0] *= averageNo;
-        representative.fields.scale[1] *= averageNo;
-        representative.fields.scale[2] *= averageNo;
-
-        averageNo = 1;
         for(int k=0;k<8;k++){
             if(node->children[k]->representative!=0){
                 averageNo++;
@@ -105,10 +131,6 @@ void computeNodeRepresentative(GaussianOctree * node, std::vector<SplatData>& sd
         for(int i=0;i<62;i++){
             representative.rawData[i] /= averageNo;
         }
-
-        representative.fields.scale[0] *= averageNo;
-        representative.fields.scale[1] *= averageNo;
-        representative.fields.scale[2] *= averageNo;
 
         sd.push_back(representative);
         node->representative = sd.size() - 1;
@@ -123,15 +145,12 @@ void GaussianOctree::processSplats(uint8_t _level, std::vector<SplatData> & sd){
         return;
     }
 
-    if(containedSplats.size() < 8){ // Some threshold where it's not worth going deeper
+    if(containedSplats.size() < 3){ // Some threshold where it's not worth going deeper
         isLeaf = true;
         return;
     }
 
     glm::vec3 halfSize = (bbox[1] - bbox[0]) * 0.5f;
-
-    bool * distributed_splats = new bool[containedSplats.size()];
-    memset(distributed_splats, 0, sizeof(bool) * containedSplats.size());
 
     for (int i=0;i<8;i++){
         // Define node's BBox
@@ -147,7 +166,6 @@ void GaussianOctree::processSplats(uint8_t _level, std::vector<SplatData> & sd){
         for(int k = 0; k < containedSplats.size(); k++){
             auto splat = containedSplats[k];
             if(insideBBox(children[i]->bbox, splat, sd)){
-                distributed_splats[k] = true;
                 children[i]->containedSplats.push_back(splat);
             }
         }
@@ -164,18 +182,10 @@ void GaussianOctree::processSplats(uint8_t _level, std::vector<SplatData> & sd){
             printf("%i / %i\n", i+1, 8);
         }
     }
-    std::vector<uint32_t> temp_buffer = containedSplats;
+
     containedSplats.clear();
-    for(int k = 0; k < temp_buffer.size(); k++){
-        if(!distributed_splats[k])
-            containedSplats.push_back(temp_buffer[k]);
-    }
-    temp_buffer.clear();
 
     computeNodeRepresentative(this, sd);
-
-    delete [] distributed_splats;
-
 }
 
 GaussianOctree::~GaussianOctree()
@@ -221,16 +231,9 @@ GaussianOctree * buildOctree(std::vector<SplatData> & sd, uint32_t num_primitive
 }
 
 void markForRender(bool * renderMask, uint32_t num_primitives, GaussianOctree * root, std::vector<SplatData> & sd){
-    // renderMask[root->representative] = true;
-    if(root->isLeaf){
+    if(root->level == 4 || (root->isLeaf && root->level < 4))
         renderMask[root->representative] = true;
-    }
-    else{
-        for(auto splat : root->containedSplats){
-            renderMask[splat] = true;
-        }
-    }
-    if(!root->isLeaf && root->level < 10){
+    if(!root->isLeaf){
         for(int i=0;i<8;i++){
             markForRender(renderMask, num_primitives, root->children[i], sd);
         }
