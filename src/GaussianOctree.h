@@ -67,7 +67,7 @@ void computeNodeRepresentative(GaussianOctree * node, std::vector<SplatData>& sd
 
             /* Scaling */
             for(int i = 0; i < 3; i++){
-                representative.fields.scale[i] += sd[splat].fields.scale[i];
+                representative.fields.scale[i] += sd[splat].fields.scale[i] * opacity;
             }
 
             /* Colors (a.k.a. Sphere harmonics) */
@@ -88,6 +88,11 @@ void computeNodeRepresentative(GaussianOctree * node, std::vector<SplatData>& sd
                 representative.fields.position[i] += sd[splat].fields.position[i] * opacity;
             }
 
+        }
+
+        /* Scaling */
+        for(int i = 0; i < 3; i++){
+            representative.fields.scale[i] /= opacityWeight;
         }
 
         /* Colors (a.k.a. Sphere harmonics) */
@@ -147,6 +152,7 @@ void GaussianOctree::processSplats(uint8_t _level, std::vector<SplatData> & sd){
 
     if(containedSplats.size() < 3){ // Some threshold where it's not worth going deeper
         isLeaf = true;
+        computeNodeRepresentative(this, sd);
         return;
     }
 
