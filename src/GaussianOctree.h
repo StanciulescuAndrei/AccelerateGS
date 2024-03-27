@@ -236,12 +236,12 @@ GaussianOctree * buildOctree(std::vector<SplatData> & sd, uint32_t num_primitive
 
 }
 
-void markForRender(bool * renderMask, uint32_t num_primitives, GaussianOctree * root, std::vector<SplatData> & sd){
-    if(root->level == 4 || (root->isLeaf && root->level < 4))
+void markForRender(bool * renderMask, uint32_t num_primitives, GaussianOctree * root, std::vector<SplatData> & sd, int renderLevel = 11){
+    if(root->level == renderLevel)
         renderMask[root->representative] = true;
     if(!root->isLeaf){
         for(int i=0;i<8;i++){
-            markForRender(renderMask, num_primitives, root->children[i], sd);
+            markForRender(renderMask, num_primitives, root->children[i], sd, renderLevel);
         }
     }
 

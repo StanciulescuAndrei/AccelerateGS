@@ -131,8 +131,6 @@ int main(){
     num_elements = sd.size();
     renderMask = (bool *)malloc(sizeof(bool) * num_elements);
     memset(renderMask, 0, sizeof(bool) * num_elements);
-
-    markForRender(renderMask, num_elements, octreeRoot, sd);
     
     printf("Number of splats: %d\n", num_elements);
 
@@ -274,6 +272,9 @@ int main(){
         /* Call the main CUDA render kernel */
 
         int renderMode = (selectedViewMode<<4) + renderPrimitive;
+
+        memset(renderMask, 0, sizeof(bool) * num_elements);
+        markForRender(renderMask, num_elements, octreeRoot, sd, renderLevel);
 
         checkCudaErrors(cudaMemcpy(d_renderMask, renderMask, sizeof(bool) * num_elements, cudaMemcpyHostToDevice));
 

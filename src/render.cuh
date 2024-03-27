@@ -276,11 +276,11 @@ __global__ void preprocessGaussians(int num_splats, SplatData * sd,
     if(idx >= num_splats)
         return;
 
+	radius[idx] = 0;
+    num_tiles_overlap[idx] = 0;
+
 	if(renderMask[idx] == false)
 		return;
-
-    radius[idx] = 0;
-    num_tiles_overlap[idx] = 0;
 
     /* Check if splat is in frustum */
     glm::vec4 pOrig = glm::vec4(sd[idx].fields.position[0], sd[idx].fields.position[1], sd[idx].fields.position[2], 1.0f);
