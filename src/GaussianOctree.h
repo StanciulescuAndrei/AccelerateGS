@@ -47,7 +47,8 @@ GaussianOctree::GaussianOctree(glm::vec3 * _bbox)
 }
 
 void computeNodeRepresentative(GaussianOctree * node, std::vector<SplatData>& sd){
-    
+    size_t num_fields = sizeof(SplatData) / sizeof(float);
+    float nodeSize = (node->bbox[1].x - node->bbox[0].x) / 9.0f;
     if(node->isLeaf){
         float opacityWeight = 0.0f;
         float volumeWeight = 0.0f;
@@ -56,28 +57,23 @@ void computeNodeRepresentative(GaussianOctree * node, std::vector<SplatData>& sd
             return;
 
         SplatData representative;
-        for(int i=0;i<62;i++){
+        for(int i=0;i<num_fields;i++){
             representative.rawData[i] = 0.0f;
         }
         for(auto splat : node->containedSplats){
             float opacity = sd[splat].fields.opacity;
-            float volume = sd[splat].fields.scale[0] * sd[splat].fields.scale[1] * sd[splat].fields.scale[2];
+            float volume = sd[splat].fields.covariance[0] * sd[splat].fields.covariance[3] * sd[splat].fields.covariance[5];
             opacityWeight += opacity;
             volumeWeight += volume;
 
             /* Scaling */
-            for(int i = 0; i < 3; i++){
-                representative.fields.scale[i] += sd[splat].fields.scale[i] * opacity;
+            for(int i = 0; i < 6; i++){
+                representative.fields.covariance[i] += sd[splat].fields.covariance[i] * opacity;
             }
 
             /* Colors (a.k.a. Sphere harmonics) */
             for(int i = 0; i < 48; i++){
                 representative.fields.SH[i] += sd[splat].fields.SH[i] * opacity;
-            }
-
-            /* Quaternion */
-            for(int i = 0; i < 4; i++){
-                representative.fields.rotation[i] += sd[splat].fields.rotation[i] * volume;
             }
 
             /* Opacity */
@@ -90,20 +86,22 @@ void computeNodeRepresentative(GaussianOctree * node, std::vector<SplatData>& sd
 
         }
 
-        /* Scaling */
-        for(int i = 0; i < 3; i++){
-            representative.fields.scale[i] /= opacityWeight;
-        }
-
         /* Colors (a.k.a. Sphere harmonics) */
         for(int i = 0; i < 48; i++){
             representative.fields.SH[i] /= opacityWeight;
         }
 
-        /* Quaternion */
-        for(int i = 0; i < 4; i++){
-            representative.fields.rotation[i] /= volumeWeight;
+        /* Covariance */
+        for(int i = 0; i < 6; i++){
+            representative.fields.covariance[i] /= opacityWeight;
         }
+        
+        representative.fields.covariance[0] = nodeSize;
+        representative.fields.covariance[1] = 0.0f;
+        representative.fields.covariance[2] = 0.0f;
+        representative.fields.covariance[3] = nodeSize;
+        representative.fields.covariance[4] = 0.0f;
+        representative.fields.covariance[5] = nodeSize;
 
         /* Opacity */
         representative.fields.opacity /= volumeWeight;
@@ -120,22 +118,30 @@ void computeNodeRepresentative(GaussianOctree * node, std::vector<SplatData>& sd
         int averageNo = 0;
 
         SplatData representative;
-        for(int i=0;i<62;i++){
+        for(int i=0;i<num_fields;i++){
             representative.rawData[i] = 0.0f;
         }
 
         for(int k=0;k<8;k++){
             if(node->children[k]->representative!=0){
                 averageNo++;
-                for(int i=0;i<62;i++){
+                for(int i=0;i<num_fields;i++){
                     representative.rawData[i] += sd[node->children[k]->representative].rawData[i];
                 }
             }
         }
 
-        for(int i=0;i<62;i++){
+        for(int i=0;i<num_fields;i++){
             representative.rawData[i] /= averageNo;
         }
+
+        representative.fields.covariance[0] = nodeSize;
+        representative.fields.covariance[1] = 0.0f;
+        representative.fields.covariance[2] = 0.0f;
+        representative.fields.covariance[3] = nodeSize;
+        representative.fields.covariance[4] = 0.0f;
+        representative.fields.covariance[5] = nodeSize;
+
 
         sd.push_back(representative);
         node->representative = sd.size() - 1;
@@ -207,15 +213,12 @@ GaussianOctree * buildOctree(std::vector<SplatData> & sd, uint32_t num_primitive
     glm::vec3 maxBound(-1e13, -1e13, -1e13);
 
     for(int i = 0; i < num_primitives; i++){
-        float maxRadius = max(sd[i].fields.scale[0], max(sd[i].fields.scale[1], sd[i].fields.scale[2]));
-        glm::vec3 splatMinBound = glm::make_vec3(sd[i].fields.position) - maxRadius;
-        glm::vec3 splatMaxBound = glm::make_vec3(sd[i].fields.position) + maxRadius;
-        minBound.x = min(minBound.x, splatMinBound.x);
-        minBound.y = min(minBound.y, splatMinBound.y);
-        minBound.z = min(minBound.z, splatMinBound.z);
-        maxBound.x = max(maxBound.x, splatMaxBound.x);
-        maxBound.y = max(maxBound.y, splatMaxBound.y);
-        maxBound.z = max(maxBound.z, splatMaxBound.z);
+        minBound.x = min(minBound.x, sd[i].fields.position[0]);
+        minBound.y = min(minBound.y, sd[i].fields.position[1]);
+        minBound.z = min(minBound.z, sd[i].fields.position[2]);
+        maxBound.x = max(maxBound.x, sd[i].fields.position[0]);
+        maxBound.y = max(maxBound.y, sd[i].fields.position[1]);
+        maxBound.z = max(maxBound.z, sd[i].fields.position[2]);
     }
 
     glm::vec3 center = (minBound + maxBound) * 0.5f;

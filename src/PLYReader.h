@@ -3,20 +3,7 @@
 #pragma once
 #include <fstream>
 #include <string>
-
-union SplatData
-{
-    float rawData[62]; // For faster reading, then we can split it into fields
-    struct Fields
-    {
-        float position[3];
-        float normal[3];
-        float SH[48];
-        float opacity;
-        float scale[3];
-        float rotation[4];
-    } fields;
-};
+#include "raster_helper.cuh"
 
 int loadSplatData(char* path, std::vector<SplatData> & dataBuffer, int * numElements){
     if(path == nullptr)
@@ -57,28 +44,42 @@ int loadSplatData(char* path, std::vector<SplatData> & dataBuffer, int * numElem
         std::getline(is, crt_line); // end_header
 
         // Now we read the binary data
+        SplatDataRaw * sdr = new SplatDataRaw[dataSize];
+        is.read((char*)sdr, sizeof(SplatData) * dataSize);
+
+        /* Convert data to correct format: scale as exponential, opacity is sigmoid, precompute 3D covariances*/
         dataBuffer.reserve(dataSize);
         dataBuffer.resize(dataSize);
-        is.read((char*)dataBuffer.data(), sizeof(SplatData) * dataSize);
-
-        /* Convert data to correct format: scale as exponential, opacity is sigmoid */
 
         for(int i = 0; i < dataSize; i++){
+            /* Scale is an exponential */
             for(int comp = 0; comp < 3; comp++){
-                dataBuffer[i].fields.scale[comp] = exp(dataBuffer[i].fields.scale[comp]);
+                sdr[i].fields.scale[comp] = exp(sdr[i].fields.scale[comp]);
             }
-            dataBuffer[i].fields.opacity = 1.0f / (1.0f + exp(-dataBuffer[i].fields.opacity));
-            memcpy(shBuffer, dataBuffer[i].fields.SH, 48 * sizeof(float));
+
+            /* Opacity is sigmoid */
+            sdr[i].fields.opacity = 1.0f / (1.0f + exp(-sdr[i].fields.opacity));
+
+            memcpy(shBuffer, sdr[i].fields.SH, 48 * sizeof(float));
+            /* Reorder SH components to have consecutive RGB */
             for(int j=1;j<16;j++){
-                dataBuffer[i].fields.SH[j * 3 + 0] = shBuffer[(j-1) + 3];
-                dataBuffer[i].fields.SH[j * 3 + 1] = shBuffer[(j-1) + 16 + 2];
-                dataBuffer[i].fields.SH[j * 3 + 2] = shBuffer[(j-1) + 2 * 16 + 1];
+                sdr[i].fields.SH[j * 3 + 0] = shBuffer[(j-1) + 3];
+                sdr[i].fields.SH[j * 3 + 1] = shBuffer[(j-1) + 16 + 2];
+                sdr[i].fields.SH[j * 3 + 2] = shBuffer[(j-1) + 2 * 16 + 1];
             }
-            
+
+            /* compy everything except the stuff needed for Cov3D */
+            memcpy(dataBuffer[i].rawData, sdr[i].rawData, sizeof(float) * (sizeof(SplatData) / sizeof(float) - 6));
+
+            glm::vec3 normal;
+            computeCov3D(sdr[i].fields.scale, 1.0f, sdr[i].fields.rotation, dataBuffer[i].fields.covariance, normal);
+            sdr[i].fields.normal[0] = normal.x;
+            sdr[i].fields.normal[1] = normal.y;
+            sdr[i].fields.normal[2] = normal.z;
         }
 
         *numElements = dataSize;
-
+        delete [] sdr;
         return 0;
     }
     else{

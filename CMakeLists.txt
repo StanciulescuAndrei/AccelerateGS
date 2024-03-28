@@ -26,6 +26,7 @@ add_executable(AccelerateGS
 		src/PLYReader.h
 		src/GUIManager.h
 		src/GaussianOctree.h
+		src/raster_helper.cuh
 		${IMGUI_PATH}/imgui.h
 		${IMGUI_PATH}/imgui.cpp
 		${IMGUI_PATH}/imconfig.h

@@ -10,6 +10,7 @@
 
 #include <chrono>
 
+#include "GaussianOctree.h"
 #include "render.cuh"
 
 #include "cuda_common/helper_cuda.h"
@@ -118,15 +119,10 @@ int main(){
     int num_elements = 0;
     int res = loadSplatData("../../models/garden/point_cloud/iteration_30000/point_cloud.ply", sd, &num_elements);
 
-    const uint32_t maxDuplicatedGaussians = num_elements * 4;
+    const uint32_t maxDuplicatedGaussians = num_elements * 8;
 
     // First of all, build da octree
     GaussianOctree * octreeRoot = buildOctree(sd, num_elements);
-
-    printf("\nRoot: %d\n", octreeRoot->containedSplats.size());
-    for(int i=0;i<8;i++){
-        printf("---- Child %d: %d\n", i, octreeRoot->children[i]->containedSplats.size());
-    }
 
     num_elements = sd.size();
     renderMask = (bool *)malloc(sizeof(bool) * num_elements);
