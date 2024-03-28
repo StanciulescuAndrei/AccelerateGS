@@ -48,7 +48,7 @@ GaussianOctree::GaussianOctree(glm::vec3 * _bbox)
 
 void computeNodeRepresentative(GaussianOctree * node, std::vector<SplatData>& sd){
     size_t num_fields = sizeof(SplatData) / sizeof(float);
-    float nodeSize = (node->bbox[1].x - node->bbox[0].x) / 9.0f;
+    float nodeSize = (node->bbox[1].x - node->bbox[0].x) / (node->level * node->level);
     if(node->isLeaf){
         float opacityWeight = 0.0f;
         float volumeWeight = 0.0f;
