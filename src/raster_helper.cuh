@@ -27,14 +27,16 @@ union SplatDataRaw
 
 union SplatData
 {
-    float rawData[61]; // For faster reading, then we can split it into fields
+    float rawData[70]; // For faster reading, then we can split it into fields
     struct Fields
     {
         float position[3];
         float normal[3];
         float SH[48];
         float opacity;
+		float directions[9];
         float covariance[6];
+		
     } fields;
 };
 
@@ -128,6 +130,25 @@ __device__ glm::vec3 computeColorFromSH(int idx, int deg, const SplatData::Field
 	}
 	result += 0.5f;
 	return glm::max(result, 0.0f);
+}
+
+void computeVecRotationFromQuaternion(const float * rot, glm::vec3 & vec){
+	glm::vec4 q = glm::vec4(rot[0], rot[1], rot[2], rot[3]);
+    q = q * (1.0f / glm::length(q));
+	float r = q.x;
+	float x = q.y;
+	float y = q.z;
+	float z = q.w;
+
+	// Compute rotation matrix from quaternion
+	glm::mat3 R = glm::mat3(
+		1.f - 2.f * (y * y + z * z), 2.f * (x * y - r * z), 2.f * (x * z + r * y),
+		2.f * (x * y + r * z), 1.f - 2.f * (x * x + z * z), 2.f * (y * z - r * x),
+		2.f * (x * z - r * y), 2.f * (y * z + r * x), 1.f - 2.f * (x * x + y * y)
+	);
+
+	vec = R * vec;
+
 }
 
 __forceinline__ __device__ float3 transformPoint4x3(const float3& p, const float* matrix)

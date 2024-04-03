@@ -45,7 +45,7 @@ int loadSplatData(char* path, std::vector<SplatData> & dataBuffer, int * numElem
 
         // Now we read the binary data
         SplatDataRaw * sdr = new SplatDataRaw[dataSize];
-        is.read((char*)sdr, sizeof(SplatData) * dataSize);
+        is.read((char*)sdr, sizeof(SplatDataRaw) * dataSize);
 
         /* Convert data to correct format: scale as exponential, opacity is sigmoid, precompute 3D covariances*/
         dataBuffer.reserve(dataSize);
@@ -69,7 +69,24 @@ int loadSplatData(char* path, std::vector<SplatData> & dataBuffer, int * numElem
             }
 
             /* compy everything except the stuff needed for Cov3D */
-            memcpy(dataBuffer[i].rawData, sdr[i].rawData, sizeof(float) * (sizeof(SplatData) / sizeof(float) - 6));
+            memcpy(dataBuffer[i].rawData, sdr[i].rawData, sizeof(float) * (sizeof(SplatData) / sizeof(float) - 15));
+
+            glm::vec3 e1(sdr[i].fields.scale[0], 0.0f, 0.0f);
+            glm::vec3 e2(0.0f, sdr[i].fields.scale[1], 0.0f);
+            glm::vec3 e3(0.0f, 0.0f, sdr[i].fields.scale[2]);
+
+            computeVecRotationFromQuaternion(sdr[i].fields.rotation, e1);
+            computeVecRotationFromQuaternion(sdr[i].fields.rotation, e2);
+            computeVecRotationFromQuaternion(sdr[i].fields.rotation, e3);
+            dataBuffer[i].fields.directions[0] = e1.x;
+            dataBuffer[i].fields.directions[1] = e1.y;
+            dataBuffer[i].fields.directions[2] = e1.z;
+            dataBuffer[i].fields.directions[3] = e2.x;
+            dataBuffer[i].fields.directions[4] = e2.y;
+            dataBuffer[i].fields.directions[5] = e2.z;
+            dataBuffer[i].fields.directions[6] = e3.x;
+            dataBuffer[i].fields.directions[7] = e3.y;
+            dataBuffer[i].fields.directions[8] = e3.z;
 
             glm::vec3 normal;
             computeCov3D(sdr[i].fields.scale, 1.0f, sdr[i].fields.rotation, dataBuffer[i].fields.covariance, normal);
