@@ -60,6 +60,12 @@ void computeNodeRepresentative(GaussianOctree * node, std::vector<SplatData>& sd
         if(node->containedSplats.size() == 0)
             return;
 
+        /* Only one splat contained */
+        if(node->containedSplats.size() == 1){
+            node->representative = node->containedSplats[0];
+            return;
+        }
+
         /* Representative splat object with empy data */
         SplatData representative;
         for(int i=0;i<num_fields;i++){
@@ -219,6 +225,16 @@ void computeNodeRepresentative(GaussianOctree * node, std::vector<SplatData>& sd
             return;
         }
 
+        /* Only one splat contained */
+        if(composeCount == 1){
+            for(int i = 0; i < 8; i++){
+                if(node->children[i]->representative != 0){
+                    node->representative = node->children[i]->representative;
+                    return;
+                }
+            }
+        }
+
         Eigen::MatrixXf coverageCloud(coveragePoints.size(), 3);
         for(int i = 0; i < coveragePoints.size(); i++){
             coverageCloud(i, 0) = coveragePoints[i].x;
@@ -278,11 +294,11 @@ void GaussianOctree::processSplats(uint8_t _level, std::vector<SplatData> & sd){
         return;
     }
 
-    if(containedSplats.size() < 3){ // Some threshold where it's not worth going deeper
-        isLeaf = true;
-        computeNodeRepresentative(this, sd);
-        return;
-    }
+    // if(containedSplats.size() < 3){ // Some threshold where it's not worth going deeper
+    //     isLeaf = true;
+    //     computeNodeRepresentative(this, sd);
+    //     return;
+    // }
 
     glm::vec3 halfSize = (bbox[1] - bbox[0]) * 0.5f;
 
@@ -361,17 +377,24 @@ GaussianOctree * buildOctree(std::vector<SplatData> & sd, uint32_t num_primitive
 
 }
 
-void markForRender(bool * renderMask, uint32_t num_primitives, GaussianOctree * root, std::vector<SplatData> & sd, int renderLevel = 11){
-    if(root->level == renderLevel)
+int markForRender(bool * renderMask, uint32_t num_primitives, GaussianOctree * root, std::vector<SplatData> & sd, int renderLevel = 11){
+    if(root->level == renderLevel){
         renderMask[root->representative] = true;
-    if(root->level < renderLevel && root->isLeaf)
+        return 1;
+    }
+    if(root->level <= renderLevel && root->isLeaf){
         for(auto splat : root->containedSplats)
             renderMask[splat] = true;
-    if(!root->isLeaf){
-        for(int i=0;i<8;i++){
-            markForRender(renderMask, num_primitives, root->children[i], sd, renderLevel);
-        }
+        return root->containedSplats.size();
     }
+    if(!root->isLeaf && root->level < renderLevel){
+        int splatsRendered = 0;
+        for(int i=0;i<8;i++){
+            splatsRendered += markForRender(renderMask, num_primitives, root->children[i], sd, renderLevel);
+        }
+        return splatsRendered;
+    }
+    return 0;
 
 }
 

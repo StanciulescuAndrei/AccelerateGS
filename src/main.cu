@@ -270,7 +270,8 @@ int main(){
         int renderMode = (selectedViewMode<<4) + renderPrimitive;
 
         memset(renderMask, 0, sizeof(bool) * num_elements);
-        markForRender(renderMask, num_elements, octreeRoot, sd, renderLevel);
+        int renderedSplats = markForRender(renderMask, num_elements, octreeRoot, sd, renderLevel);
+        printf("Rendered splats: %d\n", renderedSplats);
 
         checkCudaErrors(cudaMemcpy(d_renderMask, renderMask, sizeof(bool) * num_elements, cudaMemcpyHostToDevice));
 
