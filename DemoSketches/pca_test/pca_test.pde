@@ -8,6 +8,8 @@ PVector mean;
 PVector[] eigenvectors;
 float[] eigenvalues;
 
+float deviations = 1.41;
+
 void setup() {
   size(800, 800);
   points = new ArrayList<PVector>();
@@ -75,7 +77,9 @@ void calculatePCA() {
 void drawPoints() {
   fill(0);
   for (PVector point : points) {
-    ellipse(point.x, point.y, 10, 10);
+    strokeWeight(1);
+    stroke(0, 0, 0);
+    ellipse(point.x, point.y, 3, 3);
   }
 }
 
@@ -96,9 +100,9 @@ void drawEllipses() {
 
 void drawPCA() {
   stroke(255, 0, 0);
-  line(mean.x, mean.y, mean.x + eigenvectors[0].x * sqrt(eigenvalues[0]) * 1, mean.y + eigenvectors[0].y * sqrt(eigenvalues[0]) * 1);
+  line(mean.x, mean.y, mean.x + eigenvectors[0].x * sqrt(eigenvalues[0]) * deviations, mean.y + eigenvectors[0].y * sqrt(eigenvalues[0]) * deviations);
   stroke(0, 0, 255);
-  line(mean.x, mean.y, mean.x + eigenvectors[1].x * sqrt(eigenvalues[1]) * 1, mean.y + eigenvectors[1].y * sqrt(eigenvalues[1]) * 1);
+  line(mean.x, mean.y, mean.x + eigenvectors[1].x * sqrt(eigenvalues[1]) * deviations, mean.y + eigenvectors[1].y * sqrt(eigenvalues[1]) * deviations);
 }
 
 void drawEllipse() {
@@ -106,7 +110,9 @@ void drawEllipse() {
   translate(mean.x, mean.y);
   rotate(atan2(eigenvectors[0].y, eigenvectors[0].x));
   noFill();
+  strokeWeight(6);
   stroke(0, 255, 0);
-  ellipse(0, 0, sqrt(eigenvalues[0]) * 2, sqrt(eigenvalues[1]) * 2);
+  ellipse(0, 0, sqrt(eigenvalues[0]) * 2 * deviations, sqrt(eigenvalues[1]) * 2 * deviations);
+  strokeWeight(4);
   popMatrix();
 }
