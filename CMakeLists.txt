@@ -27,6 +27,7 @@ add_executable(AccelerateGS
 		src/GUIManager.h
 		src/GaussianOctree.h
 		src/raster_helper.cuh
+		src/OctreeSerializer.cuh
 		${IMGUI_PATH}/imgui.h
 		${IMGUI_PATH}/imgui.cpp
 		${IMGUI_PATH}/imconfig.h

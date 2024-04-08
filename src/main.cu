@@ -10,7 +10,7 @@
 
 #include <chrono>
 
-#include "GaussianOctree.h"
+#include "OctreeSerializer.cuh"
 #include "render.cuh"
 
 #include "cuda_common/helper_cuda.h"
