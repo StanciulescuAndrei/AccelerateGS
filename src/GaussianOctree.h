@@ -51,239 +51,112 @@ void computeNodeRepresentative(GaussianOctree * node, std::vector<SplatData>& sd
     size_t num_fields = sizeof(SplatData) / sizeof(float);
     float nodeSize = (node->bbox[1].x - node->bbox[0].x) / (node->level * node->level);
 
-    if(node->isLeaf){
-        /* Accumulation for weighted average */
-        float opacityWeight = 0.0f;
-        float volumeWeight = 0.0f;
+    /* Accumulation for weighted average */
+    float opacityWeight = 0.0f;
+    float volumeWeight = 0.0f;
 
-        /* No splats inside, so no representative */
-        if(node->containedSplats.size() == 0)
-            return;
+    /* No splats inside, so no representative */
+    if(node->containedSplats.size() == 0)
+        return;
 
-        /* Only one splat contained */
-        if(node->containedSplats.size() == 1){
-            node->representative = node->containedSplats[0];
-            return;
-        }
+    /* Only one splat contained */
+    if(node->containedSplats.size() == 1){
+        node->representative = node->containedSplats[0];
+        return;
+    }
 
-        /* Representative splat object with empy data */
-        SplatData representative;
-        for(int i=0;i<num_fields;i++){
-            representative.rawData[i] = 0.0f;
-        }
+    /* Representative splat object with empy data */
+    SplatData representative;
+    for(int i=0;i<num_fields;i++){
+        representative.rawData[i] = 0.0f;
+    }
 
-        std::vector<glm::vec3> coveragePoints;
-        coveragePoints.reserve(node->containedSplats.size() * 7);
+    std::vector<glm::vec3> coveragePoints;
+    coveragePoints.reserve(node->containedSplats.size() * 7);
 
-        /* Iterate through all the contained splats in the node */
-        for(auto splat : node->containedSplats){
+    /* Iterate through all the contained splats in the node */
+    for(auto splat : node->containedSplats){
 
-            if(sd[splat].fields.opacity < 0.5f)
-                continue;
+        if(sd[splat].fields.opacity < 0.5f)
+            continue;
 
-            glm::vec3 e1 = glm::make_vec3(&sd[splat].fields.directions[0]) / 3.0f;
-            glm::vec3 e2 = glm::make_vec3(&sd[splat].fields.directions[3]) / 3.0f;
-            glm::vec3 e3 = glm::make_vec3(&sd[splat].fields.directions[6]) / 3.0f;
+        glm::vec3 e1 = glm::make_vec3(&sd[splat].fields.directions[0]) / 3.0f;
+        glm::vec3 e2 = glm::make_vec3(&sd[splat].fields.directions[3]) / 3.0f;
+        glm::vec3 e3 = glm::make_vec3(&sd[splat].fields.directions[6]) / 3.0f;
 
-            float opacity = sd[splat].fields.opacity;
-            float volume = e1.length() * e2.length() * e3.length();
+        float opacity = sd[splat].fields.opacity;
+        float volume = e1.length() * e2.length() * e3.length();
 
-            opacityWeight += opacity;
-            volumeWeight += volume;
-
-            /* Colors (a.k.a. Sphere harmonics) */
-            for(int i = 0; i < 48; i++){
-                representative.fields.SH[i] += sd[splat].fields.SH[i] * opacity;
-            }
-
-            /* Opacity */
-            representative.fields.opacity += sd[splat].fields.opacity * volume;
-
-            coveragePoints.push_back(glm::make_vec3(sd[splat].fields.position));
-            coveragePoints.push_back(glm::make_vec3(sd[splat].fields.position) + e1);
-            coveragePoints.push_back(glm::make_vec3(sd[splat].fields.position) - e1);
-            coveragePoints.push_back(glm::make_vec3(sd[splat].fields.position) + e2);
-            coveragePoints.push_back(glm::make_vec3(sd[splat].fields.position) - e2);
-            coveragePoints.push_back(glm::make_vec3(sd[splat].fields.position) + e3);
-            coveragePoints.push_back(glm::make_vec3(sd[splat].fields.position) - e3);
-
-        }
-
-        Eigen::MatrixXf coverageCloud(coveragePoints.size(), 3);
-        for(int i = 0; i < coveragePoints.size(); i++){
-            coverageCloud(i, 0) = coveragePoints[i].x;
-            coverageCloud(i, 1) = coveragePoints[i].y;
-            coverageCloud(i, 2) = coveragePoints[i].z;
-        }
-
-        // First, we need to compute the mean of the points
-        Eigen::Vector3f mean = coverageCloud.colwise().mean();
-
-        // Then, we subtract the mean from the points
-        Eigen::MatrixXf centered = coverageCloud.rowwise() - mean.transpose();
-
-        // Compute the covariance matrix
-        Eigen::Matrix3f cov = centered.transpose() * centered;
-
-        // Perform the singular value decomposition
-        Eigen::JacobiSVD<Eigen::Matrix3f> svd(cov, Eigen::ComputeThinU | Eigen::ComputeThinV);
-
-        // The columns of U are the eigenvectors
-        Eigen::Matrix3f U = svd.matrixU();
-        Eigen::Vector3f svals = svd.singularValues();
-
-        representative.fields.covariance[0] = cov(0, 0);
-        representative.fields.covariance[1] = cov(0, 1);
-        representative.fields.covariance[2] = cov(0, 2);
-        representative.fields.covariance[3] = cov(1, 1);
-        representative.fields.covariance[4] = cov(1, 2);
-        representative.fields.covariance[5] = cov(2, 2);
-
-        for(int i = 0; i < 9; i++){
-            representative.fields.directions[i] = U(i % 3, i / 3) * svals(i / 3);
-        }
-
-        representative.fields.position[0] = mean(0);
-        representative.fields.position[1] = mean(1);
-        representative.fields.position[2] = mean(2);
+        opacityWeight += opacity;
+        volumeWeight += volume;
 
         /* Colors (a.k.a. Sphere harmonics) */
         for(int i = 0; i < 48; i++){
-            representative.fields.SH[i] /= opacityWeight;
+            representative.fields.SH[i] += sd[splat].fields.SH[i] * opacity;
         }
 
         /* Opacity */
-        representative.fields.opacity /= volumeWeight;
-        
-        sd.push_back(representative);
-        node->representative = sd.size() - 1;
+        representative.fields.opacity += sd[splat].fields.opacity * volume;
+
+        coveragePoints.push_back(glm::make_vec3(sd[splat].fields.position));
+        coveragePoints.push_back(glm::make_vec3(sd[splat].fields.position) + e1);
+        coveragePoints.push_back(glm::make_vec3(sd[splat].fields.position) - e1);
+        coveragePoints.push_back(glm::make_vec3(sd[splat].fields.position) + e2);
+        coveragePoints.push_back(glm::make_vec3(sd[splat].fields.position) - e2);
+        coveragePoints.push_back(glm::make_vec3(sd[splat].fields.position) + e3);
+        coveragePoints.push_back(glm::make_vec3(sd[splat].fields.position) - e3);
+
     }
-    else{
-        /* Accumulation for weighted average */
-        float opacityWeight = 0.0f;
-        float volumeWeight = 0.0f;
 
-        int composeCount = 0;
-
-        /* Representative splat object with empy data */
-        SplatData representative;
-        for(int i=0;i<num_fields;i++){
-            representative.rawData[i] = 0.0f;
-        }
-
-        std::vector<glm::vec3> coveragePoints;
-
-        /* Iterate through all the contained splats in the node */
-        for(int i = 0; i < 8; i++){
-            if(node->children[i]->representative == 0){
-                continue;
-            }
-
-            uint32_t rep = node->children[i]->representative;
-
-            if(sd[rep].fields.opacity < 0.5f)
-                continue;
-
-            composeCount++;
-
-            
-
-            glm::vec3 e1 = glm::make_vec3(&sd[rep].fields.directions[0]) / 3.0f;
-            glm::vec3 e2 = glm::make_vec3(&sd[rep].fields.directions[3]) / 3.0f;
-            glm::vec3 e3 = glm::make_vec3(&sd[rep].fields.directions[6]) / 3.0f;
-
-            float opacity = sd[rep].fields.opacity;
-            float volume = e1.length() * e2.length() * e3.length();
-
-            opacityWeight += opacity;
-            volumeWeight += volume;
-
-            /* Colors (a.k.a. Sphere harmonics) */
-            for(int j = 0; j < 48; j++){
-                representative.fields.SH[j] += sd[rep].fields.SH[j] * opacity;
-            }
-
-            /* Opacity */
-            representative.fields.opacity += sd[rep].fields.opacity * volume;
-
-            /* Mean */
-            for(int j = 0; j < 3; j++){
-                representative.fields.position[j] += sd[rep].fields.position[j];
-            }
-
-            coveragePoints.push_back(glm::make_vec3(sd[rep].fields.position));
-            coveragePoints.push_back(glm::make_vec3(sd[rep].fields.position) + e1);
-            coveragePoints.push_back(glm::make_vec3(sd[rep].fields.position) - e1);
-            coveragePoints.push_back(glm::make_vec3(sd[rep].fields.position) + e2);
-            coveragePoints.push_back(glm::make_vec3(sd[rep].fields.position) - e2);
-            coveragePoints.push_back(glm::make_vec3(sd[rep].fields.position) + e3);
-            coveragePoints.push_back(glm::make_vec3(sd[rep].fields.position) - e3);
-
-        }
-
-        if(composeCount == 0){
-            return;
-        }
-
-        /* Only one splat contained */
-        if(composeCount == 1){
-            for(int i = 0; i < 8; i++){
-                if(node->children[i]->representative != 0){
-                    node->representative = node->children[i]->representative;
-                    return;
-                }
-            }
-        }
-
-        Eigen::MatrixXf coverageCloud(coveragePoints.size(), 3);
-        for(int i = 0; i < coveragePoints.size(); i++){
-            coverageCloud(i, 0) = coveragePoints[i].x;
-            coverageCloud(i, 1) = coveragePoints[i].y;
-            coverageCloud(i, 2) = coveragePoints[i].z;
-        }
-
-        // First, we need to compute the mean of the points
-        Eigen::Vector3f mean = coverageCloud.colwise().mean();
-
-        // Then, we subtract the mean from the points
-        Eigen::MatrixXf centered = coverageCloud.rowwise() - mean.transpose();
-
-        // Compute the covariance matrix
-        Eigen::Matrix3f cov = centered.transpose() * centered;
-
-        // Perform the singular value decomposition
-        Eigen::JacobiSVD<Eigen::Matrix3f> svd(cov, Eigen::ComputeThinU | Eigen::ComputeThinV);
-
-        // The columns of U are the eigenvectors
-        Eigen::Matrix3f U = svd.matrixU();
-        Eigen::Vector3f svals = svd.singularValues();
-
-        representative.fields.covariance[0] = cov(0, 0);
-        representative.fields.covariance[1] = cov(0, 1);
-        representative.fields.covariance[2] = cov(0, 2);
-        representative.fields.covariance[3] = cov(1, 1);
-        representative.fields.covariance[4] = cov(1, 2);
-        representative.fields.covariance[5] = cov(2, 2);
-
-        for(int i = 0; i < 9; i++){
-            representative.fields.directions[i] = U(i % 3, i / 3) * svals(i / 3);
-        }
-
-        representative.fields.position[0] = mean(0);
-        representative.fields.position[1] = mean(1);
-        representative.fields.position[2] = mean(2);
-
-        /* Colors (a.k.a. Sphere harmonics) */
-        for(int i = 0; i < 48; i++){
-            representative.fields.SH[i] /= opacityWeight;
-        }
-
-        /* Opacity */
-        representative.fields.opacity /= volumeWeight;
-
-        sd.push_back(representative);
-        node->representative = sd.size() - 1;
+    Eigen::MatrixXf coverageCloud(coveragePoints.size(), 3);
+    for(int i = 0; i < coveragePoints.size(); i++){
+        coverageCloud(i, 0) = coveragePoints[i].x;
+        coverageCloud(i, 1) = coveragePoints[i].y;
+        coverageCloud(i, 2) = coveragePoints[i].z;
     }
+
+    // First, we need to compute the mean of the points
+    Eigen::Vector3f mean = coverageCloud.colwise().mean();
+
+    // Then, we subtract the mean from the points
+    coverageCloud = coverageCloud.rowwise() - mean.transpose();
+
+    // Compute the covariance matrix
+    Eigen::Matrix3f cov = coverageCloud.transpose() * coverageCloud;
+
+    // Perform the singular value decomposition
+    Eigen::JacobiSVD<Eigen::Matrix3f> svd(cov, Eigen::ComputeThinU | Eigen::ComputeThinV);
+
+    // The columns of U are the eigenvectors
+    Eigen::Matrix3f U = svd.matrixU();
+    Eigen::Vector3f svals = svd.singularValues();
+
+    representative.fields.covariance[0] = cov(0, 0);
+    representative.fields.covariance[1] = cov(0, 1);
+    representative.fields.covariance[2] = cov(0, 2);
+    representative.fields.covariance[3] = cov(1, 1);
+    representative.fields.covariance[4] = cov(1, 2);
+    representative.fields.covariance[5] = cov(2, 2);
+
+    for(int i = 0; i < 9; i++){
+        representative.fields.directions[i] = U(i % 3, i / 3) * svals(i / 3);
+    }
+
+    representative.fields.position[0] = mean(0);
+    representative.fields.position[1] = mean(1);
+    representative.fields.position[2] = mean(2);
+
+    /* Colors (a.k.a. Sphere harmonics) */
+    for(int i = 0; i < 48; i++){
+        representative.fields.SH[i] /= opacityWeight;
+    }
+
+    /* Opacity */
+    representative.fields.opacity /= volumeWeight;
+    
+    sd.push_back(representative);
+    node->representative = sd.size() - 1;
+    
 }
 
 void GaussianOctree::processSplats(uint8_t _level, std::vector<SplatData> & sd){
@@ -333,9 +206,12 @@ void GaussianOctree::processSplats(uint8_t _level, std::vector<SplatData> & sd){
         }
     }
 
+    /* Compute representatives before clearing the contained splats vector */
+    computeNodeRepresentative(this, sd);
+
     containedSplats.clear();
 
-    computeNodeRepresentative(this, sd);
+    
 }
 
 GaussianOctree::~GaussianOctree()
@@ -378,6 +254,9 @@ GaussianOctree * buildOctree(std::vector<SplatData> & sd, uint32_t num_primitive
 }
 
 int markForRender(bool * renderMask, uint32_t num_primitives, GaussianOctree * root, std::vector<SplatData> & sd, int renderLevel = 11){
+    if(root->containedSplats.size() == 0 && root->representative == 0){
+        return 0;
+    }
     if(root->level == renderLevel){
         renderMask[root->representative] = true;
         return 1;

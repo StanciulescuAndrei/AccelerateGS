@@ -40,7 +40,7 @@ void buildInterface(){
     ImGui::RadioButton("Splats", &renderPrimitive, 0); ImGui::SameLine();
     ImGui::RadioButton("Points", &renderPrimitive, 1);
 
-    ImGui::SliderInt("Render Level", &renderLevel, 2, MAX_OCTREE_LEVEL);
+    ImGui::SliderInt("Render Level", &renderLevel, 2, MAX_OCTREE_LEVEL + 1);
 
     ImGui::End();
     ImGui::Render();
