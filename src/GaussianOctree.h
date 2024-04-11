@@ -77,7 +77,7 @@ void computeNodeRepresentative(GaussianOctree * node, std::vector<SplatData>& sd
     /* Iterate through all the contained splats in the node */
     for(auto splat : node->containedSplats){
 
-        if(sd[splat].fields.opacity < 0.5f)
+        if(sd[splat].fields.opacity < 0.95f)
             continue;
 
         glm::vec3 e1 = glm::make_vec3(&sd[splat].fields.directions[0]) / 3.0f;
