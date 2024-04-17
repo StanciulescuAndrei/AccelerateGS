@@ -6,6 +6,7 @@
 #pragma once
 #include "PLYReader.h"
 #include <vector>
+#include <algorithm>
 
 bool insideBBox(glm::vec3 * bbox, uint32_t splatId, std::vector<SplatData> & sd){
     // float maxRadius = max(sd[splatId].fields.scale[0], max(sd[splatId].fields.scale[1], sd[splatId].fields.scale[2]));
@@ -105,24 +106,68 @@ void computeNodeRepresentative(GaussianOctree * node, std::vector<SplatData>& sd
         coveragePoints.push_back(glm::make_vec3(sd[splat].fields.position) - e2);
         coveragePoints.push_back(glm::make_vec3(sd[splat].fields.position) + e3);
         coveragePoints.push_back(glm::make_vec3(sd[splat].fields.position) - e3);
+    }
 
+    if(coveragePoints.size() == 0){
+        return;
+    }
+
+    /* Compute point densities */
+    float * densities = new float[coveragePoints.size()];
+    memset(densities, 0, sizeof(float) * coveragePoints.size());
+    // std::vector<float> distances;
+    // distances.reserve(coveragePoints.size() - 1);
+    // float min_density = 1e10;
+    // float max_density = 0.0f;
+
+    // for(int i = 0; i < coveragePoints.size(); i++){
+    //     distances.clear();
+    //     for(int j = 0; j < coveragePoints.size(); j++){
+    //         if(i != j){ /* Do not consider itself for density */
+    //             distances.push_back(glm::length(coveragePoints[i] - coveragePoints[j]));
+    //         }
+    //     }
+    //     std::sort(distances.begin(), distances.end());
+    //     int k = 10;
+    //     for(int j = 0; j < std::min(k, (int)distances.size()); j++){
+    //         densities[i] += distances[j];
+    //     }
+    //     densities[i] /= std::min(k, (int)distances.size());
+    //     if(densities[i] < min_density){
+    //         min_density = densities[i];
+    //     }
+    //     if(densities[i] > max_density){
+    //         max_density = densities[i];
+    //     }
+    // }
+
+    for(int i = 0; i < coveragePoints.size(); i++){
+        densities[i] = 1.0f; // - (densities[i] - min_density) / (max_density - min_density) * 0.5;
+    }
+
+    float weightsum = 0.0f;
+    for(int i = 0; i < coveragePoints.size(); i++){
+        weightsum += densities[i];
     }
 
     Eigen::MatrixXf coverageCloud(coveragePoints.size(), 3);
     for(int i = 0; i < coveragePoints.size(); i++){
-        coverageCloud(i, 0) = coveragePoints[i].x;
-        coverageCloud(i, 1) = coveragePoints[i].y;
-        coverageCloud(i, 2) = coveragePoints[i].z;
+        coverageCloud(i, 0) = coveragePoints[i].x * densities[i];
+        coverageCloud(i, 1) = coveragePoints[i].y * densities[i];
+        coverageCloud(i, 2) = coveragePoints[i].z * densities[i];
     }
 
     // First, we need to compute the mean of the points
     Eigen::Vector3f mean = coverageCloud.colwise().mean();
+    mean = mean * coveragePoints.size() / weightsum;
 
     // Then, we subtract the mean from the points
     coverageCloud = coverageCloud.rowwise() - mean.transpose();
 
     // Compute the covariance matrix
     Eigen::Matrix3f cov = coverageCloud.transpose() * coverageCloud;
+
+    // cov = cov / (weightsum * weightsum); /* NOT the proper formula: https://stats.stackexchange.com/questions/113485/weighted-principal-components-analysis */
 
     // Perform the singular value decomposition
     Eigen::JacobiSVD<Eigen::Matrix3f> svd(cov, Eigen::ComputeThinU | Eigen::ComputeThinV);

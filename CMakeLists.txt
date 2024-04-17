@@ -6,6 +6,8 @@ find_package(OpenGL REQUIRED)
 
 find_package (Eigen3 3.4 REQUIRED NO_MODULE)
 
+find_package(OpenMP)
+
 set(CMAKE_CUDA_ARCHITECTURES 86)
 set(OpenGL_GL_PREFERENCE GLVND)
 
@@ -49,5 +51,6 @@ target_link_libraries(AccelerateGS
 	glfw
 	${GLEW_LIBRARY}
 	Eigen3::Eigen
+	OpenMP::OpenMP_CXX
 )
 
