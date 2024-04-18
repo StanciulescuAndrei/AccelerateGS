@@ -111,22 +111,32 @@ void initGLContextAndWindow(GLFWwindow** window){
 int main(){
     GLFWwindow* window;
 
+    std::chrono::steady_clock::time_point begin;
+    std::chrono::steady_clock::time_point end;
+
     initGLContextAndWindow(&window);
 
     /* Load splat scene data from file */
     std::vector<SplatData> sd;
     bool * renderMask;
     int num_elements = 0;
-    int res = loadSplatData("../../models/garden/point_cloud/iteration_30000/point_cloud.ply", sd, &num_elements);
+    int res = loadSplatData("../../models/train/point_cloud/iteration_30000/point_cloud.ply", sd, &num_elements);
 
-    const uint32_t maxDuplicatedGaussians = num_elements * 8;
+    const uint32_t maxDuplicatedGaussians = num_elements * 16;
 
     // First of all, build da octree
+    begin = std::chrono::steady_clock::now();
     GaussianOctree * octreeRoot = buildOctree(sd, num_elements);
+    int old_num_elements = num_elements;
 
     num_elements = sd.size();
     renderMask = (bool *)malloc(sizeof(bool) * num_elements);
     memset(renderMask, 0, sizeof(bool) * num_elements);
+
+    end = std::chrono::steady_clock::now();
+    int octreeTime = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
+    char title[256];
+    printf("Octree built in %f s\n", octreeTime / 1000.0f);
     
     printf("Number of splats: %d\n", num_elements);
 
@@ -235,8 +245,6 @@ int main(){
 
     /* Very basic FPS metrics */
     int currentFPSIndex = 0;
-    std::chrono::steady_clock::time_point begin;
-    std::chrono::steady_clock::time_point end;
 
     begin = std::chrono::steady_clock::now();
 
@@ -270,8 +278,11 @@ int main(){
         int renderMode = (selectedViewMode<<4) + renderPrimitive;
 
         memset(renderMask, 0, sizeof(bool) * num_elements);
+        // for(int i = 0; i < old_num_elements; i++){
+        //     renderMask[i] = 1;
+        // }
         int renderedSplats = markForRender(renderMask, num_elements, octreeRoot, sd, renderLevel);
-        printf("Rendered splats: %d\n", renderedSplats);
+        // printf("Rendered splats: %d\n", renderedSplats);
 
         checkCudaErrors(cudaMemcpy(d_renderMask, renderMask, sizeof(bool) * num_elements, cudaMemcpyHostToDevice));
 

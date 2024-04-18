@@ -2,11 +2,16 @@
 #define __GAUSSIAN_OCTREE__
 
 #define MAX_OCTREE_LEVEL 14
+#define MIN_RESOLUTION 11
 
 #pragma once
 #include "PLYReader.h"
 #include <vector>
 #include <algorithm>
+#include <numeric>
+#include <omp.h>
+
+#include <nanoflann.hpp>
 
 bool insideBBox(glm::vec3 * bbox, uint32_t splatId, std::vector<SplatData> & sd){
     // float maxRadius = max(sd[splatId].fields.scale[0], max(sd[splatId].fields.scale[1], sd[splatId].fields.scale[2]));
@@ -47,6 +52,42 @@ GaussianOctree::GaussianOctree(glm::vec3 * _bbox)
     bbox[1] = _bbox[1];
 }
 
+typedef std::vector<glm::vec3> PointCloud;
+
+struct PointCloudAdaptor {
+    const PointCloud &pts;
+
+    PointCloudAdaptor(const PointCloud &pts) : pts(pts) {}
+
+    // Must return the number of data points
+    inline size_t kdtree_get_point_count() const { return pts.size(); }
+
+    // Returns the distance between the vector 'p1[0:size-1]' and the data point with index 'idx_p2'
+    inline float kdtree_distance(const float *p1, const size_t idx_p2, size_t /*size*/) const {
+        const float d0 = p1[0] - pts[idx_p2].x;
+        const float d1 = p1[1] - pts[idx_p2].y;
+        const float d2 = p1[2] - pts[idx_p2].z;
+        return d0 * d0 + d1 * d1 + d2 * d2;
+    }
+
+    // Returns the dim'th component of the idx'th point in the class
+    inline float kdtree_get_pt(const size_t idx, int dim) const {
+        if (dim == 0) return pts[idx].x;
+        else if (dim == 1) return pts[idx].y;
+        else return pts[idx].z;
+    }
+
+    // Optional bounding-box computation
+    template <class BBOX>
+    bool kdtree_get_bbox(BBOX & /*bb*/) const { return false; }
+};
+
+typedef nanoflann::KDTreeSingleIndexAdaptor<
+    nanoflann::L2_Simple_Adaptor<float, PointCloudAdaptor>,
+    PointCloudAdaptor,
+    3 /* dimension */
+> KDTree;
+
 void computeNodeRepresentative(GaussianOctree * node, std::vector<SplatData>& sd){
 
     size_t num_fields = sizeof(SplatData) / sizeof(float);
@@ -72,13 +113,13 @@ void computeNodeRepresentative(GaussianOctree * node, std::vector<SplatData>& sd
         representative.rawData[i] = 0.0f;
     }
 
-    std::vector<glm::vec3> coveragePoints;
+    PointCloud coveragePoints;
     coveragePoints.reserve(node->containedSplats.size() * 7);
 
     /* Iterate through all the contained splats in the node */
     for(auto splat : node->containedSplats){
 
-        if(sd[splat].fields.opacity < 0.95f)
+        if(sd[splat].fields.opacity < 0.5f)
             continue;
 
         glm::vec3 e1 = glm::make_vec3(&sd[splat].fields.directions[0]) / 3.0f;
@@ -113,56 +154,76 @@ void computeNodeRepresentative(GaussianOctree * node, std::vector<SplatData>& sd
     }
 
     /* Compute point densities */
-    float * densities = new float[coveragePoints.size()];
-    memset(densities, 0, sizeof(float) * coveragePoints.size());
-    // std::vector<float> distances;
-    // distances.reserve(coveragePoints.size() - 1);
-    // float min_density = 1e10;
-    // float max_density = 0.0f;
-
-    // for(int i = 0; i < coveragePoints.size(); i++){
-    //     distances.clear();
-    //     for(int j = 0; j < coveragePoints.size(); j++){
-    //         if(i != j){ /* Do not consider itself for density */
-    //             distances.push_back(glm::length(coveragePoints[i] - coveragePoints[j]));
-    //         }
-    //     }
-    //     std::sort(distances.begin(), distances.end());
-    //     int k = 10;
-    //     for(int j = 0; j < std::min(k, (int)distances.size()); j++){
-    //         densities[i] += distances[j];
-    //     }
-    //     densities[i] /= std::min(k, (int)distances.size());
-    //     if(densities[i] < min_density){
-    //         min_density = densities[i];
-    //     }
-    //     if(densities[i] > max_density){
-    //         max_density = densities[i];
-    //     }
-    // }
-
+    std::vector<float> densities;
+    densities.reserve(coveragePoints.size());
     for(int i = 0; i < coveragePoints.size(); i++){
-        densities[i] = 1.0f; // - (densities[i] - min_density) / (max_density - min_density) * 0.5;
+        densities.push_back(0);
     }
 
-    float weightsum = 0.0f;
+    float min_density = 1e10;
+    float max_density = 0.0f;
+    omp_set_num_threads(4);
+
+    PointCloudAdaptor pcAdaptor(coveragePoints);
+
+    // Build the KD-tree index
+    KDTree index(3, pcAdaptor, nanoflann::KDTreeSingleIndexAdaptorParams(10));
+    index.buildIndex();
+
+    // Number of neighbors to consider
+    size_t k = 10;
+
+    for (size_t i = 0; i < coveragePoints.size(); ++i) {
+        k = std::min((int)coveragePoints.size(), 10);
+        std::vector<uint32_t> indices(k);
+        std::vector<float> dists(k);
+        index.knnSearch(&coveragePoints[i][0], k, &indices[0], &dists[0]);
+
+        // Compute density as inverse of the mean distance
+        densities[i] = k / std::accumulate(dists.begin(), dists.end(), 0.0);
+        if(densities[i] < min_density)
+            min_density = densities[i];
+        if(densities[i] > max_density)
+            max_density = densities[i];
+        
+    }
+
     for(int i = 0; i < coveragePoints.size(); i++){
-        weightsum += densities[i];
+        densities[i] = 1.0f - (densities[i] - min_density) / (max_density - min_density) * 0.5;
+    }
+
+    float sum_density = std::accumulate(densities.begin(), densities.end(), 0.0);
+
+    for(int i = 0; i < coveragePoints.size(); i++){
+        densities[i] = densities[i] / sum_density;
     }
 
     Eigen::MatrixXf coverageCloud(coveragePoints.size(), 3);
     for(int i = 0; i < coveragePoints.size(); i++){
-        coverageCloud(i, 0) = coveragePoints[i].x * densities[i];
-        coverageCloud(i, 1) = coveragePoints[i].y * densities[i];
-        coverageCloud(i, 2) = coveragePoints[i].z * densities[i];
+        coverageCloud(i, 0) = coveragePoints[i].x;
+        coverageCloud(i, 1) = coveragePoints[i].y;
+        coverageCloud(i, 2) = coveragePoints[i].z;
     }
 
     // First, we need to compute the mean of the points
+    Eigen::Vector3f weighted_mean;
+    for(int i = 0; i < coveragePoints.size(); i++){
+        weighted_mean(0) += (coverageCloud(i, 0) * densities[i]);
+        weighted_mean(1) += (coverageCloud(i, 1) * densities[i]);
+        weighted_mean(2) += (coverageCloud(i, 2) * densities[i]);
+    }
+
     Eigen::Vector3f mean = coverageCloud.colwise().mean();
-    mean = mean * coveragePoints.size() / weightsum;
 
     // Then, we subtract the mean from the points
-    coverageCloud = coverageCloud.rowwise() - mean.transpose();
+    coverageCloud = coverageCloud.rowwise() - weighted_mean.transpose();
+
+    Eigen::MatrixXf premult(coverageCloud);
+    for(int i = 0; i < coveragePoints.size(); i++){
+        premult(i, 0) *= densities[i];
+        premult(i, 1) *= densities[i];
+        premult(i, 2) *= densities[i];
+    }
 
     // Compute the covariance matrix
     Eigen::Matrix3f cov = coverageCloud.transpose() * coverageCloud;
@@ -207,7 +268,7 @@ void computeNodeRepresentative(GaussianOctree * node, std::vector<SplatData>& sd
 void GaussianOctree::processSplats(uint8_t _level, std::vector<SplatData> & sd){
     level = _level;
 
-    if(containedSplats.size() == 0){
+    if(containedSplats.size() <= 1){
         isLeaf = true;
         return;
     }
@@ -252,7 +313,8 @@ void GaussianOctree::processSplats(uint8_t _level, std::vector<SplatData> & sd){
     }
 
     /* Compute representatives before clearing the contained splats vector */
-    computeNodeRepresentative(this, sd);
+    if(this->level >= MIN_RESOLUTION)
+        computeNodeRepresentative(this, sd);
 
     containedSplats.clear();
 
@@ -299,9 +361,7 @@ GaussianOctree * buildOctree(std::vector<SplatData> & sd, uint32_t num_primitive
 }
 
 int markForRender(bool * renderMask, uint32_t num_primitives, GaussianOctree * root, std::vector<SplatData> & sd, int renderLevel = 11){
-    if(root->containedSplats.size() == 0 && root->representative == 0){
-        return 0;
-    }
+    
     if(root->level == renderLevel){
         renderMask[root->representative] = true;
         return 1;
@@ -318,6 +378,10 @@ int markForRender(bool * renderMask, uint32_t num_primitives, GaussianOctree * r
         }
         return splatsRendered;
     }
+    if(root->containedSplats.size() == 0 && root->representative == 0){
+        return 0;
+    }
+    
     return 0;
 
 }

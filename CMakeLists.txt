@@ -8,6 +8,8 @@ find_package (Eigen3 3.4 REQUIRED NO_MODULE)
 
 find_package(OpenMP)
 
+find_package(nanoflann)
+
 set(CMAKE_CUDA_ARCHITECTURES 86)
 set(OpenGL_GL_PREFERENCE GLVND)
 
@@ -52,5 +54,6 @@ target_link_libraries(AccelerateGS
 	${GLEW_LIBRARY}
 	Eigen3::Eigen
 	OpenMP::OpenMP_CXX
+	nanoflann::nanoflann
 )
 

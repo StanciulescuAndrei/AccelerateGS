@@ -7,7 +7,7 @@
 float fovy = M_PI / 2.0f;
 int selectedViewMode = 0;
 int renderPrimitive = 0;
-int renderLevel = 9;
+int renderLevel = MIN_RESOLUTION;
 
 void setupIMGui(GLFWwindow** window){
     IMGUI_CHECKVERSION();
@@ -40,7 +40,7 @@ void buildInterface(){
     ImGui::RadioButton("Splats", &renderPrimitive, 0); ImGui::SameLine();
     ImGui::RadioButton("Points", &renderPrimitive, 1);
 
-    ImGui::SliderInt("Render Level", &renderLevel, 2, MAX_OCTREE_LEVEL + 1);
+    ImGui::SliderInt("Render Level", &renderLevel, MIN_RESOLUTION, MAX_OCTREE_LEVEL + 2);
 
     ImGui::End();
     ImGui::Render();
