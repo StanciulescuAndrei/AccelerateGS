@@ -226,7 +226,7 @@ void computeNodeRepresentative(GaussianOctree * node, std::vector<SplatData>& sd
     }
 
     // Compute the covariance matrix
-    Eigen::Matrix3f cov = coverageCloud.transpose() * coverageCloud;
+    Eigen::Matrix3f cov = premult.transpose() * coverageCloud;
 
     // cov = cov / (weightsum * weightsum); /* NOT the proper formula: https://stats.stackexchange.com/questions/113485/weighted-principal-components-analysis */
 
