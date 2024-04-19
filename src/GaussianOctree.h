@@ -216,7 +216,7 @@ void computeNodeRepresentative(GaussianOctree * node, std::vector<SplatData>& sd
     Eigen::Vector3f mean = coverageCloud.colwise().mean();
 
     // Then, we subtract the mean from the points
-    coverageCloud = coverageCloud.rowwise() - weighted_mean.transpose();
+    coverageCloud = coverageCloud.rowwise() - mean.transpose();
 
     const int n = coveragePoints.size();
     Eigen::DiagonalMatrix<float, Eigen::Dynamic> W(n);
@@ -244,7 +244,7 @@ void computeNodeRepresentative(GaussianOctree * node, std::vector<SplatData>& sd
     representative.fields.covariance[5] = cov(2, 2);
 
     for(int i = 0; i < 9; i++){
-        representative.fields.directions[i] = U(i % 3, i / 3) * svals(i / 3);
+        representative.fields.directions[i] = U(i % 3, i / 3)* svals(i / 3);
     }
 
     representative.fields.position[0] = mean(0);
