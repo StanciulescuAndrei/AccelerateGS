@@ -119,12 +119,12 @@ void computeNodeRepresentative(GaussianOctree * node, std::vector<SplatData>& sd
     /* Iterate through all the contained splats in the node */
     for(auto splat : node->containedSplats){
 
-        if(sd[splat].fields.opacity < 0.5f)
+        if(sd[splat].fields.opacity < 0.95f)
             continue;
 
-        glm::vec3 e1 = glm::make_vec3(&sd[splat].fields.directions[0]) / 3.0f;
-        glm::vec3 e2 = glm::make_vec3(&sd[splat].fields.directions[3]) / 3.0f;
-        glm::vec3 e3 = glm::make_vec3(&sd[splat].fields.directions[6]) / 3.0f;
+        glm::vec3 e1 = glm::make_vec3(&sd[splat].fields.directions[0]);
+        glm::vec3 e2 = glm::make_vec3(&sd[splat].fields.directions[3]);
+        glm::vec3 e3 = glm::make_vec3(&sd[splat].fields.directions[6]);
 
         float opacity = sd[splat].fields.opacity;
         float volume = e1.length() * e2.length() * e3.length();
@@ -189,7 +189,7 @@ void computeNodeRepresentative(GaussianOctree * node, std::vector<SplatData>& sd
     }
 
     for(int i = 0; i < coveragePoints.size(); i++){
-        densities[i] = 1.0f - (densities[i] - min_density) / (max_density - min_density) * 0.5;
+        densities[i] = 1.0f; // - (densities[i] - min_density) / (max_density - min_density) * 0.5;
     }
 
     float sum_density = std::accumulate(densities.begin(), densities.end(), 0.0);
@@ -218,15 +218,14 @@ void computeNodeRepresentative(GaussianOctree * node, std::vector<SplatData>& sd
     // Then, we subtract the mean from the points
     coverageCloud = coverageCloud.rowwise() - weighted_mean.transpose();
 
-    Eigen::MatrixXf premult(coverageCloud);
-    for(int i = 0; i < coveragePoints.size(); i++){
-        premult(i, 0) *= densities[i];
-        premult(i, 1) *= densities[i];
-        premult(i, 2) *= densities[i];
+    const int n = coveragePoints.size();
+    Eigen::DiagonalMatrix<float, Eigen::Dynamic> W(n);
+    for(int i=0;i<n;i++){
+        W.diagonal()[i] = densities[i];
     }
 
     // Compute the covariance matrix
-    Eigen::Matrix3f cov = premult.transpose() * coverageCloud;
+    Eigen::Matrix3f cov = coverageCloud.transpose() * W * coverageCloud;
 
     // cov = cov / (weightsum * weightsum); /* NOT the proper formula: https://stats.stackexchange.com/questions/113485/weighted-principal-components-analysis */
 
