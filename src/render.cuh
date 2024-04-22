@@ -44,6 +44,7 @@ __global__ void preprocessGaussians(int num_splats, SplatData * sd,
     glm::mat4 view, 
 	glm::vec3 camPos,
 	float fovy,
+	float fovx,
     float4 * conic_opacity, 
     float3 * rgb, 
     float2 * image_point,
@@ -89,7 +90,7 @@ __global__ void preprocessGaussians(int num_splats, SplatData * sd,
 
     /* Compute 2D screen-space covariance matrix */
 	float tan_fovy = tanf(fovy * 0.5f);
-	float tan_fovx = tan_fovy * 16.0f / 9.0f;
+	float tan_fovx = tanf(fovx * 0.5f);
 
 	float focal_x = SCREEN_WIDTH / (2.0f * tan_fovx);
 	float focal_y = SCREEN_HEIGHT / (2.0f * tan_fovy);

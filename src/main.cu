@@ -20,20 +20,25 @@
 #include <cub/device/device_radix_sort.cuh>
 
 #include "GUIManager.h"
+#include "CameraLoader.h"
 
 
 #define N 100000000
 #define MAX_ERR 1e-6
 
-const int SCREEN_WIDTH = 1920;
-const int SCREEN_HEIGHT = 1080;
+int SCREEN_WIDTH = 1920;
+int SCREEN_HEIGHT = 1080;
 
 const int FPS_COUNTER_REFRESH = 60;
 
+glm::mat3 cameraRotation;
+glm::mat4 modelview;
+glm::mat4 perspective;
+
 glm::vec3 cameraPosition = glm::vec3(0.0f);
 float angleDirection = 0.0f;
-glm::vec3 lookDirection = glm::vec3(0.0f, 0.0f, 1.0f);
-glm::vec3 rightDirection = glm::vec3(-1.0f, 0.0f, 0.0f);
+glm::vec3 lookDirection = glm::vec3(1.0f, 0.0f, 0.0f);
+glm::vec3 rightDirection = glm::vec3(0.0f, 0.0f, 1.0f);
 const float movement_step = 0.1f;
 
 static void error_callback(int error, const char* description)
@@ -46,22 +51,22 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
         glfwSetWindowShouldClose(window, GLFW_TRUE);
     if(key == GLFW_KEY_Z && (action == GLFW_REPEAT || action == GLFW_PRESS)){
-        cameraPosition += glm::vec3(0.0f, movement_step, 0.0f);
+        cameraPosition += cameraRotation* glm::vec3(0.0f, movement_step, 0.0f);
     }
     if(key == GLFW_KEY_X && (action == GLFW_REPEAT || action == GLFW_PRESS)){
-        cameraPosition += glm::vec3(0.0f, -movement_step, 0.0f);
+        cameraPosition += cameraRotation* glm::vec3(0.0f, -movement_step, 0.0f);
     }
     if(key == GLFW_KEY_A && (action == GLFW_REPEAT || action == GLFW_PRESS)){
-        cameraPosition += movement_step * rightDirection;
+        cameraPosition += movement_step * cameraRotation* rightDirection;
     }
     if(key == GLFW_KEY_D && (action == GLFW_REPEAT || action == GLFW_PRESS)){
-        cameraPosition -= movement_step * rightDirection;
+        cameraPosition -= movement_step * cameraRotation* rightDirection;
     }
     if(key == GLFW_KEY_W && (action == GLFW_REPEAT || action == GLFW_PRESS)){
-        cameraPosition += movement_step * lookDirection;
+        cameraPosition += movement_step * cameraRotation* lookDirection;
     }
     if(key == GLFW_KEY_S && (action == GLFW_REPEAT || action == GLFW_PRESS)){
-        cameraPosition -= movement_step * lookDirection;
+        cameraPosition -= movement_step * cameraRotation* lookDirection;
     }
     if(key == GLFW_KEY_Q && (action == GLFW_REPEAT || action == GLFW_PRESS)){
         angleDirection -= 0.01f;
@@ -72,6 +77,12 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
         angleDirection += 0.01f;
         lookDirection  = glm::vec3(sin(angleDirection), 0.f, cos(angleDirection));
         rightDirection = glm::vec3(-cos(angleDirection), 0.f, sin(angleDirection));
+    }
+    if(key == GLFW_KEY_U && (action == GLFW_REPEAT || action == GLFW_PRESS)){
+        cameraIndex = std::max(0, cameraIndex - 1);
+    }
+    if(key == GLFW_KEY_I && (action == GLFW_REPEAT || action == GLFW_PRESS)){
+        cameraIndex = std::min(300, cameraIndex + 1);
     }
 }
 
@@ -113,6 +124,9 @@ int main(){
 
     std::chrono::steady_clock::time_point begin;
     std::chrono::steady_clock::time_point end;
+
+    loadCameraFile("../../models/train/cameras.json");
+    loadGenericProperties(SCREEN_WIDTH, SCREEN_HEIGHT, fovx, fovy);
 
     initGLContextAndWindow(&window);
 
@@ -246,6 +260,8 @@ int main(){
     /* Very basic FPS metrics */
     int currentFPSIndex = 0;
 
+    getCameraParameters(0, cameraPosition, cameraRotation);
+
     begin = std::chrono::steady_clock::now();
 
     /* Main program loop */
@@ -270,8 +286,11 @@ int main(){
         assert(dataPointer != nullptr);
 
         /* --------- RENDERING ------------*/
-        glm::mat4 modelview = glm::lookAt(cameraPosition, lookDirection + cameraPosition, glm::vec3(0.0f, 1.0f, 0.0f));
-        glm::mat4 perspective = glm::perspective(fovy, 16.0f/9.0f, 0.009f, 1100.0f) * modelview;
+        getCameraParameters(cameraIndex, cameraPosition, cameraRotation);
+
+
+        modelview = glm::lookAt(cameraPosition, cameraRotation * glm::vec3(0.0f, 0.0f, 1.0f) + cameraPosition, cameraRotation * glm::vec3(0.0f, 1.0f, 0.0f));
+        perspective = glm::perspective(fovy, (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.009f, 100.0f) * modelview;
 
         /* Call the main CUDA render kernel */
 
@@ -286,7 +305,7 @@ int main(){
 
         checkCudaErrors(cudaMemcpy(d_renderMask, renderMask, sizeof(bool) * num_elements, cudaMemcpyHostToDevice));
 
-        preprocessGaussians<<<num_elements / LINE_BLOCK + 1, LINE_BLOCK>>>(num_elements, d_sd, perspective, modelview, cameraPosition, fovy, d_conic_opacity, d_rgb, d_image_point, d_radius, d_depth, d_overlap, SCREEN_WIDTH, SCREEN_HEIGHT, grid, renderMode, d_renderMask);
+        preprocessGaussians<<<num_elements / LINE_BLOCK + 1, LINE_BLOCK>>>(num_elements, d_sd, perspective, modelview, cameraPosition, fovy, fovx, d_conic_opacity, d_rgb, d_image_point, d_radius, d_depth, d_overlap, SCREEN_WIDTH, SCREEN_HEIGHT, grid, renderMode, d_renderMask);
         checkCudaErrors(cudaDeviceSynchronize());
 
         // Determine temporary device storage requirements for inclusive prefix sum

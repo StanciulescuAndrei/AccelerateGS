@@ -120,7 +120,7 @@ void computeNodeRepresentative(GaussianOctree * node, std::vector<SplatData>& sd
     /* Iterate through all the contained splats in the node */
     for(auto splat : node->containedSplats){
 
-        if(sd[splat].fields.opacity < 0.95f)
+        if(sd[splat].fields.opacity < 0.999f)
             continue;
 
         glm::vec3 e1 = glm::make_vec3(&sd[splat].fields.directions[0]);
@@ -190,7 +190,7 @@ void computeNodeRepresentative(GaussianOctree * node, std::vector<SplatData>& sd
     }
 
     for(int i = 0; i < coveragePoints.size(); i++){
-        densities[i] = 1.0f - (densities[i] - min_density) / (max_density - min_density) * 0.5;
+        densities[i] = 1.0f; // - (densities[i] - min_density) / (max_density - min_density) * 0.5;
     }
 
     float sum_density = std::accumulate(densities.begin(), densities.end(), 0.0);

@@ -5,9 +5,11 @@
 #include "../../../libs/imgui/backends/imgui_impl_opengl3.h"
 
 float fovy = M_PI / 2.0f;
+float fovx = M_PI / 2.0f * 16 / 9;
 int selectedViewMode = 0;
 int renderPrimitive = 0;
 int renderLevel = MIN_RESOLUTION;
+int cameraIndex = 0;
 
 void setupIMGui(GLFWwindow** window){
     IMGUI_CHECKVERSION();
@@ -41,6 +43,7 @@ void buildInterface(){
     ImGui::RadioButton("Points", &renderPrimitive, 1);
 
     ImGui::SliderInt("Render Level", &renderLevel, MIN_RESOLUTION, MAX_OCTREE_LEVEL + 2);
+    ImGui::SliderInt("Camera index", &cameraIndex, 0, 300);
 
     ImGui::End();
     ImGui::Render();

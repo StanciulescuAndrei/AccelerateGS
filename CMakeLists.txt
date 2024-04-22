@@ -21,6 +21,7 @@ include_directories(
 	${GLM_INCLUDE_PATH}
 	../../libs/imgui/
 	../../libs/imgui/backends/
+	../../../libs/nlohmann/
 )
 
 add_executable(AccelerateGS 
@@ -32,6 +33,7 @@ add_executable(AccelerateGS
 		src/GaussianOctree.h
 		src/raster_helper.cuh
 		src/OctreeSerializer.cuh
+		src/CameraLoader.h
 		${IMGUI_PATH}/imgui.h
 		${IMGUI_PATH}/imgui.cpp
 		${IMGUI_PATH}/imconfig.h
@@ -46,7 +48,8 @@ add_executable(AccelerateGS
 		${IMGUI_PATH}/backends/imgui_impl_glfw.h
 		${IMGUI_PATH}/backends/imgui_impl_glfw.cpp
 		${IMGUI_PATH}/backends/imgui_impl_opengl3.h
-		${IMGUI_PATH}/backends/imgui_impl_opengl3.cpp)
+		${IMGUI_PATH}/backends/imgui_impl_opengl3.cpp
+		../../../libs/nlohmann/json.hpp)
 
 target_link_libraries(AccelerateGS
 	${OPENGL_LIBRARY} # filled by "find_package(OpenGL REQUIRED)"
