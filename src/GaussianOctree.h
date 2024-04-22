@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <numeric>
 #include <omp.h>
+#include <iostream>
 
 #include <nanoflann.hpp>
 
@@ -189,7 +190,7 @@ void computeNodeRepresentative(GaussianOctree * node, std::vector<SplatData>& sd
     }
 
     for(int i = 0; i < coveragePoints.size(); i++){
-        densities[i] = 1.0f; // - (densities[i] - min_density) / (max_density - min_density) * 0.5;
+        densities[i] = 1.0f - (densities[i] - min_density) / (max_density - min_density) * 0.5;
     }
 
     float sum_density = std::accumulate(densities.begin(), densities.end(), 0.0);
@@ -207,6 +208,7 @@ void computeNodeRepresentative(GaussianOctree * node, std::vector<SplatData>& sd
 
     // First, we need to compute the mean of the points
     Eigen::Vector3f weighted_mean;
+    weighted_mean << 0.0f, 0.0f, 0.0f;
     for(int i = 0; i < coveragePoints.size(); i++){
         weighted_mean(0) += (coverageCloud(i, 0) * densities[i]);
         weighted_mean(1) += (coverageCloud(i, 1) * densities[i]);
@@ -216,7 +218,7 @@ void computeNodeRepresentative(GaussianOctree * node, std::vector<SplatData>& sd
     Eigen::Vector3f mean = coverageCloud.colwise().mean();
 
     // Then, we subtract the mean from the points
-    coverageCloud = coverageCloud.rowwise() - mean.transpose();
+    coverageCloud = coverageCloud.rowwise() - weighted_mean.transpose();
 
     const int n = coveragePoints.size();
     Eigen::DiagonalMatrix<float, Eigen::Dynamic> W(n);
@@ -247,9 +249,9 @@ void computeNodeRepresentative(GaussianOctree * node, std::vector<SplatData>& sd
         representative.fields.directions[i] = U(i % 3, i / 3)* svals(i / 3);
     }
 
-    representative.fields.position[0] = mean(0);
-    representative.fields.position[1] = mean(1);
-    representative.fields.position[2] = mean(2);
+    representative.fields.position[0] = weighted_mean(0);
+    representative.fields.position[1] = weighted_mean(1);
+    representative.fields.position[2] = weighted_mean(2);
 
     /* Colors (a.k.a. Sphere harmonics) */
     for(int i = 0; i < 48; i++){
