@@ -22,7 +22,7 @@ void loadCameraFile(std::string c){
 }
 
 void loadGenericProperties(int & screen_x, int & screen_y, float & fovx, float & fovy){
-    auto element = cameraData[214];
+    auto element = cameraData[0];
 
     screen_x = element["width"].get<int>();
     screen_y = element["height"].get<int>();

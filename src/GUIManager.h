@@ -10,6 +10,7 @@ int selectedViewMode = 0;
 int renderPrimitive = 0;
 int renderLevel = MIN_RESOLUTION;
 int cameraIndex = 0;
+int cameraMode = 0;
 
 void setupIMGui(GLFWwindow** window){
     IMGUI_CHECKVERSION();
@@ -43,6 +44,10 @@ void buildInterface(){
     ImGui::RadioButton("Points", &renderPrimitive, 1);
 
     ImGui::SliderInt("Render Level", &renderLevel, MIN_RESOLUTION, MAX_OCTREE_LEVEL + 2);
+
+    ImGui::RadioButton("Free camera", &cameraMode, 0); ImGui::SameLine();
+    ImGui::RadioButton("COLMAP Camera", &cameraMode, 1);
+
     ImGui::SliderInt("Camera index", &cameraIndex, 0, 300);
 
     ImGui::End();

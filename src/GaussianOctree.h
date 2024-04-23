@@ -117,10 +117,12 @@ void computeNodeRepresentative(GaussianOctree * node, std::vector<SplatData>& sd
     PointCloud coveragePoints;
     coveragePoints.reserve(node->containedSplats.size() * 7);
 
+    std::vector<float> opacities;
+
     /* Iterate through all the contained splats in the node */
     for(auto splat : node->containedSplats){
 
-        if(sd[splat].fields.opacity < 0.999f)
+        if(sd[splat].fields.opacity < 0.01f)
             continue;
 
         glm::vec3 e1 = glm::make_vec3(&sd[splat].fields.directions[0]);
@@ -148,6 +150,10 @@ void computeNodeRepresentative(GaussianOctree * node, std::vector<SplatData>& sd
         coveragePoints.push_back(glm::make_vec3(sd[splat].fields.position) - e2);
         coveragePoints.push_back(glm::make_vec3(sd[splat].fields.position) + e3);
         coveragePoints.push_back(glm::make_vec3(sd[splat].fields.position) - e3);
+
+        for(int k = 0; k < 7; k++){
+            opacities.push_back(opacity);
+        }
     }
 
     if(coveragePoints.size() == 0){
@@ -190,7 +196,8 @@ void computeNodeRepresentative(GaussianOctree * node, std::vector<SplatData>& sd
     }
 
     for(int i = 0; i < coveragePoints.size(); i++){
-        densities[i] = 1.0f; // - (densities[i] - min_density) / (max_density - min_density) * 0.5;
+        densities[i] = opacities[i] - (densities[i] - min_density) / (max_density - min_density) * 0.5; //0.5f + opacities[i] * 0.5f 
+        densities[i] = std::max(densities[i], 0.0f);
     }
 
     float sum_density = std::accumulate(densities.begin(), densities.end(), 0.0);

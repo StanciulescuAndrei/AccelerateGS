@@ -56,28 +56,28 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
     if(key == GLFW_KEY_X && (action == GLFW_REPEAT || action == GLFW_PRESS)){
         cameraPosition += cameraRotation* glm::vec3(0.0f, -movement_step, 0.0f);
     }
-    if(key == GLFW_KEY_A && (action == GLFW_REPEAT || action == GLFW_PRESS)){
+    if(key == GLFW_KEY_W && (action == GLFW_REPEAT || action == GLFW_PRESS)){
         cameraPosition += movement_step * cameraRotation* rightDirection;
     }
-    if(key == GLFW_KEY_D && (action == GLFW_REPEAT || action == GLFW_PRESS)){
+    if(key == GLFW_KEY_S && (action == GLFW_REPEAT || action == GLFW_PRESS)){
         cameraPosition -= movement_step * cameraRotation* rightDirection;
     }
-    if(key == GLFW_KEY_W && (action == GLFW_REPEAT || action == GLFW_PRESS)){
+    if(key == GLFW_KEY_D && (action == GLFW_REPEAT || action == GLFW_PRESS)){
         cameraPosition += movement_step * cameraRotation* lookDirection;
     }
-    if(key == GLFW_KEY_S && (action == GLFW_REPEAT || action == GLFW_PRESS)){
+    if(key == GLFW_KEY_A && (action == GLFW_REPEAT || action == GLFW_PRESS)){
         cameraPosition -= movement_step * cameraRotation* lookDirection;
     }
-    if(key == GLFW_KEY_Q && (action == GLFW_REPEAT || action == GLFW_PRESS)){
-        angleDirection -= 0.01f;
-        lookDirection  = glm::vec3(sin(angleDirection), 0.f, cos(angleDirection));
-        rightDirection = glm::vec3(-cos(angleDirection), 0.f, sin(angleDirection));
-    }
-    if(key == GLFW_KEY_E && (action == GLFW_REPEAT || action == GLFW_PRESS)){
-        angleDirection += 0.01f;
-        lookDirection  = glm::vec3(sin(angleDirection), 0.f, cos(angleDirection));
-        rightDirection = glm::vec3(-cos(angleDirection), 0.f, sin(angleDirection));
-    }
+    // if(key == GLFW_KEY_Q && (action == GLFW_REPEAT || action == GLFW_PRESS)){
+    //     angleDirection -= 0.01f;
+    //     lookDirection  = glm::vec3(sin(angleDirection), 0.f, cos(angleDirection));
+    //     rightDirection = glm::vec3(-cos(angleDirection), 0.f, sin(angleDirection));
+    // }
+    // if(key == GLFW_KEY_E && (action == GLFW_REPEAT || action == GLFW_PRESS)){
+    //     angleDirection += 0.01f;
+    //     lookDirection  = glm::vec3(sin(angleDirection), 0.f, cos(angleDirection));
+    //     rightDirection = glm::vec3(-cos(angleDirection), 0.f, sin(angleDirection));
+    // }
     if(key == GLFW_KEY_U && (action == GLFW_REPEAT || action == GLFW_PRESS)){
         cameraIndex = std::max(0, cameraIndex - 1);
     }
@@ -286,8 +286,9 @@ int main(){
         assert(dataPointer != nullptr);
 
         /* --------- RENDERING ------------*/
-        getCameraParameters(cameraIndex, cameraPosition, cameraRotation);
-
+        if(cameraMode == 1){
+            getCameraParameters(cameraIndex, cameraPosition, cameraRotation);
+        }
 
         modelview = glm::lookAt(cameraPosition, cameraRotation * glm::vec3(0.0f, 0.0f, 1.0f) + cameraPosition, cameraRotation * glm::vec3(0.0f, 1.0f, 0.0f));
         perspective = glm::perspective(fovy, (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.009f, 100.0f) * modelview;
