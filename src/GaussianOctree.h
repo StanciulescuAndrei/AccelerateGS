@@ -398,26 +398,50 @@ GaussianOctree * buildOctree(std::vector<SplatData> & sd, uint32_t num_primitive
 }
 
 int markForRender(bool * renderMask, uint32_t num_primitives, GaussianOctree * root, std::vector<SplatData> & sd, int renderLevel = 11){
-    
-    if(root->level == renderLevel){
-        renderMask[root->representative] = true;
-        return 1;
-    }
-    if(root->level <= renderLevel && root->isLeaf){
-        for(auto splat : root->containedSplats)
-            renderMask[splat] = true;
-        return root->containedSplats.size();
-    }
-    if(!root->isLeaf && root->level < renderLevel){
-        int splatsRendered = 0;
-        for(int i=0;i<8;i++){
-            splatsRendered += markForRender(renderMask, num_primitives, root->children[i], sd, renderLevel);
+
+    if(renderLevel == -1){
+        if(true){ // is node big enough on the screen?
+            if(root->isLeaf){
+                for(auto splat : root->containedSplats)
+                    renderMask[splat] = true;
+                return root->containedSplats.size();
+            }
+            else{
+                int splatsRendered = 0;
+                for(int i=0;i<8;i++){
+                    splatsRendered += markForRender(renderMask, num_primitives, root->children[i], sd, renderLevel);
+                }
+                return splatsRendered;
+            }
         }
-        return splatsRendered;
+        else{
+            renderMask[root->representative] = true;
+            return 1;
+        }
     }
-    if(root->containedSplats.size() == 0 && root->representative == 0){
-        return 0;
+    else{
+        if(root->level == renderLevel){
+            renderMask[root->representative] = true;
+            return 1;
+        }
+        if(root->level <= renderLevel && root->isLeaf){
+            for(auto splat : root->containedSplats)
+                renderMask[splat] = true;
+            return root->containedSplats.size();
+        }
+        if(!root->isLeaf && root->level < renderLevel){
+            int splatsRendered = 0;
+            for(int i=0;i<8;i++){
+                splatsRendered += markForRender(renderMask, num_primitives, root->children[i], sd, renderLevel);
+            }
+            return splatsRendered;
+        }
+        if(root->containedSplats.size() == 0 && root->representative == 0){
+            return 0;
+        }
     }
+    
+    
     
     return 0;
 
