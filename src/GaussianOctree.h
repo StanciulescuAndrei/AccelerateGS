@@ -32,17 +32,26 @@ bool insideBBox(glm::vec3 * bbox, uint32_t splatId, std::vector<SplatData> & sd)
 
 void addSplatToCoverage(glm::vec3 * coverage, uint32_t splatId, std::vector<SplatData> & sd){
     glm::vec3 splatSpread[2];
-    splatSpread[0] = glm::make_vec3(sd[splatId].fields.position) - glm::abs(glm::make_vec3(sd[splatId].fields.directions));
-    splatSpread[1] = glm::make_vec3(sd[splatId].fields.position) + glm::abs(glm::make_vec3(sd[splatId].fields.directions));
+    splatSpread[0] = coverage[0];
+    splatSpread[1] = coverage[1];
 
-    splatSpread[0] = glm::min(splatSpread[0], glm::make_vec3(sd[splatId].fields.position) - glm::abs(glm::make_vec3(sd[splatId].fields.directions + 3)));
-    splatSpread[1] = glm::min(splatSpread[1], glm::make_vec3(sd[splatId].fields.position) + glm::abs(glm::make_vec3(sd[splatId].fields.directions + 3)));
-glm::abs()
-    splatSpread[0] = glm::min(splatSpread[0], glm::make_vec3(sd[splatId].fields.position) - glm::abs(glm::make_vec3(sd[splatId].fields.directions + 6)));
-    splatSpread[1] = glm::min(splatSpread[1], glm::make_vec3(sd[splatId].fields.position) + glm::abs(glm::make_vec3(sd[splatId].fields.directions + 6)));
+    splatSpread[0] = glm::min(splatSpread[0], glm::make_vec3(sd[splatId].fields.position) - glm::make_vec3(sd[splatId].fields.directions));
+    splatSpread[1] = glm::max(splatSpread[1], glm::make_vec3(sd[splatId].fields.position) + glm::make_vec3(sd[splatId].fields.directions));
+    splatSpread[0] = glm::min(splatSpread[0], glm::make_vec3(sd[splatId].fields.position) + glm::make_vec3(sd[splatId].fields.directions));
+    splatSpread[1] = glm::max(splatSpread[1], glm::make_vec3(sd[splatId].fields.position) - glm::make_vec3(sd[splatId].fields.directions));
+
+    splatSpread[0] = glm::min(splatSpread[0], glm::make_vec3(sd[splatId].fields.position) - glm::make_vec3(sd[splatId].fields.directions + 3));
+    splatSpread[1] = glm::max(splatSpread[1], glm::make_vec3(sd[splatId].fields.position) + glm::make_vec3(sd[splatId].fields.directions + 3));
+    splatSpread[0] = glm::min(splatSpread[0], glm::make_vec3(sd[splatId].fields.position) + glm::make_vec3(sd[splatId].fields.directions + 3));
+    splatSpread[1] = glm::max(splatSpread[1], glm::make_vec3(sd[splatId].fields.position) - glm::make_vec3(sd[splatId].fields.directions + 3));
+
+    splatSpread[0] = glm::min(splatSpread[0], glm::make_vec3(sd[splatId].fields.position) - glm::make_vec3(sd[splatId].fields.directions + 6));
+    splatSpread[1] = glm::max(splatSpread[1], glm::make_vec3(sd[splatId].fields.position) + glm::make_vec3(sd[splatId].fields.directions + 6));
+    splatSpread[0] = glm::min(splatSpread[0], glm::make_vec3(sd[splatId].fields.position) + glm::make_vec3(sd[splatId].fields.directions + 6));
+    splatSpread[1] = glm::max(splatSpread[1], glm::make_vec3(sd[splatId].fields.position) - glm::make_vec3(sd[splatId].fields.directions + 6));
 
     coverage[0] = glm::min(coverage[0], splatSpread[0]);
-    coverage[1] = glm::min(coverage[1], splatSpread[1]);
+    coverage[1] = glm::max(coverage[1], splatSpread[1]);
 }
 
 class GaussianOctree
