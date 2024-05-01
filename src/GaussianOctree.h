@@ -400,8 +400,9 @@ GaussianOctree * buildOctree(std::vector<SplatData> & sd, uint32_t num_primitive
 int markForRender(bool * renderMask, uint32_t num_primitives, GaussianOctree * root, std::vector<SplatData> & sd, int renderLevel = 11){
 
     if(renderLevel == -1){
-        if(true){ // is node big enough on the screen?
-            if(root->isLeaf){
+        int shouldRenderNode = 0;
+        if(shouldRenderNode){ // is node big enough on the screen?
+            if(root->isLeaf && root->containedSplats.size() > 0){
                 for(auto splat : root->containedSplats)
                     renderMask[splat] = true;
                 return root->containedSplats.size();
@@ -415,8 +416,18 @@ int markForRender(bool * renderMask, uint32_t num_primitives, GaussianOctree * r
             }
         }
         else{
-            renderMask[root->representative] = true;
-            return 1;
+            if(root->representative != 0){
+                renderMask[root->representative] = true;
+                return 1;
+            }
+            else{ // Level too low to have a representative, still have to go down
+                int splatsRendered = 0;
+                for(int i=0;i<8;i++){
+                    if(root->children[i] != nullptr)
+                        splatsRendered += markForRender(renderMask, num_primitives, root->children[i], sd, renderLevel);
+                }
+                return splatsRendered;
+            }
         }
     }
     else{
