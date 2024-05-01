@@ -12,6 +12,8 @@ int renderLevel = MIN_RESOLUTION;
 int cameraIndex = 0;
 int cameraMode = 0;
 
+int renderedSplats = 0;
+
 void setupIMGui(GLFWwindow** window){
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -35,7 +37,6 @@ void buildInterface(){
 
     ImGui::Begin("Render Settings");
 
-    ImGui::Text("Placeholder for future reference...");  
     ImGui::SliderFloat("FOV", &fovy, 0.5f, 2.7f, "%.2f");
 
     const char * viewMode[]{"Colors", "Depth", "Covariance"};
@@ -49,6 +50,8 @@ void buildInterface(){
     ImGui::RadioButton("COLMAP Camera", &cameraMode, 1);
 
     ImGui::SliderInt("Camera index", &cameraIndex, 0, 300);
+
+    ImGui::Text("# rendered splats: %d", renderedSplats); 
 
     ImGui::End();
     ImGui::Render();

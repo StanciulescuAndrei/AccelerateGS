@@ -30,6 +30,21 @@ bool insideBBox(glm::vec3 * bbox, uint32_t splatId, std::vector<SplatData> & sd)
     return false;
 }
 
+void addSplatToCoverage(glm::vec3 * coverage, uint32_t splatId, std::vector<SplatData> & sd){
+    glm::vec3 splatSpread[2];
+    splatSpread[0] = glm::make_vec3(sd[splatId].fields.position) - glm::abs(glm::make_vec3(sd[splatId].fields.directions));
+    splatSpread[1] = glm::make_vec3(sd[splatId].fields.position) + glm::abs(glm::make_vec3(sd[splatId].fields.directions));
+
+    splatSpread[0] = glm::min(splatSpread[0], glm::make_vec3(sd[splatId].fields.position) - glm::abs(glm::make_vec3(sd[splatId].fields.directions + 3)));
+    splatSpread[1] = glm::min(splatSpread[1], glm::make_vec3(sd[splatId].fields.position) + glm::abs(glm::make_vec3(sd[splatId].fields.directions + 3)));
+glm::abs()
+    splatSpread[0] = glm::min(splatSpread[0], glm::make_vec3(sd[splatId].fields.position) - glm::abs(glm::make_vec3(sd[splatId].fields.directions + 6)));
+    splatSpread[1] = glm::min(splatSpread[1], glm::make_vec3(sd[splatId].fields.position) + glm::abs(glm::make_vec3(sd[splatId].fields.directions + 6)));
+
+    coverage[0] = glm::min(coverage[0], splatSpread[0]);
+    coverage[1] = glm::min(coverage[1], splatSpread[1]);
+}
+
 class GaussianOctree
 {
 public:
@@ -38,6 +53,7 @@ public:
     uint8_t level = 0;
     bool isLeaf = false;
     glm::vec3 bbox[2];
+    glm::vec3 coverage[2];
 
     uint32_t representative = 0; /* Will be the splat that is the approximation of all splats contained, will be dynamically added to the array I guess */
 
@@ -51,6 +67,9 @@ GaussianOctree::GaussianOctree(glm::vec3 * _bbox)
 {
     bbox[0] = _bbox[0];
     bbox[1] = _bbox[1];
+
+    coverage[0] = _bbox[0];
+    coverage[1] = _bbox[1];
 }
 
 typedef std::vector<glm::vec3> PointCloud;
@@ -304,6 +323,7 @@ void GaussianOctree::processSplats(uint8_t _level, std::vector<SplatData> & sd){
             auto splat = containedSplats[k];
             if(insideBBox(children[i]->bbox, splat, sd)){
                 children[i]->containedSplats.push_back(splat);
+                addSplatToCoverage(children[i]->coverage, splat, sd);
             }
         }
         if(level < MAX_OCTREE_LEVEL){
