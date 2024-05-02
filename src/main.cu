@@ -301,7 +301,7 @@ int main(){
         // for(int i = 0; i < old_num_elements; i++){
         //     renderMask[i] = 1;
         // }
-        renderedSplats = markForRender(renderMask, num_elements, octreeRoot, sd, -1);
+        renderedSplats = markForRender(renderMask, num_elements, octreeRoot, sd, -1, cameraPosition, fovy, SCREEN_WIDTH);
         // printf("Rendered splats: %d\n", renderedSplats);
 
         checkCudaErrors(cudaMemcpy(d_renderMask, renderMask, sizeof(bool) * num_elements, cudaMemcpyHostToDevice));

@@ -397,10 +397,20 @@ GaussianOctree * buildOctree(std::vector<SplatData> & sd, uint32_t num_primitive
 
 }
 
-int markForRender(bool * renderMask, uint32_t num_primitives, GaussianOctree * root, std::vector<SplatData> & sd, int renderLevel = 11){
+int markForRender(bool * renderMask, uint32_t num_primitives, GaussianOctree * root, std::vector<SplatData> & sd, int renderLevel, glm::vec3 & cameraPosition, float fovy, int SW){
 
     if(renderLevel == -1){
         int shouldRenderNode = 0;
+        if(root == nullptr)
+            return 0;
+        /* Easiest implementation, maximum projection by distance */
+        float S = glm::length(root->coverage[0] - root->coverage[1]);
+        float D = glm::length((root->coverage[0] + root->coverage[1]) / 2.0f - cameraPosition);
+
+        float P = S / D * (SW / fovy);
+
+        shouldRenderNode = (P > 25);
+
         if(shouldRenderNode){ // is node big enough on the screen?
             if(root->isLeaf && root->containedSplats.size() > 0){
                 for(auto splat : root->containedSplats)
@@ -410,7 +420,7 @@ int markForRender(bool * renderMask, uint32_t num_primitives, GaussianOctree * r
             else{
                 int splatsRendered = 0;
                 for(int i=0;i<8;i++){
-                    splatsRendered += markForRender(renderMask, num_primitives, root->children[i], sd, renderLevel);
+                    splatsRendered += markForRender(renderMask, num_primitives, root->children[i], sd, renderLevel, cameraPosition, fovy, SW);
                 }
                 return splatsRendered;
             }
@@ -424,7 +434,7 @@ int markForRender(bool * renderMask, uint32_t num_primitives, GaussianOctree * r
                 int splatsRendered = 0;
                 for(int i=0;i<8;i++){
                     if(root->children[i] != nullptr)
-                        splatsRendered += markForRender(renderMask, num_primitives, root->children[i], sd, renderLevel);
+                        splatsRendered += markForRender(renderMask, num_primitives, root->children[i], sd, renderLevel, cameraPosition, fovy, SW);
                 }
                 return splatsRendered;
             }
@@ -443,7 +453,7 @@ int markForRender(bool * renderMask, uint32_t num_primitives, GaussianOctree * r
         if(!root->isLeaf && root->level < renderLevel){
             int splatsRendered = 0;
             for(int i=0;i<8;i++){
-                splatsRendered += markForRender(renderMask, num_primitives, root->children[i], sd, renderLevel);
+                splatsRendered += markForRender(renderMask, num_primitives, root->children[i], sd, renderLevel, cameraPosition, fovy, SW);
             }
             return splatsRendered;
         }
