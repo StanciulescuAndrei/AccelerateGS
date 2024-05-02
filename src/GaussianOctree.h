@@ -409,7 +409,7 @@ int markForRender(bool * renderMask, uint32_t num_primitives, GaussianOctree * r
 
         float P = S / D * (SW / fovy);
 
-        shouldRenderNode = (P > 25);
+        shouldRenderNode = (P > 10);
 
         if(shouldRenderNode){ // is node big enough on the screen?
             if(root->isLeaf && root->containedSplats.size() > 0){

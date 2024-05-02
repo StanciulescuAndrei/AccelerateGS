@@ -11,6 +11,7 @@ int renderPrimitive = 0;
 int renderLevel = MIN_RESOLUTION;
 int cameraIndex = 0;
 int cameraMode = 0;
+int autoLevel = 0;
 
 int renderedSplats = 0;
 
@@ -44,7 +45,11 @@ void buildInterface(){
     ImGui::RadioButton("Splats", &renderPrimitive, 0); ImGui::SameLine();
     ImGui::RadioButton("Points", &renderPrimitive, 1);
 
-    ImGui::SliderInt("Render Level", &renderLevel, MIN_RESOLUTION, MAX_OCTREE_LEVEL + 2);
+    ImGui::Text("LOD selection: "); ImGui::SameLine();
+    ImGui::RadioButton("Auto", &autoLevel, 1); ImGui::SameLine();
+    ImGui::RadioButton("Manual", &autoLevel, 0);
+
+    ImGui::SliderInt("Render Level", &renderLevel, MIN_RESOLUTION, MAX_OCTREE_LEVEL + 1);
 
     ImGui::RadioButton("Free camera", &cameraMode, 0); ImGui::SameLine();
     ImGui::RadioButton("COLMAP Camera", &cameraMode, 1);
