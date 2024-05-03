@@ -13,6 +13,8 @@ int cameraIndex = 0;
 int cameraMode = 0;
 int autoLevel = 0;
 
+int saveRender = 0;
+
 int renderedSplats = 0;
 
 void setupIMGui(GLFWwindow** window){
@@ -58,7 +60,17 @@ void buildInterface(){
 
     ImGui::Text("# rendered splats: %d", renderedSplats); 
 
+    if(ImGui::Button("Capture render")){
+        saveRender = 1;
+    }
+    else{
+        saveRender = 0;
+    }
+
     ImGui::End();
+}
+
+void renderInterface(){
     ImGui::Render();
 
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());

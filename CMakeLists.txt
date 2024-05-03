@@ -15,6 +15,8 @@ set(OpenGL_GL_PREFERENCE GLVND)
 
 set(IMGUI_PATH /home/andrei/Documents/libs/imgui)
 
+set(STB_PATH /home/andrei/Documents/libs/stb)
+
 include_directories(
 	${GLFW_INCLUDE_PATH}
 	${GLEW_INCLUDE_PATH}
@@ -22,6 +24,7 @@ include_directories(
 	../../libs/imgui/
 	../../libs/imgui/backends/
 	../../../libs/nlohmann/
+	${STB_PATH}
 )
 
 add_executable(AccelerateGS 
@@ -49,7 +52,8 @@ add_executable(AccelerateGS
 		${IMGUI_PATH}/backends/imgui_impl_glfw.cpp
 		${IMGUI_PATH}/backends/imgui_impl_opengl3.h
 		${IMGUI_PATH}/backends/imgui_impl_opengl3.cpp
-		../../../libs/nlohmann/json.hpp)
+		../../../libs/nlohmann/json.hpp
+		${STB_PATH}/stb_image_write.h)
 
 target_link_libraries(AccelerateGS
 	${OPENGL_LIBRARY} # filled by "find_package(OpenGL REQUIRED)"

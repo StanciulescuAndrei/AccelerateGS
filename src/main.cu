@@ -22,6 +22,9 @@
 #include "GUIManager.h"
 #include "CameraLoader.h"
 
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb_image_write.h"
+
 
 #define N 100000000
 #define MAX_ERR 1e-6
@@ -357,6 +360,26 @@ int main(){
         render<<<grid, block>>>(num_elements, d_sd, d_conic_opacity, d_rgb, d_image_point, d_depth, d_tile_range_min, d_tile_range_max, d_sort_ids_out, SCREEN_WIDTH, SCREEN_HEIGHT, grid, dataPointer);
         checkCudaErrors(cudaDeviceSynchronize());
 
+        /* Build ImGui interface */
+        buildInterface();
+
+        if(saveRender){
+            // SCREEN_HEIGHT * SCREEN_WIDTH * 4 * sizeof(float)
+            // imageData
+            std::vector<float> floatPixelData(SCREEN_HEIGHT * SCREEN_WIDTH * 4);
+            std::vector<unsigned char> pixelData(SCREEN_HEIGHT * SCREEN_WIDTH * 4);
+
+            cudaMemcpy(floatPixelData.data(), dataPointer, SCREEN_HEIGHT * SCREEN_WIDTH * 4 * sizeof(float), cudaMemcpyDeviceToHost);
+
+            for (size_t i = 0; i < pixelData.size(); ++i) {
+                pixelData[i] = static_cast<unsigned char>(std::min(1.0f, floatPixelData[i]) * 255.0f);
+            }
+
+            // Write image to file
+            stbi_flip_vertically_on_write(true);                
+            stbi_write_png("output.png", SCREEN_WIDTH, SCREEN_HEIGHT, 4, pixelData.data(), SCREEN_WIDTH * 4);
+        }
+
         /* Unmap the OpenGL resources */
         checkCudaErrors(cudaGraphicsUnmapResources(1, &cuda_pbo_resource, 0));
 
@@ -377,8 +400,7 @@ int main(){
         glBindTexture(GL_TEXTURE_2D, 0);
         glDisable(GL_TEXTURE_2D);
 
-        /* Build ImGui interface */
-        buildInterface();
+        renderInterface();
 
         /* Swap buffers and handle GLFW events */
         glfwSwapBuffers(window);
