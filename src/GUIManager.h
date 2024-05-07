@@ -17,6 +17,8 @@ int saveRender = 0;
 
 int renderedSplats = 0;
 
+float diagonalProjectionThreshold = 10.0f;
+
 void setupIMGui(GLFWwindow** window){
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -52,6 +54,7 @@ void buildInterface(){
     ImGui::RadioButton("Manual", &autoLevel, 0);
 
     ImGui::SliderInt("Render Level", &renderLevel, MIN_RESOLUTION, MAX_OCTREE_LEVEL + 1);
+    ImGui::SliderFloat("LOD render bias", &diagonalProjectionThreshold, 10.0f, 100.0f);
 
     ImGui::RadioButton("Free camera", &cameraMode, 0); ImGui::SameLine();
     ImGui::RadioButton("COLMAP Camera", &cameraMode, 1);

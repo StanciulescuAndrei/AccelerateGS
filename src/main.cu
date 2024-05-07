@@ -137,7 +137,7 @@ int main(){
     std::vector<SplatData> sd;
     bool * renderMask;
     int num_elements = 0;
-    int res = loadSplatData("../../models/train/point_cloud/iteration_30000/point_cloud.ply", sd, &num_elements);
+    int res = loadSplatData("../../models/MatrixCity/point_cloud/iteration_30000/point_cloud.ply", sd, &num_elements);
 
     const uint32_t maxDuplicatedGaussians = num_elements * 256;
 
@@ -304,7 +304,7 @@ int main(){
         // for(int i = 0; i < old_num_elements; i++){
         //     renderMask[i] = 1;
         // }
-        renderedSplats = markForRender(renderMask, num_elements, octreeRoot, sd, autoLevel ? -1 : renderLevel, cameraPosition, fovy, SCREEN_WIDTH);
+        renderedSplats = markForRender(renderMask, num_elements, octreeRoot, sd, autoLevel ? -1 : renderLevel, cameraPosition, fovy, SCREEN_WIDTH, diagonalProjectionThreshold);
         // printf("Rendered splats: %d\n", renderedSplats);
 
         checkCudaErrors(cudaMemcpy(d_renderMask, renderMask, sizeof(bool) * num_elements, cudaMemcpyHostToDevice));
