@@ -382,7 +382,7 @@ int main(){
             for(int i = 0; i < cameraData.size(); i++){
                 char filename[64];
                 softwareRasterizer(i);
-                snprintf(filename, 64, "renders/%04d.png", i);
+                snprintf(filename, 64, "renders/%05d.png", i);
                 saveRenderRoutine(filename);
             }
         }
