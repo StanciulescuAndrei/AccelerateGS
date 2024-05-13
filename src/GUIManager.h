@@ -14,6 +14,7 @@ int cameraMode = 0;
 int autoLevel = 0;
 
 int saveRender = 0;
+int batchRender = 0;
 
 int renderedSplats = 0;
 
@@ -68,6 +69,13 @@ void buildInterface(){
     }
     else{
         saveRender = 0;
+    }
+    ImGui::SameLine();
+    if(ImGui::Button("Batch render")){
+        batchRender = 1;
+    }
+    else{
+        batchRender = 0;
     }
 
     ImGui::End();

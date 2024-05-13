@@ -137,7 +137,7 @@ int main(){
     std::vector<SplatData> sd;
     bool * renderMask;
     int num_elements = 0;
-    int res = loadSplatData("../../models/MatrixCity/point_cloud/iteration_30000/point_cloud.ply", sd, &num_elements);
+    int res = loadSplatData("../../models/train/point_cloud/iteration_30000/point_cloud.ply", sd, &num_elements);
 
     const uint32_t maxDuplicatedGaussians = num_elements * 256;
 
@@ -288,84 +288,81 @@ int main(){
         assert(num_bytes >= SCREEN_HEIGHT * SCREEN_WIDTH * 4 * sizeof(float));
         assert(dataPointer != nullptr);
 
-        /* --------- RENDERING ------------*/
-        if(cameraMode == 1){
-            getCameraParameters(cameraIndex, cameraPosition, cameraRotation);
-        }
+        auto softwareRasterizer = [&] (int forcedCameraIndex){
+            /* --------- RENDERING ------------*/
+            if(cameraMode == 1){
+                getCameraParameters(forcedCameraIndex, cameraPosition, cameraRotation);
+            }
 
-        modelview = glm::lookAt(cameraPosition, cameraRotation * glm::vec3(0.0f, 0.0f, 1.0f) + cameraPosition, cameraRotation * glm::vec3(0.0f, 1.0f, 0.0f));
-        perspective = glm::perspective(fovy, (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.009f, 100.0f) * modelview;
+            modelview = glm::lookAt(cameraPosition, cameraRotation * glm::vec3(0.0f, 0.0f, 1.0f) + cameraPosition, cameraRotation * glm::vec3(0.0f, 1.0f, 0.0f));
+            perspective = glm::perspective(fovy, (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.009f, 100.0f) * modelview;
 
-        /* Call the main CUDA render kernel */
+            /* Call the main CUDA render kernel */
 
-        int renderMode = (selectedViewMode<<4) + renderPrimitive;
+            int renderMode = (selectedViewMode<<4) + renderPrimitive;
 
-        memset(renderMask, 0, sizeof(bool) * num_elements);
-        // for(int i = 0; i < old_num_elements; i++){
-        //     renderMask[i] = 1;
-        // }
-        renderedSplats = markForRender(renderMask, num_elements, octreeRoot, sd, autoLevel ? -1 : renderLevel, cameraPosition, fovy, SCREEN_WIDTH, diagonalProjectionThreshold);
-        // printf("Rendered splats: %d\n", renderedSplats);
+            memset(renderMask, 0, sizeof(bool) * num_elements);
+            // for(int i = 0; i < old_num_elements; i++){
+            //     renderMask[i] = 1;
+            // }
+            renderedSplats = markForRender(renderMask, num_elements, octreeRoot, sd, autoLevel ? -1 : renderLevel, cameraPosition, fovy, SCREEN_WIDTH, diagonalProjectionThreshold);
+            // printf("Rendered splats: %d\n", renderedSplats);
 
-        checkCudaErrors(cudaMemcpy(d_renderMask, renderMask, sizeof(bool) * num_elements, cudaMemcpyHostToDevice));
+            checkCudaErrors(cudaMemcpy(d_renderMask, renderMask, sizeof(bool) * num_elements, cudaMemcpyHostToDevice));
 
-        preprocessGaussians<<<num_elements / LINE_BLOCK + 1, LINE_BLOCK>>>(num_elements, d_sd, perspective, modelview, cameraPosition, fovy, fovx, d_conic_opacity, d_rgb, d_image_point, d_radius, d_depth, d_overlap, SCREEN_WIDTH, SCREEN_HEIGHT, grid, renderMode, d_renderMask);
-        checkCudaErrors(cudaDeviceSynchronize());
+            preprocessGaussians<<<num_elements / LINE_BLOCK + 1, LINE_BLOCK>>>(num_elements, d_sd, perspective, modelview, cameraPosition, fovy, fovx, d_conic_opacity, d_rgb, d_image_point, d_radius, d_depth, d_overlap, SCREEN_WIDTH, SCREEN_HEIGHT, grid, renderMode, d_renderMask);
+            checkCudaErrors(cudaDeviceSynchronize());
 
-        // Determine temporary device storage requirements for inclusive prefix sum
-        void     *d_temp_storage = NULL;
-        size_t   temp_storage_bytes = 0;
-        cub::DeviceScan::InclusiveSum(d_temp_storage, temp_storage_bytes, d_overlap, d_overlap_sums, num_elements);
-        // Allocate temporary storage for inclusive prefix sum
-        cudaMalloc(&d_temp_storage, temp_storage_bytes);
-        // Run inclusive prefix sum
-        cub::DeviceScan::InclusiveSum(d_temp_storage, temp_storage_bytes, d_overlap, d_overlap_sums, num_elements);
+            // Determine temporary device storage requirements for inclusive prefix sum
+            void     *d_temp_storage = NULL;
+            size_t   temp_storage_bytes = 0;
+            cub::DeviceScan::InclusiveSum(d_temp_storage, temp_storage_bytes, d_overlap, d_overlap_sums, num_elements);
+            // Allocate temporary storage for inclusive prefix sum
+            cudaMalloc(&d_temp_storage, temp_storage_bytes);
+            // Run inclusive prefix sum
+            cub::DeviceScan::InclusiveSum(d_temp_storage, temp_storage_bytes, d_overlap, d_overlap_sums, num_elements);
 
-        checkCudaErrors(cudaFree(d_temp_storage));
+            checkCudaErrors(cudaFree(d_temp_storage));
 
-        int totalDuplicateGaussians = 0;
-        checkCudaErrors(cudaMemcpy(&totalDuplicateGaussians, d_overlap_sums + num_elements - 1, sizeof(int), cudaMemcpyDeviceToHost));
+            int totalDuplicateGaussians = 0;
+            checkCudaErrors(cudaMemcpy(&totalDuplicateGaussians, d_overlap_sums + num_elements - 1, sizeof(int), cudaMemcpyDeviceToHost));
 
-        totalDuplicateGaussians = min(totalDuplicateGaussians, maxDuplicatedGaussians);
+            totalDuplicateGaussians = min(totalDuplicateGaussians, maxDuplicatedGaussians);
 
-        /* Populate sorting keys array */
-        duplicateGaussians<<<num_elements / LINE_BLOCK + 1, LINE_BLOCK>>>(num_elements, d_image_point, d_radius, d_depth, d_overlap_sums, d_sort_keys_in, d_sort_ids_in, grid);
-        checkCudaErrors(cudaDeviceSynchronize());
+            /* Populate sorting keys array */
+            duplicateGaussians<<<num_elements / LINE_BLOCK + 1, LINE_BLOCK>>>(num_elements, d_image_point, d_radius, d_depth, d_overlap_sums, d_sort_keys_in, d_sort_ids_in, grid);
+            checkCudaErrors(cudaDeviceSynchronize());
 
-        d_temp_storage = NULL;
-        temp_storage_bytes = 0;
+            d_temp_storage = NULL;
+            temp_storage_bytes = 0;
 
-        /* Find highest MSB for RadixSort to eliminate a few of the cycles */
-        uint32_t highestKey = grid.x * grid.y;
-        int highestMsb = 32;
-        while(highestKey >> highestMsb == 0) highestMsb--;
+            /* Find highest MSB for RadixSort to eliminate a few of the cycles */
+            uint32_t highestKey = grid.x * grid.y;
+            int highestMsb = 32;
+            while(highestKey >> highestMsb == 0) highestMsb--;
 
-        /* Determine how much temporary storage we need */
-        cub::DeviceRadixSort::SortPairs(d_temp_storage, temp_storage_bytes, d_sort_keys_in, d_sort_keys_out, d_sort_ids_in, d_sort_ids_out, totalDuplicateGaussians, 0, 32 + highestMsb);
-        checkCudaErrors(cudaMalloc(&d_temp_storage, temp_storage_bytes));
+            /* Determine how much temporary storage we need */
+            cub::DeviceRadixSort::SortPairs(d_temp_storage, temp_storage_bytes, d_sort_keys_in, d_sort_keys_out, d_sort_ids_in, d_sort_ids_out, totalDuplicateGaussians, 0, 32 + highestMsb);
+            checkCudaErrors(cudaMalloc(&d_temp_storage, temp_storage_bytes));
 
-        /* TODO: determine highest MSB to pass to sorting, so we don't use all 64 bits */
-        cub::DeviceRadixSort::SortPairs(d_temp_storage, temp_storage_bytes, d_sort_keys_in, d_sort_keys_out, d_sort_ids_in, d_sort_ids_out, totalDuplicateGaussians, 0, 32 + highestMsb);
-        checkCudaErrors(cudaFree(d_temp_storage));
+            /* TODO: determine highest MSB to pass to sorting, so we don't use all 64 bits */
+            cub::DeviceRadixSort::SortPairs(d_temp_storage, temp_storage_bytes, d_sort_keys_in, d_sort_keys_out, d_sort_ids_in, d_sort_ids_out, totalDuplicateGaussians, 0, 32 + highestMsb);
+            checkCudaErrors(cudaFree(d_temp_storage));
 
-        checkCudaErrors(cudaMemset(d_tile_range_min, 0, sizeof(uint32_t) * grid.x * grid.y));
-        checkCudaErrors(cudaMemset(d_tile_range_max, 0, sizeof(uint32_t) * grid.x * grid.y));
+            checkCudaErrors(cudaMemset(d_tile_range_min, 0, sizeof(uint32_t) * grid.x * grid.y));
+            checkCudaErrors(cudaMemset(d_tile_range_max, 0, sizeof(uint32_t) * grid.x * grid.y));
 
-        getTileRanges<<<(totalDuplicateGaussians) / LINE_BLOCK + 1, LINE_BLOCK>>>(d_sort_keys_out, totalDuplicateGaussians, d_tile_range_min, d_tile_range_max);
-        checkCudaErrors(cudaDeviceSynchronize());
+            getTileRanges<<<(totalDuplicateGaussians) / LINE_BLOCK + 1, LINE_BLOCK>>>(d_sort_keys_out, totalDuplicateGaussians, d_tile_range_min, d_tile_range_max);
+            checkCudaErrors(cudaDeviceSynchronize());
 
-        // debugInfo<<<1, 1>>>(num_elements, d_sd, perspective, modelview, d_conic_opacity, d_rgb, d_image_point, d_radius, d_depth, d_overlap, SCREEN_HEIGHT, SCREEN_WIDTH, grid);
-        // checkCudaErrors(cudaDeviceSynchronize());
+            // debugInfo<<<1, 1>>>(num_elements, d_sd, perspective, modelview, d_conic_opacity, d_rgb, d_image_point, d_radius, d_depth, d_overlap, SCREEN_HEIGHT, SCREEN_WIDTH, grid);
+            // checkCudaErrors(cudaDeviceSynchronize());
 
-        render<<<grid, block>>>(num_elements, d_sd, d_conic_opacity, d_rgb, d_image_point, d_depth, d_tile_range_min, d_tile_range_max, d_sort_ids_out, SCREEN_WIDTH, SCREEN_HEIGHT, grid, dataPointer);
-        checkCudaErrors(cudaDeviceSynchronize());
+            render<<<grid, block>>>(num_elements, d_sd, d_conic_opacity, d_rgb, d_image_point, d_depth, d_tile_range_min, d_tile_range_max, d_sort_ids_out, SCREEN_WIDTH, SCREEN_HEIGHT, grid, dataPointer);
+            checkCudaErrors(cudaDeviceSynchronize());
+        };
 
-        /* Build ImGui interface */
-        buildInterface();
-
-        if(saveRender){
-            // SCREEN_HEIGHT * SCREEN_WIDTH * 4 * sizeof(float)
-            // imageData
+        auto saveRenderRoutine = [&](char * filename){
             std::vector<float> floatPixelData(SCREEN_HEIGHT * SCREEN_WIDTH * 4);
             std::vector<unsigned char> pixelData(SCREEN_HEIGHT * SCREEN_WIDTH * 4);
 
@@ -377,7 +374,27 @@ int main(){
 
             // Write image to file
             stbi_flip_vertically_on_write(true);                
-            stbi_write_png("output.png", SCREEN_WIDTH, SCREEN_HEIGHT, 4, pixelData.data(), SCREEN_WIDTH * 4);
+            stbi_write_png(filename, SCREEN_WIDTH, SCREEN_HEIGHT, 4, pixelData.data(), SCREEN_WIDTH * 4);
+        };
+
+        if(batchRender){
+            cameraMode = 1;
+            for(int i = 0; i < cameraData.size(); i++){
+                char filename[64];
+                softwareRasterizer(i);
+                snprintf(filename, 64, "renders/%04d.png", i);
+                saveRenderRoutine(filename);
+            }
+        }
+        else{
+            softwareRasterizer(cameraIndex);
+        }
+
+        /* Build ImGui interface */
+        buildInterface();
+
+        if(saveRender){
+            saveRenderRoutine("renders/output.png");
         }
 
         /* Unmap the OpenGL resources */

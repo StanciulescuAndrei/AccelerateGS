@@ -27,8 +27,8 @@ void loadGenericProperties(int & screen_x, int & screen_y, float & fovx, float &
     screen_x = element["width"].get<int>();
     screen_y = element["height"].get<int>();
 
-    int sensorx = element["fx"].get<int>();
-    int sensory = element["fy"].get<int>();
+    int sensorx = element["fx"].get<double>();
+    int sensory = element["fy"].get<double>();
 
     fovx = 2.0f * atanf((float)screen_x / (2.0f * sensorx));
     fovy = 2.0f * atanf((float)screen_y / (2.0f * sensory));
