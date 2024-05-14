@@ -1,8 +1,8 @@
 #ifndef __GAUSSIAN_OCTREE__
 #define __GAUSSIAN_OCTREE__
 
-#define MAX_OCTREE_LEVEL 14
-#define MIN_RESOLUTION 11
+#define MAX_OCTREE_LEVEL 18
+#define MIN_RESOLUTION 14
 
 #pragma once
 #include "PLYReader.h"
@@ -13,6 +13,8 @@
 #include <iostream>
 
 #include <nanoflann.hpp>
+
+#include "GUIManager.h"
 
 bool insideBBox(glm::vec3 * bbox, uint32_t splatId, std::vector<SplatData> & sd){
     // float maxRadius = max(sd[splatId].fields.scale[0], max(sd[splatId].fields.scale[1], sd[splatId].fields.scale[2]));
@@ -153,9 +155,9 @@ void computeNodeRepresentative(GaussianOctree * node, std::vector<SplatData>& sd
         if(sd[splat].fields.opacity < 0.01f)
             continue;
 
-        glm::vec3 e1 = glm::make_vec3(&sd[splat].fields.directions[0]);
-        glm::vec3 e2 = glm::make_vec3(&sd[splat].fields.directions[3]);
-        glm::vec3 e3 = glm::make_vec3(&sd[splat].fields.directions[6]);
+        glm::vec3 e1 = glm::make_vec3(&sd[splat].fields.directions[0]) * 1.41f; // * 1.71f
+        glm::vec3 e2 = glm::make_vec3(&sd[splat].fields.directions[3]) * 1.41f; // * 1.71f
+        glm::vec3 e3 = glm::make_vec3(&sd[splat].fields.directions[6]) * 1.41f; // * 1.71f
 
         float opacity = sd[splat].fields.opacity;
         float volume = e1.length() * e2.length() * e3.length();
@@ -185,6 +187,7 @@ void computeNodeRepresentative(GaussianOctree * node, std::vector<SplatData>& sd
     }
 
     if(coveragePoints.size() == 0){
+        node->representative = 0;
         return;
     }
 
@@ -224,7 +227,7 @@ void computeNodeRepresentative(GaussianOctree * node, std::vector<SplatData>& sd
     }
 
     for(int i = 0; i < coveragePoints.size(); i++){
-        densities[i] = opacities[i] - (densities[i] - min_density) / (max_density - min_density) * 0.5; //0.5f + opacities[i] * 0.5f 
+        densities[i] = 1.0f; // - (densities[i] - min_density) / (max_density - min_density) * 0.5; //0.5f + opacities[i] * 0.5f 
         densities[i] = std::max(densities[i], 0.0f);
     }
 
@@ -276,7 +279,7 @@ void computeNodeRepresentative(GaussianOctree * node, std::vector<SplatData>& sd
     representative.fields.covariance[0] = cov(0, 0);
     representative.fields.covariance[1] = cov(0, 1);
     representative.fields.covariance[2] = cov(0, 2);
-    representative.fields.covariance[3] = cov(1, 1);
+    representative.fields.covariance[3] = cov(1, 1); 
     representative.fields.covariance[4] = cov(1, 2);
     representative.fields.covariance[5] = cov(2, 2);
 
@@ -304,8 +307,15 @@ void computeNodeRepresentative(GaussianOctree * node, std::vector<SplatData>& sd
 void GaussianOctree::processSplats(uint8_t _level, std::vector<SplatData> & sd){
     level = _level;
 
-    if(containedSplats.size() <= 1){
+    if(containedSplats.size() == 0){
         isLeaf = true;
+        representative = 0;
+        return;
+    }
+
+    if(containedSplats.size() == 1){
+        isLeaf = true;
+        representative = containedSplats[0];
         return;
     }
 
@@ -445,7 +455,7 @@ int markForRender(bool * renderMask, uint32_t num_primitives, GaussianOctree * r
             renderMask[root->representative] = true;
             return 1;
         }
-        if(root->level <= renderLevel && root->isLeaf){
+        if(root->level < renderLevel && root->isLeaf){
             for(auto splat : root->containedSplats)
                 renderMask[splat] = true;
             return root->containedSplats.size();

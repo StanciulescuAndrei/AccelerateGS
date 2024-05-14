@@ -19,7 +19,6 @@
 #include <cub/util_allocator.cuh>
 #include <cub/device/device_radix_sort.cuh>
 
-#include "GUIManager.h"
 #include "CameraLoader.h"
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION

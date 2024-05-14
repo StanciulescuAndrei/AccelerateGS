@@ -31,7 +31,7 @@ def main():
         # Load the images
         ref_img_path = os.path.join(directory, f'reference/{img_index}.png')
         orig_img_path = os.path.join(directory, f'orig/{img_index}.png')
-        lod_img_path = os.path.join(directory, f'auto_50/{img_index}.png')
+        lod_img_path = os.path.join(directory, f'50gauss_density/{img_index}.png')
 
         ref_img = cv2.imread(ref_img_path)
         orig_img = cv2.imread(orig_img_path)
