@@ -1,8 +1,8 @@
 #ifndef __GAUSSIAN_OCTREE__
 #define __GAUSSIAN_OCTREE__
 
-#define MAX_OCTREE_LEVEL 18
-#define MIN_RESOLUTION 14
+#define MAX_OCTREE_LEVEL 15
+#define MIN_RESOLUTION MAX_OCTREE_LEVEL - 4
 
 #pragma once
 #include "PLYReader.h"
@@ -152,12 +152,12 @@ void computeNodeRepresentative(GaussianOctree * node, std::vector<SplatData>& sd
     /* Iterate through all the contained splats in the node */
     for(auto splat : node->containedSplats){
 
-        if(sd[splat].fields.opacity < 0.01f)
+        if(sd[splat].fields.opacity < 0.1f)
             continue;
 
-        glm::vec3 e1 = glm::make_vec3(&sd[splat].fields.directions[0]) * 1.41f; // * 1.71f
-        glm::vec3 e2 = glm::make_vec3(&sd[splat].fields.directions[3]) * 1.41f; // * 1.71f
-        glm::vec3 e3 = glm::make_vec3(&sd[splat].fields.directions[6]) * 1.41f; // * 1.71f
+        glm::vec3 e1 = glm::make_vec3(&sd[splat].fields.directions[0]) * 3.0f;
+        glm::vec3 e2 = glm::make_vec3(&sd[splat].fields.directions[3]) * 3.0f;
+        glm::vec3 e3 = glm::make_vec3(&sd[splat].fields.directions[6]) * 3.0f;
 
         float opacity = sd[splat].fields.opacity;
         float volume = e1.length() * e2.length() * e3.length();
@@ -227,7 +227,7 @@ void computeNodeRepresentative(GaussianOctree * node, std::vector<SplatData>& sd
     }
 
     for(int i = 0; i < coveragePoints.size(); i++){
-        densities[i] = 1.0f; // - (densities[i] - min_density) / (max_density - min_density) * 0.5; //0.5f + opacities[i] * 0.5f 
+        densities[i] = opacities[i] - (densities[i] - min_density) / (max_density - min_density) * 0.5; //0.5f + opacities[i] * 0.5f 
         densities[i] = std::max(densities[i], 0.0f);
     }
 
@@ -236,7 +236,7 @@ void computeNodeRepresentative(GaussianOctree * node, std::vector<SplatData>& sd
     for(int i = 0; i < coveragePoints.size(); i++){
         densities[i] = densities[i] / sum_density;
     }
-
+    
     Eigen::MatrixXf coverageCloud(coveragePoints.size(), 3);
     for(int i = 0; i < coveragePoints.size(); i++){
         coverageCloud(i, 0) = coveragePoints[i].x;
@@ -275,6 +275,11 @@ void computeNodeRepresentative(GaussianOctree * node, std::vector<SplatData>& sd
     // The columns of U are the eigenvectors
     Eigen::Matrix3f U = svd.matrixU();
     Eigen::Vector3f svals = svd.singularValues();
+    Eigen::Matrix3f V = svd.matrixV().transpose();
+
+    Eigen::DiagonalMatrix<float, 3> diag(svals(1), svals(0), svals(2));
+
+    // cov = U * diag * V;
 
     representative.fields.covariance[0] = cov(0, 0);
     representative.fields.covariance[1] = cov(0, 1);
@@ -283,9 +288,9 @@ void computeNodeRepresentative(GaussianOctree * node, std::vector<SplatData>& sd
     representative.fields.covariance[4] = cov(1, 2);
     representative.fields.covariance[5] = cov(2, 2);
 
-    for(int i = 0; i < 9; i++){
-        representative.fields.directions[i] = U(i % 3, i / 3)* svals(i / 3);
-    }
+    // for(int i = 0; i < 9; i++){
+    //     representative.fields.directions[i] = U(i % 3, i / 3) * svals(i / 3);
+    // }
 
     representative.fields.position[0] = weighted_mean(0);
     representative.fields.position[1] = weighted_mean(1);
@@ -319,7 +324,7 @@ void GaussianOctree::processSplats(uint8_t _level, std::vector<SplatData> & sd){
         return;
     }
 
-    // if(containedSplats.size() < 3){ // Some threshold where it's not worth going deeper
+    // if(containedSplats.size() < 8){ // Some threshold where it's not worth going deeper
     //     isLeaf = true;
     //     computeNodeRepresentative(this, sd);
     //     return;

@@ -135,19 +135,19 @@ __device__ glm::vec3 computeColorFromSH(int idx, int deg, const SplatData::Field
 void computeVecRotationFromQuaternion(const float * rot, glm::vec3 & vec){
 	glm::vec4 q = glm::vec4(rot[0], rot[1], rot[2], rot[3]);
     q = q * (1.0f / glm::length(q));
-	float r = q.x;
-	float x = q.y;
-	float y = q.z;
-	float z = q.w;
+	float q0 = q.x;
+	float q1 = q.y;
+	float q2 = q.z;
+	float q3 = q.w;
 
-	// Compute rotation matrix from quaternion
+	// Compute rotation matrix from quaternion: from https://automaticaddison.com/how-to-convert-a-quaternion-to-a-rotation-matrix/
 	glm::mat3 R = glm::mat3(
-		1.f - 2.f * (y * y + z * z), 2.f * (x * y - r * z), 2.f * (x * z + r * y),
-		2.f * (x * y + r * z), 1.f - 2.f * (x * x + z * z), 2.f * (y * z - r * x),
-		2.f * (x * z - r * y), 2.f * (y * z + r * x), 1.f - 2.f * (x * x + y * y)
+		2.f * (q0 * q0 + q1 * q1) - 1.0f, 2.f * (q1 * q2 - q0 * q3), 2.f * (q1 * q3 + q0 * q2),
+		2.f * (q1 * q2 + q0 * q3), 2.f * (q0 * q0 + q2 * q2) - 1.0f, 2.f * (q2 * q3 - q0 * q1),
+		2.f * (q1 * q3 - q0 * q2), 2.f * (q2 * q3 + q0 * q1), 2.f * (q0 * q0 + q3 * q3) - 1.0f
 	);
 
-	vec = R * vec;
+	vec = vec * R;
 
 }
 

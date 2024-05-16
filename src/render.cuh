@@ -98,9 +98,9 @@ __global__ void preprocessGaussians(int num_splats, SplatData * sd,
 	float3 cov = computeCov2D(pOrig, focal_x, focal_y, tan_fovx, tan_fovy, sd[idx].fields.covariance, view);
 
 	if((renderMode & 0b1111) == 1){
-		cov.x = 0.31f;
+		cov.x = 0.91f;
 		cov.y = 0.0f;
-		cov.z = 0.31f;
+		cov.z = 0.91f;
 	}
 
     // Invert covariance (EWA algorithm)
@@ -133,7 +133,7 @@ __global__ void preprocessGaussians(int num_splats, SplatData * sd,
 	}
 	else if(renderMode>>4 == 2){
 		glm::vec3 norm_cov = glm::normalize(glm::vec3(cov.x, cov.y, cov.z));
-		rgb[idx] = {sd[idx].fields.normal[0], sd[idx].fields.normal[1], sd[idx].fields.normal[2]};
+		rgb[idx] = {norm_cov.x, norm_cov.y, norm_cov.z};
 	}
 
 	// if(cov.x < 0.3 || cov.z < 0.3){
