@@ -136,7 +136,7 @@ int main(){
     std::vector<SplatData> sd;
     bool * renderMask;
     int num_elements = 0;
-    int res = loadSplatData("../../models/train/point_cloud/iteration_30000/point_cloud.ply", sd, &num_elements);
+    int res = loadSplatData("../../models/train/point_cloud/iteration_60000/point_cloud.ply", sd, &num_elements);
 
     const uint32_t maxDuplicatedGaussians = num_elements * 256;
 
@@ -293,7 +293,8 @@ int main(){
                 getCameraParameters(forcedCameraIndex, cameraPosition, cameraRotation);
             }
 
-            modelview = glm::lookAt(cameraPosition, cameraRotation * glm::vec3(0.0f, 0.0f, 1.0f) + cameraPosition, cameraRotation * glm::vec3(0.0f, 1.0f, 0.0f));
+            // modelview = glm::lookAt(cameraPosition, cameraRotation * glm::vec3(0.0f, 0.0f, 1.0f) + cameraPosition, cameraRotation * glm::vec3(0.0f, 1.0f, 0.0f));
+            modelview = glm::lookAt(glm::vec3(3.149138,-0.195829,0.727059), glm::vec3(2.239249,-0.210347,1.141656), glm::vec3(0.032943,0.993702,0.107094));
             perspective = glm::perspective(fovy, (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.009f, 100.0f) * modelview;
 
             /* Call the main CUDA render kernel */

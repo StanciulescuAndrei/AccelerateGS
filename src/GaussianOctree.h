@@ -4,6 +4,8 @@
 #define MAX_OCTREE_LEVEL 15
 #define MIN_RESOLUTION MAX_OCTREE_LEVEL - 4
 
+// #define INRIA_CLUSTER
+
 #pragma once
 #include "PLYReader.h"
 #include <vector>
@@ -121,6 +123,7 @@ typedef nanoflann::KDTreeSingleIndexAdaptor<
 
 void computeNodeRepresentative(GaussianOctree * node, std::vector<SplatData>& sd){
 
+    #ifndef INRIA_CLUSTER
     size_t num_fields = sizeof(SplatData) / sizeof(float);
     float nodeSize = (node->bbox[1].x - node->bbox[0].x) / (node->level * node->level);
 
@@ -227,8 +230,11 @@ void computeNodeRepresentative(GaussianOctree * node, std::vector<SplatData>& sd
     }
 
     for(int i = 0; i < coveragePoints.size(); i++){
-        densities[i] = opacities[i] - (densities[i] - min_density) / (max_density - min_density) * 0.5; //0.5f + opacities[i] * 0.5f 
-        densities[i] = std::max(densities[i], 0.0f);
+        densities[i] = opacities[i] - (densities[i] - min_density) / (max_density - min_density) * 0.5; 
+        // densities[i] = opacities[i]; 
+        // densities[i] = 1.0f - (densities[i] - min_density) / (max_density - min_density) * 0.5; 
+        // densities[i] = 1.0f;
+        densities[i] = std::max(densities[i], 0.001f);
     }
 
     float sum_density = std::accumulate(densities.begin(), densities.end(), 0.0);
@@ -306,6 +312,107 @@ void computeNodeRepresentative(GaussianOctree * node, std::vector<SplatData>& sd
     
     sd.push_back(representative);
     node->representative = sd.size() - 1;
+    #else
+    size_t num_fields = sizeof(SplatData) / sizeof(float);
+    float nodeSize = (node->bbox[1].x - node->bbox[0].x) / (node->level * node->level);
+
+    /* No splats inside, so no representative */
+    if(node->containedSplats.size() == 0)
+        return;
+
+    /* Only one splat contained */
+    if(node->containedSplats.size() == 1){
+        node->representative = node->containedSplats[0];
+        return;
+    }
+
+    /* Representative splat object with empy data */
+    SplatData representative;
+    for(int i=0;i<num_fields;i++){
+        representative.rawData[i] = 0.0f;
+    }
+    std::vector<float> weights;
+
+    /* Iterate through all the contained splats in the node */
+    for(auto splat : node->containedSplats){
+
+        glm::vec3 e1 = glm::make_vec3(&sd[splat].fields.directions[0]) * 3.0f;
+        glm::vec3 e2 = glm::make_vec3(&sd[splat].fields.directions[3]) * 3.0f;
+        glm::vec3 e3 = glm::make_vec3(&sd[splat].fields.directions[6]) * 3.0f;
+
+        float opacity = sd[splat].fields.opacity;
+        float volume = e1.length() * e2.length() * e3.length();
+
+        weights.push_back(opacity * glm::sqrt(volume));
+
+        /* Opacity */
+        representative.fields.opacity += sd[splat].fields.opacity * volume;
+    }
+
+    float sum_weight = std::accumulate(weights.begin(), weights.end(), 0.0001f);
+
+    glm::vec3 weighted_mean(0.0f);
+    Eigen::Matrix3f cov = Eigen::Matrix3f::Zero();
+
+    int idx = 0;
+    // First, do the SHs and the weighted mean (a.k.a position)
+    for(auto splat : node->containedSplats){
+        weights[idx] /= sum_weight;
+
+        /* Colors (a.k.a. Sphere harmonics) */
+        for(int i = 0; i < 48; i++){
+            representative.fields.SH[i] += sd[splat].fields.SH[i] * weights[idx];
+        }
+
+        weighted_mean += glm::make_vec3(sd[splat].fields.position) * weights[idx];
+
+        idx++;
+    }
+
+    Eigen::Vector3f w_mean;
+    w_mean << weighted_mean.x, weighted_mean.y, weighted_mean.z;
+
+    idx = 0;
+    // second, do the covariance merging
+    for(auto splat : node->containedSplats){
+
+        Eigen::Matrix3f crt_cov;
+        crt_cov << sd[splat].fields.covariance[0], sd[splat].fields.covariance[1], sd[splat].fields.covariance[2],
+                   sd[splat].fields.covariance[1], sd[splat].fields.covariance[3], sd[splat].fields.covariance[4],
+                   sd[splat].fields.covariance[2], sd[splat].fields.covariance[4], sd[splat].fields.covariance[5];
+
+        Eigen::Vector3f mean;
+        mean << sd[splat].fields.position[0], sd[splat].fields.position[1], sd[splat].fields.position[2];
+        
+        cov += weights[idx] * (crt_cov + (mean - w_mean) * (mean - w_mean).transpose());
+
+        idx++;
+    }
+
+    /* Opacity */
+    float approx_splat_volume = std::max(glm::abs(cov.determinant()), 0.001f);
+    representative.fields.opacity = 0.0f;
+
+    for(auto w : weights){
+        representative.fields.opacity += (w / 3.0f);
+    }
+
+    // representative.fields.opacity /= std::pow(nodeSize, 3);
+
+    representative.fields.covariance[0] = cov(0, 0);
+    representative.fields.covariance[1] = cov(0, 1);
+    representative.fields.covariance[2] = cov(0, 2);
+    representative.fields.covariance[3] = cov(1, 1); 
+    representative.fields.covariance[4] = cov(1, 2);
+    representative.fields.covariance[5] = cov(2, 2);
+
+    representative.fields.position[0] = weighted_mean.x;
+    representative.fields.position[1] = weighted_mean.y;
+    representative.fields.position[2] = weighted_mean.z;
+    
+    sd.push_back(representative);
+    node->representative = sd.size() - 1;
+    #endif
     
 }
 
