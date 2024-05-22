@@ -4,9 +4,12 @@ ArrayList<PVector> points;
 ArrayList<PVector> ellipseCenters;
 ArrayList<PVector> ellipseAxes;
 ArrayList<Float> ellipseAngles;
+ArrayList<Matrix> ellipsecovs;
 PVector mean;
 PVector[] eigenvectors;
 float[] eigenvalues;
+
+Matrix inriaCov;
 
 float deviations = 1.41;
 
@@ -17,6 +20,8 @@ void setup() {
   ellipseAxes = new ArrayList<PVector>();
   ellipseAngles = new ArrayList<Float>();
   eigenvectors = new PVector[2];
+  ellipsecovs = new ArrayList<Matrix>();
+  inriaCov = new Matrix(2, 2);
 }
 
 void draw() {
@@ -40,9 +45,18 @@ void mousePressed() {
     float y = center.y + rx * cos(t) * sin(angle) + ry * sin(t) * cos(angle);
     points.add(new PVector(x, y));
   }
+  Matrix S = new Matrix(2, 2);
+  Matrix R = new Matrix(2, 2);
+  S.set(0, 0, rx); S.set(0, 1, 0.0); S.set(1, 0, 0.0); S.set(1, 1, ry);
+  R.set(0, 0, cos(angle)); R.set(0, 1, -sin(angle)); R.set(1, 0, sin(angle)); R.set(1, 1, cos(angle));
+  
+  Matrix cov = new Matrix(2, 2);
+  cov = R.transpose().times(S.transpose()).times(S).times(R);
+  
   ellipseCenters.add(center);
   ellipseAxes.add(new PVector(rx, ry));
   ellipseAngles.add(angle);
+  ellipsecovs.add(cov);
 }
 
 void calculatePCA() {
@@ -52,6 +66,7 @@ void calculatePCA() {
     mean.add(point);
   }
   mean.div(points.size());
+  inriaCov.set(0, 0, 0); inriaCov.set(1, 0, 0); inriaCov.set(0, 1, 0); inriaCov.set(1, 1, 0);
 
   // Build covariance matrix
   Matrix cov = new Matrix(2, 2);
@@ -62,6 +77,10 @@ void calculatePCA() {
         cov.set(i, j, cov.get(i, j) + diff.array()[i] * diff.array()[j]);
       }
     }
+    
+    Matrix md = new Matrix(2, 2);
+    md.set(0, 0, diff.x * diff.x); md.set(1, 0, diff.x * diff.y); md.set(0, 1, diff.x * diff.y); md.set(1, 1, diff.y * diff.y);
+    
   }
   cov.timesEquals(1.0 / points.size());
 
@@ -72,6 +91,8 @@ void calculatePCA() {
   eigenvalues[1] = (float)eig.getRealEigenvalues()[1];
   eigenvectors[0] = new PVector((float)eig.getV().get(0, 0), (float)eig.getV().get(1, 0));
   eigenvectors[1] = new PVector((float)eig.getV().get(0, 1), (float)eig.getV().get(1, 1));
+  
+  
 }
 
 void drawPoints() {
