@@ -1,5 +1,5 @@
-#ifndef __GAUSSIAN_OCTREE__
-#define __GAUSSIAN_OCTREE__
+#ifndef __GAUSSIAN_BVH__
+#define __GAUSSIAN_BVH__
 
 #define INRIA_CLUSTER
 
@@ -14,51 +14,12 @@
 #include <nanoflann.hpp>
 
 #include "GUIManager.h"
+#include "GaussianOctree.h"
 
-bool insideBBox(glm::vec3 * bbox, uint32_t splatId, std::vector<SplatData> & sd){
-    // float maxRadius = max(sd[splatId].fields.scale[0], max(sd[splatId].fields.scale[1], sd[splatId].fields.scale[2]));
-    // glm::vec3 minBound = glm::make_vec3(sd[splatId].fields.position) - maxRadius;
-    // glm::vec3 maxBound = glm::make_vec3(sd[splatId].fields.position) + maxRadius;
-
-    // if(minBound.x >= bbox[0].x && minBound.y >= bbox[0].y && minBound.z >= bbox[0].z &&
-    //    maxBound.x < bbox[1].x && maxBound.y < bbox[1].y && maxBound.z < bbox[1].z)
-    //    return true;
-
-    if(sd[splatId].fields.position[0] >= bbox[0].x && sd[splatId].fields.position[1] >= bbox[0].y && sd[splatId].fields.position[2] >= bbox[0].z &&
-       sd[splatId].fields.position[0] < bbox[1].x && sd[splatId].fields.position[1] < bbox[1].y && sd[splatId].fields.position[2] < bbox[1].z)
-       return true;
-
-    return false;
-}
-
-void addSplatToCoverage(glm::vec3 * coverage, uint32_t splatId, std::vector<SplatData> & sd){
-    glm::vec3 splatSpread[2];
-    splatSpread[0] = coverage[0];
-    splatSpread[1] = coverage[1];
-
-    splatSpread[0] = glm::min(splatSpread[0], glm::make_vec3(sd[splatId].fields.position) - glm::make_vec3(sd[splatId].fields.directions));
-    splatSpread[1] = glm::max(splatSpread[1], glm::make_vec3(sd[splatId].fields.position) + glm::make_vec3(sd[splatId].fields.directions));
-    splatSpread[0] = glm::min(splatSpread[0], glm::make_vec3(sd[splatId].fields.position) + glm::make_vec3(sd[splatId].fields.directions));
-    splatSpread[1] = glm::max(splatSpread[1], glm::make_vec3(sd[splatId].fields.position) - glm::make_vec3(sd[splatId].fields.directions));
-
-    splatSpread[0] = glm::min(splatSpread[0], glm::make_vec3(sd[splatId].fields.position) - glm::make_vec3(sd[splatId].fields.directions + 3));
-    splatSpread[1] = glm::max(splatSpread[1], glm::make_vec3(sd[splatId].fields.position) + glm::make_vec3(sd[splatId].fields.directions + 3));
-    splatSpread[0] = glm::min(splatSpread[0], glm::make_vec3(sd[splatId].fields.position) + glm::make_vec3(sd[splatId].fields.directions + 3));
-    splatSpread[1] = glm::max(splatSpread[1], glm::make_vec3(sd[splatId].fields.position) - glm::make_vec3(sd[splatId].fields.directions + 3));
-
-    splatSpread[0] = glm::min(splatSpread[0], glm::make_vec3(sd[splatId].fields.position) - glm::make_vec3(sd[splatId].fields.directions + 6));
-    splatSpread[1] = glm::max(splatSpread[1], glm::make_vec3(sd[splatId].fields.position) + glm::make_vec3(sd[splatId].fields.directions + 6));
-    splatSpread[0] = glm::min(splatSpread[0], glm::make_vec3(sd[splatId].fields.position) + glm::make_vec3(sd[splatId].fields.directions + 6));
-    splatSpread[1] = glm::max(splatSpread[1], glm::make_vec3(sd[splatId].fields.position) - glm::make_vec3(sd[splatId].fields.directions + 6));
-
-    coverage[0] = glm::min(coverage[0], splatSpread[0]);
-    coverage[1] = glm::max(coverage[1], splatSpread[1]);
-}
-
-class GaussianOctree
+class GaussianBVH
 {
 public:
-    GaussianOctree* children[8] = {nullptr};
+    GaussianBVH* children[2] = {nullptr};
     std::vector<uint32_t> containedSplats;
     uint8_t level = 0;
     bool isLeaf = false;
@@ -69,11 +30,11 @@ public:
 
 
     void processSplats(uint8_t _level, std::vector<SplatData> & sd); 
-    GaussianOctree( glm::vec3 * _bbox);
-    ~GaussianOctree();
+    GaussianBVH( glm::vec3 * _bbox);
+    ~GaussianBVH();
 };
 
-GaussianOctree::GaussianOctree(glm::vec3 * _bbox)
+GaussianBVH::GaussianBVH(glm::vec3 * _bbox)
 {
     bbox[0] = _bbox[0];
     bbox[1] = _bbox[1];
@@ -82,43 +43,7 @@ GaussianOctree::GaussianOctree(glm::vec3 * _bbox)
     coverage[1] = _bbox[1];
 }
 
-typedef std::vector<glm::vec3> PointCloud;
-
-struct PointCloudAdaptor {
-    const PointCloud &pts;
-
-    PointCloudAdaptor(const PointCloud &pts) : pts(pts) {}
-
-    // Must return the number of data points
-    inline size_t kdtree_get_point_count() const { return pts.size(); }
-
-    // Returns the distance between the vector 'p1[0:size-1]' and the data point with index 'idx_p2'
-    inline float kdtree_distance(const float *p1, const size_t idx_p2, size_t /*size*/) const {
-        const float d0 = p1[0] - pts[idx_p2].x;
-        const float d1 = p1[1] - pts[idx_p2].y;
-        const float d2 = p1[2] - pts[idx_p2].z;
-        return d0 * d0 + d1 * d1 + d2 * d2;
-    }
-
-    // Returns the dim'th component of the idx'th point in the class
-    inline float kdtree_get_pt(const size_t idx, int dim) const {
-        if (dim == 0) return pts[idx].x;
-        else if (dim == 1) return pts[idx].y;
-        else return pts[idx].z;
-    }
-
-    // Optional bounding-box computation
-    template <class BBOX>
-    bool kdtree_get_bbox(BBOX & /*bb*/) const { return false; }
-};
-
-typedef nanoflann::KDTreeSingleIndexAdaptor<
-    nanoflann::L2_Simple_Adaptor<float, PointCloudAdaptor>,
-    PointCloudAdaptor,
-    3 /* dimension */
-> KDTree;
-
-void computeNodeRepresentative(GaussianOctree * node, std::vector<SplatData>& sd){
+void computeNodeRepresentative(GaussianBVH * node, std::vector<SplatData>& sd){
 
     #ifndef INRIA_CLUSTER
     size_t num_fields = sizeof(SplatData) / sizeof(float);
@@ -422,7 +347,7 @@ void computeNodeRepresentative(GaussianOctree * node, std::vector<SplatData>& sd
     
 }
 
-void GaussianOctree::processSplats(uint8_t _level, std::vector<SplatData> & sd){
+void GaussianBVH::processSplats(uint8_t _level, std::vector<SplatData> & sd){
     level = _level;
 
     if(containedSplats.size() == 0){
@@ -443,18 +368,47 @@ void GaussianOctree::processSplats(uint8_t _level, std::vector<SplatData> & sd){
     //     return;
     // }
 
-    glm::vec3 halfSize = (bbox[1] - bbox[0]) * 0.5f;
+    glm::vec3 halfSize = (bbox[1] - bbox[0]);
 
-    for (int i=0;i<8;i++){
-        // Define node's BBox
-        glm::vec3 childBbox[2];
-        childBbox[0][0] = bbox[0][0] + ((i & 0b001)!=0) * halfSize[0];
-        childBbox[0][1] = bbox[0][1] + ((i & 0b010)!=0) * halfSize[1];
-        childBbox[0][2] = bbox[0][2] + ((i & 0b100)!=0) * halfSize[2];
-        childBbox[1] = childBbox[0] + halfSize;
+    /* Find the largest dimension of the initial box */
+    std::vector<float> projs;
+    int maxDim = -1;
+    if(halfSize.x > max(halfSize.y, halfSize.z)){
+        maxDim = 0;
+    }
+    else if(halfSize.y > max(halfSize.x, halfSize.z)){
+        maxDim = 1;
+    }
+    else{
+        maxDim = 2;
+    }
 
-        children[i] = new GaussianOctree(childBbox);
+    for(auto splat : containedSplats){
+        projs.push_back(sd[splat].fields.position[maxDim]);
+    }
 
+    std::sort(projs.begin(), projs.end());
+
+    float median = (projs[projs.size() / 2] + projs[projs.size() / 2 - 1]) / 2.0f;
+
+    glm::vec3 childBbox1[2];
+    childBbox1[0][0] = bbox[0][0];
+    childBbox1[0][1] = bbox[0][1];
+    childBbox1[0][2] = bbox[0][2];
+    childBbox1[1][0] = childBbox1[0][0] + ((0 == maxDim) ? (median - childBbox1[0][0]) : halfSize[0]);
+    childBbox1[1][1] = childBbox1[0][1] + ((1 == maxDim) ? (median - childBbox1[0][1]) : halfSize[1]);
+    childBbox1[1][2] = childBbox1[0][2] + ((2 == maxDim) ? (median - childBbox1[0][2]) : halfSize[2]);
+
+    glm::vec3 childBbox2[2];
+    childBbox2[1][0] = bbox[1][0];
+    childBbox2[1][1] = bbox[1][1];
+    childBbox2[1][2] = bbox[1][2];
+    childBbox2[0][0] = childBbox1[0][0] + ((0 == maxDim) ? (median - childBbox1[0][0]) : 0);
+    childBbox2[0][1] = childBbox1[0][1] + ((1 == maxDim) ? (median - childBbox1[0][1]) : 0);
+    childBbox2[0][2] = childBbox1[0][2] + ((2 == maxDim) ? (median - childBbox1[0][2]) : 0);
+
+    for (int i=0;i<2;i++){
+        children[i] = new GaussianBVH((i == 0) ? childBbox1 : childBbox2);
         // See which of the splats go into the newly created node
         for(int k = 0; k < containedSplats.size(); k++){
             auto splat = containedSplats[k];
@@ -463,7 +417,7 @@ void GaussianOctree::processSplats(uint8_t _level, std::vector<SplatData> & sd){
                 addSplatToCoverage(children[i]->coverage, splat, sd);
             }
         }
-        if(level < MAX_OCTREE_LEVEL){
+        if(level < MAX_BVH_LEVEL){
             children[i]->isLeaf = false;
             children[i]->processSplats(level+1, sd);
         }
@@ -472,13 +426,14 @@ void GaussianOctree::processSplats(uint8_t _level, std::vector<SplatData> & sd){
             computeNodeRepresentative(children[i], sd);
         }
 
-        if(level == 0){
-            printf("%i / %i\n", i+1, 8);
+        if(level == 4){
+            printf("0|");
+            fflush(stdout);
         }
     }
 
     /* Compute representatives before clearing the contained splats vector */
-    if(this->level >= MIN_RESOLUTION)
+    if(this->level >= MIN_BVH_RESOLUTION)
         computeNodeRepresentative(this, sd);
 
     containedSplats.clear();
@@ -486,15 +441,15 @@ void GaussianOctree::processSplats(uint8_t _level, std::vector<SplatData> & sd){
     
 }
 
-GaussianOctree::~GaussianOctree()
+GaussianBVH::~GaussianBVH()
 {
-    for(int i=0;i<8;i++)
+    for(int i=0;i<2;i++)
         if(children[i] != nullptr){
             delete children[i];
         }
 }
 
-GaussianOctree * buildOctree(std::vector<SplatData> & sd, uint32_t num_primitives){
+GaussianBVH * buildBVH(std::vector<SplatData> & sd, uint32_t num_primitives){
     glm::vec3 minBound(1e13, 1e13, 1e13);
     glm::vec3 maxBound(-1e13, -1e13, -1e13);
 
@@ -507,25 +462,23 @@ GaussianOctree * buildOctree(std::vector<SplatData> & sd, uint32_t num_primitive
         maxBound.z = max(maxBound.z, sd[i].fields.position[2]);
     }
 
-    glm::vec3 center = (minBound + maxBound) * 0.5f;
-
-    float maxSpan = max(maxBound.x - minBound.x, max(maxBound.y - minBound.y, maxBound.z - minBound.z));
-
+    /* No need for a cube BBox for the BVH */
     glm::vec3 rootBbox[2];
-    rootBbox[0] = center - maxSpan;
-    rootBbox[1] = center + maxSpan;
+    rootBbox[0] = minBound;
+    rootBbox[1] = maxBound;
 
-    GaussianOctree * root = new GaussianOctree(rootBbox);
+    GaussianBVH * root = new GaussianBVH(rootBbox);
     for(int i = 0; i < num_primitives; i++)
         root->containedSplats.push_back(i);
 
     root->processSplats(0, sd);
+    printf("\n");
 
     return root;
 
 }
 
-int markForRender(bool * renderMask, uint32_t num_primitives, GaussianOctree * root, std::vector<SplatData> & sd, int renderLevel, glm::vec3 & cameraPosition, float fovy, int SW, float dpt){
+int markForRender(bool * renderMask, uint32_t num_primitives, GaussianBVH * root, std::vector<SplatData> & sd, int renderLevel, glm::vec3 & cameraPosition, float fovy, int SW, float dpt){
 
     if(renderLevel == -1){
         int shouldRenderNode = 0;
@@ -560,7 +513,7 @@ int markForRender(bool * renderMask, uint32_t num_primitives, GaussianOctree * r
             }
             else{ // Level too low to have a representative, still have to go down
                 int splatsRendered = 0;
-                for(int i=0;i<8;i++){
+                for(int i=0;i<2;i++){
                     if(root->children[i] != nullptr)
                         splatsRendered += markForRender(renderMask, num_primitives, root->children[i], sd, renderLevel, cameraPosition, fovy, SW, dpt);
                 }
@@ -580,7 +533,7 @@ int markForRender(bool * renderMask, uint32_t num_primitives, GaussianOctree * r
         }
         if(!root->isLeaf && root->level < renderLevel){
             int splatsRendered = 0;
-            for(int i=0;i<8;i++){
+            for(int i=0;i<2;i++){
                 splatsRendered += markForRender(renderMask, num_primitives, root->children[i], sd, renderLevel, cameraPosition, fovy, SW, dpt);
             }
             return splatsRendered;

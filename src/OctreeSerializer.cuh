@@ -1,6 +1,7 @@
 #ifndef __OCTREE_SERIALIZER__
 #define __OCTREE_SERIALIZER__
 #include "GaussianOctree.h"
+#include "GaussianBVH.h"
 
 class SerializedOctree{
 private:
