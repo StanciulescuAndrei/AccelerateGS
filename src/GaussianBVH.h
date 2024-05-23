@@ -355,18 +355,11 @@ void GaussianBVH::processSplats(uint8_t _level, std::vector<SplatData> & sd){
         representative = 0;
         return;
     }
-
     if(containedSplats.size() == 1){
         isLeaf = true;
         representative = containedSplats[0];
         return;
     }
-
-    // if(containedSplats.size() < 8){ // Some threshold where it's not worth going deeper
-    //     isLeaf = true;
-    //     computeNodeRepresentative(this, sd);
-    //     return;
-    // }
 
     glm::vec3 halfSize = (bbox[1] - bbox[0]);
 
@@ -500,7 +493,7 @@ int markForRender(bool * renderMask, uint32_t num_primitives, GaussianBVH * root
             }
             else{
                 int splatsRendered = 0;
-                for(int i=0;i<8;i++){
+                for(int i=0;i<2;i++){
                     splatsRendered += markForRender(renderMask, num_primitives, root->children[i], sd, renderLevel, cameraPosition, fovy, SW, dpt);
                 }
                 return splatsRendered;

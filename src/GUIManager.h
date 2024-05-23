@@ -4,8 +4,8 @@
 #include "../../../libs/imgui/backends/imgui_impl_glfw.h"
 #include "../../../libs/imgui/backends/imgui_impl_opengl3.h"
 
-#define MAX_BVH_LEVEL 23
-#define MIN_BVH_RESOLUTION MAX_BVH_LEVEL - 10
+#define MAX_BVH_LEVEL 20
+#define MIN_BVH_RESOLUTION MAX_BVH_LEVEL - 2
 
 #define MAX_OCTREE_LEVEL 15
 #define MIN_RESOLUTION MAX_OCTREE_LEVEL - 4

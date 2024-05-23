@@ -127,7 +127,7 @@ int main(){
     std::chrono::steady_clock::time_point begin;
     std::chrono::steady_clock::time_point end;
 
-    loadCameraFile("../../models/train/cameras.json");
+    loadCameraFile("../../models/garden/cameras.json");
     loadGenericProperties(SCREEN_WIDTH, SCREEN_HEIGHT, fovx, fovy);
 
     initGLContextAndWindow(&window);
@@ -136,9 +136,9 @@ int main(){
     std::vector<SplatData> sd;
     bool * renderMask;
     int num_elements = 0;
-    int res = loadSplatData("../../models/train/point_cloud/iteration_30000/point_cloud.ply", sd, &num_elements);
+    int res = loadSplatData("../../models/garden/point_cloud/iteration_30000/point_cloud.ply", sd, &num_elements);
 
-    const uint32_t maxDuplicatedGaussians = num_elements * 256;
+    const uint32_t maxDuplicatedGaussians = num_elements * 16;
 
     // First of all, build da octree
     begin = std::chrono::steady_clock::now();
@@ -146,9 +146,9 @@ int main(){
     GaussianBVH * spacePartitioningRoot = buildBVH(sd, num_elements);
     int old_num_elements = num_elements;
 
-    num_elements = sd.size();
+    // num_elements = sd.size();
     renderMask = (bool *)malloc(sizeof(bool) * num_elements);
-    memset(renderMask, 0, sizeof(bool) * num_elements);
+    memset(renderMask, 1, sizeof(bool) * num_elements);
 
     end = std::chrono::steady_clock::now();
     int octreeTime = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
@@ -303,10 +303,10 @@ int main(){
             int renderMode = (selectedViewMode<<4) + renderPrimitive;
 
             memset(renderMask, 0, sizeof(bool) * num_elements);
-            // for(int i = 0; i < old_num_elements; i++){
-            //     renderMask[i] = 1;
-            // }
-            renderedSplats = markForRender(renderMask, num_elements, spacePartitioningRoot, sd, autoLevel ? -1 : renderLevel, cameraPosition, fovy, SCREEN_WIDTH, diagonalProjectionThreshold);
+            for(int i = 0; i < old_num_elements; i++){
+                renderMask[i] = 1;
+            }
+            // renderedSplats = markForRender(renderMask, num_elements, spacePartitioningRoot, sd, autoLevel ? -1 : renderLevel, cameraPosition, fovy, SCREEN_WIDTH, diagonalProjectionThreshold);
             // printf("Rendered splats: %d\n", renderedSplats);
 
             checkCudaErrors(cudaMemcpy(d_renderMask, renderMask, sizeof(bool) * num_elements, cudaMemcpyHostToDevice));

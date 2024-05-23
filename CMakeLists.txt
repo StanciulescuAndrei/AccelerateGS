@@ -23,7 +23,7 @@ include_directories(
 	${GLM_INCLUDE_PATH}
 	../../libs/imgui/
 	../../libs/imgui/backends/
-	../../../libs/nlohmann/
+	../../libs/nlohmann/
 	${STB_PATH}
 )
 
@@ -53,7 +53,7 @@ add_executable(AccelerateGS
 		${IMGUI_PATH}/backends/imgui_impl_glfw.cpp
 		${IMGUI_PATH}/backends/imgui_impl_opengl3.h
 		${IMGUI_PATH}/backends/imgui_impl_opengl3.cpp
-		../../../libs/nlohmann/json.hpp
+		../../libs/nlohmann/json.hpp
 		${STB_PATH}/stb_image_write.h)
 
 target_link_libraries(AccelerateGS
