@@ -1,7 +1,7 @@
 #ifndef __GAUSSIAN_BVH__
 #define __GAUSSIAN_BVH__
 
-#define INRIA_CLUSTER
+// #define INRIA_CLUSTER
 
 #pragma once
 #include "PLYReader.h"
