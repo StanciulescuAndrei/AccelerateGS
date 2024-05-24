@@ -4,6 +4,7 @@
 #include <assert.h>
 
 #include <iostream>
+#include <thread>
 
 #include "glad/glad.h"
 #include <GLFW/glfw3.h>
@@ -144,8 +145,42 @@ int main(){
 
     // First of all, build da octree
     begin = std::chrono::steady_clock::now();
+    #if defined(_OPENMP)
+        printf("Using OpenMP, yey\n");
+    #endif
 
-    GaussianBVH * spacePartitioningRoot = buildBVH(sd, num_elements);
+    /* OpenGL configuration */
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 16);      // 4-byte pixel alignment
+
+    glClearColor(0, 0, 0, 0);                   // background color
+    glClearStencil(0);                          // clear stencil buffer
+    glClearDepth(1.0f);                         // 0 is near, 1 is far
+    glEnable(GL_BLEND);  
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);  
+
+
+    volatile int progress = 0;
+    GaussianBVH * spacePartitioningRoot;
+    omp_set_num_threads(4);
+    #pragma omp parallel num_threads(3) default(shared) shared(progress)
+    #pragma omp single
+    {
+        #pragma omp task
+        spacePartitioningRoot = buildBVH(sd, num_elements, &progress);
+
+        while(progress!=16){
+            /* Clear color and depth buffers */
+            glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+            buildLoadingInterface(progress / 16.0f);
+            renderInterface();
+            /* Swap buffers and handle GLFW events */
+            glfwSwapBuffers(window);
+            glfwPollEvents();
+        }
+    }
+
+    #pragma omp taskwait
+    
     int old_num_elements = num_elements;
 
     num_elements = sd.size();
@@ -159,7 +194,6 @@ int main(){
     
     printf("Number of splats: %d\n", num_elements);
 
-    // num_elements = num_elements/16;
 
     /* Allocate and send splat data to GPU memory */
     SplatData * d_sd;
@@ -252,14 +286,6 @@ int main(){
     // Prepare CUDA interop
     checkCudaErrors(cudaMalloc(&d_pbo_buffer, 4 * SCREEN_HEIGHT * SCREEN_WIDTH * sizeof(float)));
     checkCudaErrors(cudaGraphicsGLRegisterBuffer(&cuda_pbo_resource, pboId, cudaGraphicsRegisterFlagsNone));
-
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 16);      // 4-byte pixel alignment
-
-    glClearColor(0, 0, 0, 0);                   // background color
-    glClearStencil(0);                          // clear stencil buffer
-    glClearDepth(1.0f);                         // 0 is near, 1 is far
-    glEnable(GL_BLEND);  
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);  
     
 
     /* Very basic FPS metrics */

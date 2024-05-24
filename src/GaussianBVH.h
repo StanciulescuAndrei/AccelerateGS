@@ -29,7 +29,7 @@ public:
     uint32_t representative = 0; /* Will be the splat that is the approximation of all splats contained, will be dynamically added to the array I guess */
 
 
-    void processSplats(uint8_t _level, std::vector<SplatData> & sd); 
+    void processSplats(uint8_t _level, std::vector<SplatData> & sd, volatile int * progress); 
     GaussianBVH( glm::vec3 * _bbox);
     ~GaussianBVH();
 };
@@ -347,7 +347,7 @@ void computeNodeRepresentative(GaussianBVH * node, std::vector<SplatData>& sd){
     
 }
 
-void GaussianBVH::processSplats(uint8_t _level, std::vector<SplatData> & sd){
+void GaussianBVH::processSplats(uint8_t _level, std::vector<SplatData> & sd, volatile int * progress){
     level = _level;
 
     if(containedSplats.size() == 0){
@@ -412,16 +412,15 @@ void GaussianBVH::processSplats(uint8_t _level, std::vector<SplatData> & sd){
         }
         if(level < MAX_BVH_LEVEL){
             children[i]->isLeaf = false;
-            children[i]->processSplats(level+1, sd);
+            children[i]->processSplats(level+1, sd, progress);
         }
         else{
             children[i]->isLeaf=true;
             computeNodeRepresentative(children[i], sd);
         }
 
-        if(level == 4){
-            printf("0|");
-            fflush(stdout);
+        if(level == 3){
+            (*progress)++;
         }
     }
 
@@ -442,7 +441,7 @@ GaussianBVH::~GaussianBVH()
         }
 }
 
-GaussianBVH * buildBVH(std::vector<SplatData> & sd, uint32_t num_primitives){
+GaussianBVH * buildBVH(std::vector<SplatData> & sd, uint32_t num_primitives, volatile int * progress){
     glm::vec3 minBound(1e13, 1e13, 1e13);
     glm::vec3 maxBound(-1e13, -1e13, -1e13);
 
@@ -464,9 +463,10 @@ GaussianBVH * buildBVH(std::vector<SplatData> & sd, uint32_t num_primitives){
     for(int i = 0; i < num_primitives; i++)
         root->containedSplats.push_back(i);
 
-    root->processSplats(0, sd);
+    root->processSplats(0, sd, progress);
     printf("\n");
 
+    *progress = 16;
     return root;
 
 }

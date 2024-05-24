@@ -14,7 +14,7 @@ float fovy = M_PI / 2.0f;
 float fovx = M_PI / 2.0f * 16 / 9;
 int selectedViewMode = 0;
 int renderPrimitive = 0;
-int renderLevel = MIN_RESOLUTION;
+int renderLevel = MIN_BVH_RESOLUTION;
 int cameraIndex = 0;
 int cameraMode = 0;
 int autoLevel = 0;
@@ -84,6 +84,21 @@ void buildInterface(){
     else{
         batchRender = 0;
     }
+
+    ImGui::End();
+}
+
+void buildLoadingInterface(float progress){
+    ImGui_ImplOpenGL3_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
+    // Create a window called "Progress" and append into it.
+    ImGui::Begin("Building space partitioning");
+
+    // Display the progress bar
+    ImGui::ProgressBar(progress, ImVec2(0.0f,0.0f));
+    ImGui::SameLine(0.0f, ImGui::GetStyle().ItemInnerSpacing.x);
+    ImGui::Text("Progress %.0f%%", progress*100.0f);
 
     ImGui::End();
 }
