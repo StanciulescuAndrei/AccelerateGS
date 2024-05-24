@@ -23,6 +23,7 @@ int saveRender = 0;
 int batchRender = 0;
 
 int renderedSplats = 0;
+int numCameraPositions = 2;
 
 float diagonalProjectionThreshold = 10.0f;
 
@@ -66,7 +67,7 @@ void buildInterface(){
     ImGui::RadioButton("Free camera", &cameraMode, 0); ImGui::SameLine();
     ImGui::RadioButton("COLMAP Camera", &cameraMode, 1);
 
-    ImGui::SliderInt("Camera index", &cameraIndex, 0, 300);
+    ImGui::SliderInt("Camera index", &cameraIndex, 0, numCameraPositions - 1);
 
     ImGui::Text("# rendered splats: %d", renderedSplats); 
 

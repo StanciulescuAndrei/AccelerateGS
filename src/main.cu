@@ -130,6 +130,8 @@ int main(){
     loadCameraFile("../../models/garden/cameras.json");
     loadGenericProperties(SCREEN_WIDTH, SCREEN_HEIGHT, fovx, fovy);
 
+    numCameraPositions = cameraData.size();
+
     initGLContextAndWindow(&window);
 
     /* Load splat scene data from file */
