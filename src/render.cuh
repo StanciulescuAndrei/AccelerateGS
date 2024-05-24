@@ -228,6 +228,7 @@ __global__ void render(int num_splats, SplatData * sd,
     int thread_x = tile_x * blockDim.x + threadIdx.x;
     int thread_y = tile_y * blockDim.y + threadIdx.y;
 
+	/* Each thread in the block has its own rank */
 	int thread_rank = threadIdx.x + threadIdx.y * blockDim.x;
 
 	__shared__ float2 positions[BLOCK_SIZE];
@@ -244,6 +245,7 @@ __global__ void render(int num_splats, SplatData * sd,
 	int array_offset = min_range;
 	while(array_offset < max_range){
 		
+		/* Each thread collects one set of data to shared memory */
 		if(array_offset + thread_rank < max_range){
 			splat_data_id[thread_rank] = splat_ids[array_offset + thread_rank];
 			positions[thread_rank] = image_point[splat_data_id[thread_rank]];
@@ -277,13 +279,6 @@ __global__ void render(int num_splats, SplatData * sd,
 				pixColor[0] = fmaf(collected_rgb.x, scaling, pixColor[0]);
 				pixColor[1] = fmaf(collected_rgb.y, scaling, pixColor[1]);
 				pixColor[2] = fmaf(collected_rgb.z, scaling, pixColor[2]);
-				// pixColor[0] = fmaf(1.0f - depth[splat_data_id[i]] / 20.0f, scaling, pixColor[0]);
-				// pixColor[1] = fmaf(1.0f - depth[splat_data_id[i]] / 20.0f, scaling, pixColor[1]);
-				// pixColor[2] = fmaf(1.0f - depth[splat_data_id[i]] / 20.0f, scaling, pixColor[2]);
-
-				// pixColor[0] = depth[splat_data_id[i]];
-				// pixColor[1] = depth[splat_data_id[i]];
-				// pixColor[2] = depth[splat_data_id[i]];
 
 				T = test_T;
 			}
