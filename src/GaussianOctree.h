@@ -1,8 +1,6 @@
 #ifndef __GAUSSIAN_OCTREE__
 #define __GAUSSIAN_OCTREE__
 
-#define INRIA_CLUSTER
-
 #pragma once
 #include "PLYReader.h"
 #include <vector>
