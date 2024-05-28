@@ -14,7 +14,7 @@
 #include "GUIManager.h"
 #include "GaussianOctree.h"
 
-#define OPACITY_THRESHOLD 0.01f
+#define OPACITY_THRESHOLD 0.2f
 
 class GaussianBVH
 {
@@ -290,7 +290,7 @@ void computeNodeRepresentative(GaussianBVH * node, std::vector<SplatData>& sd){
         float opacity = sd[splat].fields.opacity;
         float volume = e1.length() * e2.length() * e3.length();
         
-        if(sd[splat].fields.opacity < 0.1f){
+        if(sd[splat].fields.opacity < OPACITY_THRESHOLD){
             weights.push_back(0.0f);
         }
         else{
@@ -351,7 +351,7 @@ void computeNodeRepresentative(GaussianBVH * node, std::vector<SplatData>& sd){
     representative.fields.opacity = 0.0f;
 
     for(auto w : weights){
-        representative.fields.opacity += (w / (glm::pow(approx_splat_volume, 0.33) * 5)); /// (glm::pow(approx_splat_volume, 0.33) * 9)
+        representative.fields.opacity += (w / (glm::pow(approx_splat_volume, 0.33) * 9)); /// (glm::pow(approx_splat_volume, 0.33) * 9)
     }
 
     representative.fields.covariance[0] = cov(0, 0);
