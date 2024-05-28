@@ -5,12 +5,12 @@
 #include "../../../libs/imgui/backends/imgui_impl_opengl3.h"
 
 #define MAX_BVH_LEVEL 23
-#define MIN_BVH_RESOLUTION MAX_BVH_LEVEL - 4
+#define MIN_BVH_RESOLUTION MAX_BVH_LEVEL - 7
 
 #define MAX_OCTREE_LEVEL 15
 #define MIN_RESOLUTION MAX_OCTREE_LEVEL - 4
 
-#define INRIA_CLUSTER
+// #define INRIA_CLUSTER
 
 float fovy = M_PI / 2.0f;
 float fovx = M_PI / 2.0f * 16 / 9;

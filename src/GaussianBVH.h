@@ -14,12 +14,12 @@
 #include "GUIManager.h"
 #include "GaussianOctree.h"
 
-#define OPACITY_THRESHOLD 0.2f
+#define OPACITY_THRESHOLD 0.8f
 
 class GaussianBVH
 {
 public:
-    GaussianBVH* children[2] = {nullptr};
+    GaussianBVH *children[2] = {nullptr};
     std::vector<uint32_t> containedSplats;
     uint8_t level = 0;
     bool isLeaf = false;
@@ -28,13 +28,12 @@ public:
 
     uint32_t representative = 0; /* Will be the splat that is the approximation of all splats contained, will be dynamically added to the array I guess */
 
-
-    void processSplats(uint8_t _level, std::vector<SplatData> & sd, volatile int * progress); 
-    GaussianBVH( glm::vec3 * _bbox);
+    void processSplats(uint8_t _level, std::vector<SplatData> &sd, volatile int *progress);
+    GaussianBVH(glm::vec3 *_bbox);
     ~GaussianBVH();
 };
 
-GaussianBVH::GaussianBVH(glm::vec3 * _bbox)
+GaussianBVH::GaussianBVH(glm::vec3 *_bbox)
 {
     bbox[0] = _bbox[0];
     bbox[1] = _bbox[1];
@@ -43,9 +42,13 @@ GaussianBVH::GaussianBVH(glm::vec3 * _bbox)
     coverage[1] = _bbox[1];
 }
 
-void computeNodeRepresentative(GaussianBVH * node, std::vector<SplatData>& sd){
+void computeNodeRepresentative(GaussianBVH *node, std::vector<SplatData> &sd)
+{
 
-    #ifndef INRIA_CLUSTER
+    if (node == nullptr)
+        return;
+
+#ifndef INRIA_CLUSTER
     size_t num_fields = sizeof(SplatData) / sizeof(float);
     float nodeSize = (node->bbox[1].x - node->bbox[0].x) / (node->level * node->level);
 
@@ -53,19 +56,10 @@ void computeNodeRepresentative(GaussianBVH * node, std::vector<SplatData>& sd){
     float opacityWeight = 0.0f;
     float volumeWeight = 0.0f;
 
-    /* No splats inside, so no representative */
-    if(node->containedSplats.size() == 0)
-        return;
-
-    /* Only one splat contained */
-    if(node->containedSplats.size() == 1){
-        node->representative = node->containedSplats[0];
-        return;
-    }
-
     /* Representative splat object with empy data */
     SplatData representative;
-    for(int i=0;i<num_fields;i++){
+    for (int i = 0; i < num_fields; i++)
+    {
         representative.rawData[i] = 0.0f;
     }
 
@@ -75,21 +69,54 @@ void computeNodeRepresentative(GaussianBVH * node, std::vector<SplatData>& sd){
     std::vector<float> opacities;
 
     std::vector<uint32_t> base_splats;
-    if(node->isLeaf){
+    if (node->isLeaf)
+    {
         base_splats = node->containedSplats;
     }
-    else {
-        for(int i=0;i<2;i++){
-            if(node->children[i] != nullptr && node->children[i]->representative != 0){
+    else
+    {
+        for (int i = 0; i < 2; i++)
+        {
+            if (node->children[i] != nullptr && node->children[i]->representative != 0)
+            {
                 base_splats.push_back(node->children[i]->representative);
             }
         }
     }
 
+    if (base_splats.size() == 0)
+    {
+        node->representative = 0;
+        return;
+    }
+
+    base_splats.erase(std::remove_if(
+        base_splats.begin(),
+        base_splats.end(),
+        [&](uint32_t k)
+        {
+            if (k < sd.size())
+                return (sd[k].fields.opacity < OPACITY_THRESHOLD);
+            return true;
+        }),
+        base_splats.end()
+    );
+
+    if (base_splats.size() == 0)
+    {
+        node->representative = 0;
+        return;
+    }
+
+    if (base_splats.size() == 1)
+    {
+        node->representative = base_splats[0];
+        return;
+    }
+
     /* Iterate through all the contained splats in the node */
-    for(auto splat : base_splats){
-        if(sd[splat].fields.opacity < OPACITY_THRESHOLD)
-            continue;
+    for (auto splat : base_splats)
+    {
 
         glm::vec3 e1 = glm::make_vec3(&sd[splat].fields.directions[0]) * 3.0f;
         glm::vec3 e2 = glm::make_vec3(&sd[splat].fields.directions[3]) * 3.0f;
@@ -102,7 +129,8 @@ void computeNodeRepresentative(GaussianBVH * node, std::vector<SplatData>& sd){
         volumeWeight += volume;
 
         /* Colors (a.k.a. Sphere harmonics) */
-        for(int i = 0; i < 48; i++){
+        for (int i = 0; i < 48; i++)
+        {
             representative.fields.SH[i] += sd[splat].fields.SH[i] * opacity;
         }
 
@@ -117,21 +145,17 @@ void computeNodeRepresentative(GaussianBVH * node, std::vector<SplatData>& sd){
         coveragePoints.push_back(glm::make_vec3(sd[splat].fields.position) + e3);
         coveragePoints.push_back(glm::make_vec3(sd[splat].fields.position) - e3);
 
-        for(int k = 0; k < 7; k++){
+        for (int k = 0; k < 7; k++)
+        {
             opacities.push_back(opacity);
         }
-    }
-    
-
-    if(coveragePoints.size() == 0){
-        node->representative = 0;
-        return;
     }
 
     /* Compute point densities */
     std::vector<float> densities;
     densities.reserve(coveragePoints.size());
-    for(int i = 0; i < coveragePoints.size(); i++){
+    for (int i = 0; i < coveragePoints.size(); i++)
+    {
         densities.push_back(0);
     }
 
@@ -148,7 +172,8 @@ void computeNodeRepresentative(GaussianBVH * node, std::vector<SplatData>& sd){
     // Number of neighbors to consider
     size_t k = 10;
 
-    for (size_t i = 0; i < coveragePoints.size(); ++i) {
+    for (size_t i = 0; i < coveragePoints.size(); ++i)
+    {
         k = std::min((int)coveragePoints.size(), 10);
         std::vector<uint32_t> indices(k);
         std::vector<float> dists(k);
@@ -156,29 +181,28 @@ void computeNodeRepresentative(GaussianBVH * node, std::vector<SplatData>& sd){
 
         // Compute density as inverse of the mean distance
         densities[i] = k / std::accumulate(dists.begin(), dists.end(), 0.0);
-        if(densities[i] < min_density)
+        if (densities[i] < min_density)
             min_density = densities[i];
-        if(densities[i] > max_density)
+        if (densities[i] > max_density)
             max_density = densities[i];
-        
     }
 
-    for(int i = 0; i < coveragePoints.size(); i++){
-        //densities[i] = opacities[i] - (densities[i] - min_density) / (max_density - min_density) * 0.5; 
-        //densities[i] = opacities[i]; 
-        densities[i] = 1.0f - (densities[i] - min_density) / (max_density - min_density) * 0.5; 
+    for (int i = 0; i < coveragePoints.size(); i++)
+    {
         densities[i] = 1.0f;
         densities[i] = std::max(densities[i], 0.001f);
     }
 
     float sum_density = std::accumulate(densities.begin(), densities.end(), 0.0);
 
-    for(int i = 0; i < coveragePoints.size(); i++){
+    for (int i = 0; i < coveragePoints.size(); i++)
+    {
         densities[i] = densities[i] / sum_density;
     }
-    
+
     Eigen::MatrixXf coverageCloud(coveragePoints.size(), 3);
-    for(int i = 0; i < coveragePoints.size(); i++){
+    for (int i = 0; i < coveragePoints.size(); i++)
+    {
         coverageCloud(i, 0) = coveragePoints[i].x;
         coverageCloud(i, 1) = coveragePoints[i].y;
         coverageCloud(i, 2) = coveragePoints[i].z;
@@ -187,7 +211,8 @@ void computeNodeRepresentative(GaussianBVH * node, std::vector<SplatData>& sd){
     // First, we need to compute the mean of the points
     Eigen::Vector3f weighted_mean;
     weighted_mean << 0.0f, 0.0f, 0.0f;
-    for(int i = 0; i < coveragePoints.size(); i++){
+    for (int i = 0; i < coveragePoints.size(); i++)
+    {
         weighted_mean(0) += (coverageCloud(i, 0) * densities[i]);
         weighted_mean(1) += (coverageCloud(i, 1) * densities[i]);
         weighted_mean(2) += (coverageCloud(i, 2) * densities[i]);
@@ -200,7 +225,8 @@ void computeNodeRepresentative(GaussianBVH * node, std::vector<SplatData>& sd){
 
     const int n = coveragePoints.size();
     Eigen::DiagonalMatrix<float, Eigen::Dynamic> W(n);
-    for(int i=0;i<n;i++){
+    for (int i = 0; i < n; i++)
+    {
         W.diagonal()[i] = densities[i];
     }
 
@@ -224,49 +250,81 @@ void computeNodeRepresentative(GaussianBVH * node, std::vector<SplatData>& sd){
     representative.fields.covariance[0] = cov(0, 0);
     representative.fields.covariance[1] = cov(0, 1);
     representative.fields.covariance[2] = cov(0, 2);
-    representative.fields.covariance[3] = cov(1, 1); 
+    representative.fields.covariance[3] = cov(1, 1);
     representative.fields.covariance[4] = cov(1, 2);
     representative.fields.covariance[5] = cov(2, 2);
 
-    // for(int i = 0; i < 9; i++){
-    //     representative.fields.directions[i] = U(i % 3, i / 3) * svals(i / 3);
-    // }
+    for (int i = 0; i < 9; i++)
+    {
+        representative.fields.directions[i] = U(i / 3, i % 3) * svals(i / 3);
+    }
+
+    glm::vec3 ev[3];
+    ev[0] = glm::make_vec3(representative.fields.directions + 0);
+    ev[1] = glm::make_vec3(representative.fields.directions + 1);
+    ev[2] = glm::make_vec3(representative.fields.directions + 2);
+
+    for (int i = 0; i < 3; i++)
+    {
+        ev[i] = glm::normalize(ev[i]);
+        for (int j = 0; j < 3; j++)
+        {
+            representative.fields.directions[i * 3 + j] = glm::value_ptr(ev[i])[j];
+        }
+    }
+
+    for (int i = 0; i < 9; i++)
+    {
+        representative.fields.directions[i] *= svals(i / 3);
+    }
+
+    float proportions[9];
+    for (int i = 0; i < 9; i++)
+    {
+        proportions[i] = representative.fields.directions[i] / sd[base_splats[0]].fields.directions[i];
+    }
 
     representative.fields.position[0] = weighted_mean(0);
     representative.fields.position[1] = weighted_mean(1);
     representative.fields.position[2] = weighted_mean(2);
 
     /* Colors (a.k.a. Sphere harmonics) */
-    for(int i = 0; i < 48; i++){
+    for (int i = 0; i < 48; i++)
+    {
         representative.fields.SH[i] /= opacityWeight;
     }
 
     /* Opacity */
     representative.fields.opacity /= volumeWeight;
-    
+
     sd.push_back(representative);
     node->representative = sd.size() - 1;
-    #else
+#else
     size_t num_fields = sizeof(SplatData) / sizeof(float);
     float nodeSize = (node->bbox[1].x - node->bbox[0].x) / (node->level * node->level);
 
     /* No splats inside, so no representative */
-    if(node->containedSplats.size() == 0)
+    if (node->containedSplats.size() == 0)
         return;
 
     /* Only one splat contained */
-    if(node->containedSplats.size() == 1){
+    if (node->containedSplats.size() == 1)
+    {
         node->representative = node->containedSplats[0];
         return;
     }
 
     std::vector<uint32_t> base_splats;
-    if(node->isLeaf){
+    if (node->isLeaf)
+    {
         base_splats = node->containedSplats;
     }
-    else {
-        for(int i=0;i<2;i++){
-            if(node->children[i] != nullptr && node->children[i]->representative != 0){
+    else
+    {
+        for (int i = 0; i < 2; i++)
+        {
+            if (node->children[i] != nullptr && node->children[i]->representative != 0)
+            {
                 base_splats.push_back(node->children[i]->representative);
             }
         }
@@ -274,14 +332,16 @@ void computeNodeRepresentative(GaussianBVH * node, std::vector<SplatData>& sd){
 
     /* Representative splat object with empy data */
     SplatData representative;
-    for(int i=0;i<num_fields;i++){
+    for (int i = 0; i < num_fields; i++)
+    {
         representative.rawData[i] = 0.0f;
     }
     std::vector<float> weights;
 
     /* Iterate through all the contained splats in the node */
     bool worthit = false;
-    for(auto splat : base_splats){
+    for (auto splat : base_splats)
+    {
 
         glm::vec3 e1 = glm::make_vec3(&sd[splat].fields.directions[0]) * 3.0f;
         glm::vec3 e2 = glm::make_vec3(&sd[splat].fields.directions[3]) * 3.0f;
@@ -289,11 +349,13 @@ void computeNodeRepresentative(GaussianBVH * node, std::vector<SplatData>& sd){
 
         float opacity = sd[splat].fields.opacity;
         float volume = e1.length() * e2.length() * e3.length();
-        
-        if(sd[splat].fields.opacity < OPACITY_THRESHOLD){
+
+        if (sd[splat].fields.opacity < OPACITY_THRESHOLD)
+        {
             weights.push_back(0.0f);
         }
-        else{
+        else
+        {
             weights.push_back(opacity * glm::pow(volume, 0.33));
             worthit = true;
         }
@@ -301,7 +363,8 @@ void computeNodeRepresentative(GaussianBVH * node, std::vector<SplatData>& sd){
         /* Opacity */
         representative.fields.opacity += sd[splat].fields.opacity * volume;
     }
-    if(!worthit){
+    if (!worthit)
+    {
         node->representative = base_splats[0];
         return;
     }
@@ -313,11 +376,13 @@ void computeNodeRepresentative(GaussianBVH * node, std::vector<SplatData>& sd){
 
     int idx = 0;
     // First, do the SHs and the weighted mean (a.k.a position)
-    for(auto splat : base_splats){
+    for (auto splat : base_splats)
+    {
         weights[idx] /= sum_weight;
 
         /* Colors (a.k.a. Sphere harmonics) */
-        for(int i = 0; i < 48; i++){
+        for (int i = 0; i < 48; i++)
+        {
             representative.fields.SH[i] += sd[splat].fields.SH[i] * weights[idx];
         }
 
@@ -331,16 +396,17 @@ void computeNodeRepresentative(GaussianBVH * node, std::vector<SplatData>& sd){
 
     idx = 0;
     // second, do the covariance merging
-    for(auto splat : base_splats){
+    for (auto splat : base_splats)
+    {
 
         Eigen::Matrix3f crt_cov;
         crt_cov << sd[splat].fields.covariance[0], sd[splat].fields.covariance[1], sd[splat].fields.covariance[2],
-                   sd[splat].fields.covariance[1], sd[splat].fields.covariance[3], sd[splat].fields.covariance[4],
-                   sd[splat].fields.covariance[2], sd[splat].fields.covariance[4], sd[splat].fields.covariance[5];
+            sd[splat].fields.covariance[1], sd[splat].fields.covariance[3], sd[splat].fields.covariance[4],
+            sd[splat].fields.covariance[2], sd[splat].fields.covariance[4], sd[splat].fields.covariance[5];
 
         Eigen::Vector3f mean;
         mean << sd[splat].fields.position[0], sd[splat].fields.position[1], sd[splat].fields.position[2];
-        
+
         cov += weights[idx] * (crt_cov + (mean - w_mean) * (mean - w_mean).transpose());
 
         idx++;
@@ -350,36 +416,39 @@ void computeNodeRepresentative(GaussianBVH * node, std::vector<SplatData>& sd){
     float approx_splat_volume = std::max(glm::abs(cov.determinant()), 0.001f);
     representative.fields.opacity = 0.0f;
 
-    for(auto w : weights){
+    for (auto w : weights)
+    {
         representative.fields.opacity += (w / (glm::pow(approx_splat_volume, 0.33) * 9)); /// (glm::pow(approx_splat_volume, 0.33) * 9)
     }
 
     representative.fields.covariance[0] = cov(0, 0);
     representative.fields.covariance[1] = cov(0, 1);
     representative.fields.covariance[2] = cov(0, 2);
-    representative.fields.covariance[3] = cov(1, 1); 
+    representative.fields.covariance[3] = cov(1, 1);
     representative.fields.covariance[4] = cov(1, 2);
     representative.fields.covariance[5] = cov(2, 2);
 
     representative.fields.position[0] = weighted_mean.x;
     representative.fields.position[1] = weighted_mean.y;
     representative.fields.position[2] = weighted_mean.z;
-    
+
     sd.push_back(representative);
     node->representative = sd.size() - 1;
-    #endif
-    
+#endif
 }
 
-void GaussianBVH::processSplats(uint8_t _level, std::vector<SplatData> & sd, volatile int * progress){
+void GaussianBVH::processSplats(uint8_t _level, std::vector<SplatData> &sd, volatile int *progress)
+{
     level = _level;
 
-    if(containedSplats.size() == 0){
+    if (containedSplats.size() == 0)
+    {
         isLeaf = true;
         representative = 0;
         return;
     }
-    if(containedSplats.size() == 1){
+    if (containedSplats.size() == 1)
+    {
         isLeaf = true;
         representative = containedSplats[0];
         return;
@@ -390,17 +459,21 @@ void GaussianBVH::processSplats(uint8_t _level, std::vector<SplatData> & sd, vol
     /* Find the largest dimension of the initial box */
     std::vector<float> projs;
     int maxDim = -1;
-    if(halfSize.x > max(halfSize.y, halfSize.z)){
+    if (halfSize.x > max(halfSize.y, halfSize.z))
+    {
         maxDim = 0;
     }
-    else if(halfSize.y > max(halfSize.x, halfSize.z)){
+    else if (halfSize.y > max(halfSize.x, halfSize.z))
+    {
         maxDim = 1;
     }
-    else{
+    else
+    {
         maxDim = 2;
     }
 
-    for(auto splat : containedSplats){
+    for (auto splat : containedSplats)
+    {
         projs.push_back(sd[splat].fields.position[maxDim]);
     }
 
@@ -424,52 +497,59 @@ void GaussianBVH::processSplats(uint8_t _level, std::vector<SplatData> & sd, vol
     childBbox2[0][1] = childBbox1[0][1] + ((1 == maxDim) ? (median - childBbox1[0][1]) : 0);
     childBbox2[0][2] = childBbox1[0][2] + ((2 == maxDim) ? (median - childBbox1[0][2]) : 0);
 
-    for (int i=0;i<2;i++){
+    for (int i = 0; i < 2; i++)
+    {
         children[i] = new GaussianBVH((i == 0) ? childBbox1 : childBbox2);
         // See which of the splats go into the newly created node
-        for(int k = 0; k < containedSplats.size(); k++){
+        for (int k = 0; k < containedSplats.size(); k++)
+        {
             auto splat = containedSplats[k];
-            if(insideBBox(children[i]->bbox, splat, sd)){
+            if (insideBBox(children[i]->bbox, splat, sd))
+            {
                 children[i]->containedSplats.push_back(splat);
                 addSplatToCoverage(children[i]->coverage, splat, sd);
             }
         }
-        if(level < MAX_BVH_LEVEL){
+        if (level < MAX_BVH_LEVEL)
+        {
             children[i]->isLeaf = false;
-            children[i]->processSplats(level+1, sd, progress);
+            children[i]->processSplats(level + 1, sd, progress);
         }
-        else{
-            children[i]->isLeaf=true;
+        else
+        {
+            children[i]->isLeaf = true;
             computeNodeRepresentative(children[i], sd);
         }
 
-        if(level == 3){
+        if (level == 3)
+        {
             (*progress)++;
         }
     }
 
     /* Compute representatives before clearing the contained splats vector */
-    if(this->level >= MIN_BVH_RESOLUTION)
+    if (this->level >= MIN_BVH_RESOLUTION)
         computeNodeRepresentative(this, sd);
 
     containedSplats.clear();
-
-    
 }
 
 GaussianBVH::~GaussianBVH()
 {
-    for(int i=0;i<2;i++)
-        if(children[i] != nullptr){
+    for (int i = 0; i < 2; i++)
+        if (children[i] != nullptr)
+        {
             delete children[i];
         }
 }
 
-GaussianBVH * buildBVH(std::vector<SplatData> & sd, uint32_t num_primitives, volatile int * progress){
+GaussianBVH *buildBVH(std::vector<SplatData> &sd, uint32_t num_primitives, volatile int *progress)
+{
     glm::vec3 minBound(1e13, 1e13, 1e13);
     glm::vec3 maxBound(-1e13, -1e13, -1e13);
 
-    for(int i = 0; i < num_primitives; i++){
+    for (int i = 0; i < num_primitives; i++)
+    {
         minBound.x = min(minBound.x, sd[i].fields.position[0]);
         minBound.y = min(minBound.y, sd[i].fields.position[1]);
         minBound.z = min(minBound.z, sd[i].fields.position[2]);
@@ -483,8 +563,8 @@ GaussianBVH * buildBVH(std::vector<SplatData> & sd, uint32_t num_primitives, vol
     rootBbox[0] = minBound;
     rootBbox[1] = maxBound;
 
-    GaussianBVH * root = new GaussianBVH(rootBbox);
-    for(int i = 0; i < num_primitives; i++)
+    GaussianBVH *root = new GaussianBVH(rootBbox);
+    for (int i = 0; i < num_primitives; i++)
         root->containedSplats.push_back(i);
 
     root->processSplats(0, sd, progress);
@@ -492,14 +572,15 @@ GaussianBVH * buildBVH(std::vector<SplatData> & sd, uint32_t num_primitives, vol
 
     *progress = 16;
     return root;
-
 }
 
-int markForRender(bool * renderMask, uint32_t num_primitives, GaussianBVH * root, std::vector<SplatData> & sd, int renderLevel, glm::vec3 & cameraPosition, float fovy, int SW, float dpt){
+int markForRender(bool *renderMask, uint32_t num_primitives, GaussianBVH *root, std::vector<SplatData> &sd, int renderLevel, glm::vec3 &cameraPosition, float fovy, int SW, float dpt)
+{
 
-    if(renderLevel == -1){
+    if (renderLevel == -1)
+    {
         int shouldRenderNode = 0;
-        if(root == nullptr)
+        if (root == nullptr)
             return 0;
         /* Easiest implementation, maximum projection by distance */
         float S = glm::length(root->coverage[0] - root->coverage[1]);
@@ -509,61 +590,72 @@ int markForRender(bool * renderMask, uint32_t num_primitives, GaussianBVH * root
 
         shouldRenderNode = (P > dpt);
 
-        if(shouldRenderNode){ // is node big enough on the screen?
-            if(root->isLeaf && root->containedSplats.size() > 0){
-                for(auto splat : root->containedSplats)
+        if (shouldRenderNode)
+        { // is node big enough on the screen?
+            if (root->isLeaf && root->containedSplats.size() > 0)
+            {
+                for (auto splat : root->containedSplats)
                     renderMask[splat] = true;
                 return root->containedSplats.size();
             }
-            else{
+            else
+            {
                 int splatsRendered = 0;
-                for(int i=0;i<2;i++){
+                for (int i = 0; i < 2; i++)
+                {
                     splatsRendered += markForRender(renderMask, num_primitives, root->children[i], sd, renderLevel, cameraPosition, fovy, SW, dpt);
                 }
                 return splatsRendered;
             }
         }
-        else{
-            if(root->representative != 0){
+        else
+        {
+            if (root->representative != 0)
+            {
                 renderMask[root->representative] = true;
                 return 1;
             }
-            else{ // Level too low to have a representative, still have to go down
+            else
+            { // Level too low to have a representative, still have to go down
                 int splatsRendered = 0;
-                for(int i=0;i<2;i++){
-                    if(root->children[i] != nullptr)
+                for (int i = 0; i < 2; i++)
+                {
+                    if (root->children[i] != nullptr)
                         splatsRendered += markForRender(renderMask, num_primitives, root->children[i], sd, renderLevel, cameraPosition, fovy, SW, dpt);
                 }
                 return splatsRendered;
             }
         }
     }
-    else{
-        if(root->level == renderLevel){
+    else
+    {
+        if (root->level == renderLevel)
+        {
             renderMask[root->representative] = true;
             return 1;
         }
-        if(root->level < renderLevel && root->isLeaf){
-            for(auto splat : root->containedSplats)
+        if (root->level < renderLevel && root->isLeaf)
+        {
+            for (auto splat : root->containedSplats)
                 renderMask[splat] = true;
             return root->containedSplats.size();
         }
-        if(!root->isLeaf && root->level < renderLevel){
+        if (!root->isLeaf && root->level < renderLevel)
+        {
             int splatsRendered = 0;
-            for(int i=0;i<2;i++){
+            for (int i = 0; i < 2; i++)
+            {
                 splatsRendered += markForRender(renderMask, num_primitives, root->children[i], sd, renderLevel, cameraPosition, fovy, SW, dpt);
             }
             return splatsRendered;
         }
-        if(root->containedSplats.size() == 0 && root->representative == 0){
+        if (root->containedSplats.size() == 0 && root->representative == 0)
+        {
             return 0;
         }
     }
-    
-    
-    
-    return 0;
 
+    return 0;
 }
 
 #endif
