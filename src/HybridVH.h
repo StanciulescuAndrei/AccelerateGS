@@ -23,7 +23,7 @@ enum LevelType {OctreeLevel, BipartitionLevel};
 class HybridVH
 {
 public:
-    std::Vector<HybridVH*> children;
+    std::vector<HybridVH*> children;
     std::vector<uint32_t> containedSplats;
     LevelType levelType;
     uint8_t level = 0;
@@ -73,11 +73,11 @@ void computeNodeRepresentative(HybridVH *node, std::vector<SplatData> &sd)
     std::vector<float> pointWeights;
 
     std::vector<uint32_t> base_splats;
-    for (int i = 0; i < 2; i++)
+    for (auto child : node->children)
     {
-        if (node->children[i] != nullptr && node->children[i]->representative != 0)
+        if (child != nullptr && child->representative != 0)
         {
-            base_splats.push_back(node->children[i]->representative);
+            base_splats.push_back(child->representative);
         }
     }
     if (base_splats.size() == 0)
@@ -571,7 +571,7 @@ HybridVH::~HybridVH()
         }
 }
 
-HybridVH *buildBVH(std::vector<SplatData> &sd, uint32_t num_primitives, volatile int *progress)
+HybridVH *buildHybridVH(std::vector<SplatData> &sd, uint32_t num_primitives, volatile int *progress)
 {
     glm::vec3 minBound(1e13, 1e13, 1e13);
     glm::vec3 maxBound(-1e13, -1e13, -1e13);

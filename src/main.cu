@@ -161,16 +161,16 @@ int main(){
 
 
     volatile int progress = 0;
-    GaussianBVH * spacePartitioningRoot;
+    HybridVH * spacePartitioningRoot;
 
-    // spacePartitioningRoot = buildBVH(sd, num_elements, &progress);
+    spacePartitioningRoot = buildHybridVH(sd, num_elements, &progress);
 
     omp_set_num_threads(4);
     #pragma omp parallel num_threads(3) default(shared) shared(progress)
     #pragma omp single
     {
         #pragma omp task
-        spacePartitioningRoot = buildBVH(sd, num_elements, &progress);
+        spacePartitioningRoot = buildHybridVH(sd, num_elements, &progress);
 
         while(progress!=16){
             /* Clear color and depth buffers */
