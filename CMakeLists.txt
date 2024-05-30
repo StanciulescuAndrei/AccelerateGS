@@ -35,6 +35,7 @@ add_executable(AccelerateGS
 		src/GUIManager.h
 		src/GaussianOctree.h
 		src/GaussianBVH.h
+		src/HybridVH.h
 		src/raster_helper.cuh
 		src/OctreeSerializer.cuh
 		src/CameraLoader.h

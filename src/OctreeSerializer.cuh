@@ -2,6 +2,7 @@
 #define __OCTREE_SERIALIZER__
 #include "GaussianOctree.h"
 #include "GaussianBVH.h"
+#include "HybridVH.h"
 
 class SerializedOctree{
 private:

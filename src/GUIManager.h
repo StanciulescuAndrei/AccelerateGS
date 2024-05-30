@@ -10,6 +10,9 @@
 #define MAX_OCTREE_LEVEL 15
 #define MIN_RESOLUTION MAX_OCTREE_LEVEL - 4
 
+#define HYBRID_OCTREE_LIMIT 10
+#define TOTAL_HYBRID_LIMIT 5
+
 // #define INRIA_CLUSTER
 
 float fovy = M_PI / 2.0f;
