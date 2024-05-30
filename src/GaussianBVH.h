@@ -14,7 +14,7 @@
 #include "GUIManager.h"
 #include "GaussianOctree.h"
 
-#define OPACITY_THRESHOLD 0.8f
+#define OPACITY_THRESHOLD 0.2f
 
 class GaussianBVH
 {
@@ -53,8 +53,7 @@ void computeNodeRepresentative(GaussianBVH *node, std::vector<SplatData> &sd)
     float nodeSize = (node->bbox[1].x - node->bbox[0].x) / (node->level * node->level);
 
     /* Accumulation for weighted average */
-    float opacityWeight = 0.0f;
-    float volumeWeight = 0.0f;
+    float splatWeight = 0.0f; 
 
     /* Representative splat object with empy data */
     SplatData representative;
@@ -66,22 +65,19 @@ void computeNodeRepresentative(GaussianBVH *node, std::vector<SplatData> &sd)
     PointCloud coveragePoints;
     coveragePoints.reserve(node->containedSplats.size() * 7);
 
-    std::vector<float> opacities;
+    std::vector<float> pointWeights;
 
     std::vector<uint32_t> base_splats;
-    if (node->isLeaf)
+    for (int i = 0; i < 2; i++)
+    {
+        if (node->children[i] != nullptr && node->children[i]->representative != 0)
+        {
+            base_splats.push_back(node->children[i]->representative);
+        }
+    }
+    if (base_splats.size() == 0)
     {
         base_splats = node->containedSplats;
-    }
-    else
-    {
-        for (int i = 0; i < 2; i++)
-        {
-            if (node->children[i] != nullptr && node->children[i]->representative != 0)
-            {
-                base_splats.push_back(node->children[i]->representative);
-            }
-        }
     }
 
     if (base_splats.size() == 0)
@@ -110,7 +106,7 @@ void computeNodeRepresentative(GaussianBVH *node, std::vector<SplatData> &sd)
 
     if (base_splats.size() == 1)
     {
-        node->representative = base_splats[0];
+        node->representative = base_splats[0]; //base_splats[0]
         return;
     }
 
@@ -125,17 +121,14 @@ void computeNodeRepresentative(GaussianBVH *node, std::vector<SplatData> &sd)
         float opacity = sd[splat].fields.opacity;
         float volume = e1.length() * e2.length() * e3.length();
 
-        opacityWeight += opacity;
-        volumeWeight += volume;
+        float individualSplatWeight = opacity * volume; // glm::pow(volume, 0.33)
+        splatWeight += individualSplatWeight;
 
         /* Colors (a.k.a. Sphere harmonics) */
         for (int i = 0; i < 48; i++)
         {
-            representative.fields.SH[i] += sd[splat].fields.SH[i] * opacity;
+            representative.fields.SH[i] += sd[splat].fields.SH[i] * individualSplatWeight;
         }
-
-        /* Opacity */
-        representative.fields.opacity += sd[splat].fields.opacity * volume;
 
         coveragePoints.push_back(glm::make_vec3(sd[splat].fields.position));
         coveragePoints.push_back(glm::make_vec3(sd[splat].fields.position) + e1);
@@ -147,7 +140,7 @@ void computeNodeRepresentative(GaussianBVH *node, std::vector<SplatData> &sd)
 
         for (int k = 0; k < 7; k++)
         {
-            opacities.push_back(opacity);
+            pointWeights.push_back(individualSplatWeight);
         }
     }
 
@@ -189,7 +182,7 @@ void computeNodeRepresentative(GaussianBVH *node, std::vector<SplatData> &sd)
 
     for (int i = 0; i < coveragePoints.size(); i++)
     {
-        densities[i] = 1.0f;
+        densities[i] = pointWeights[i]; //pointWeights[i]; /* Important stuff here */
         densities[i] = std::max(densities[i], 0.001f);
     }
 
@@ -235,17 +228,22 @@ void computeNodeRepresentative(GaussianBVH *node, std::vector<SplatData> &sd)
 
     // cov = cov / (weightsum * weightsum); /* NOT the proper formula: https://stats.stackexchange.com/questions/113485/weighted-principal-components-analysis */
 
-    // Perform the singular value decomposition
-    Eigen::JacobiSVD<Eigen::Matrix3f> svd(cov, Eigen::ComputeThinU | Eigen::ComputeThinV);
+    Eigen::SelfAdjointEigenSolver<Eigen::Matrix3f> eigensolver(cov);
 
-    // The columns of U are the eigenvectors
-    Eigen::Matrix3f U = svd.matrixU();
-    Eigen::Vector3f svals = svd.singularValues();
-    Eigen::Matrix3f V = svd.matrixV().transpose();
+    if (eigensolver.info() != Eigen::Success) {
+        printf("Error in eigen-decomposition!!!\n");
+    }
 
-    Eigen::DiagonalMatrix<float, 3> diag(svals(1), svals(0), svals(2));
+    Eigen::Vector3f eigenvalues = eigensolver.eigenvalues();
+    Eigen::Matrix3f eigenvectors = eigensolver.eigenvectors();
 
-    // cov = U * diag * V;
+    /* Deal with negative eigenvalues */
+    /* No need to flip vectors as they define the ellipsoid so the direction is irrelevant */
+    eigenvalues = eigenvalues.cwiseAbs();
+
+    Eigen::Vector3f axes_lengths = eigenvalues.cwiseSqrt();
+
+    axes_lengths *= 2.4477;
 
     representative.fields.covariance[0] = cov(0, 0);
     representative.fields.covariance[1] = cov(0, 1);
@@ -256,33 +254,21 @@ void computeNodeRepresentative(GaussianBVH *node, std::vector<SplatData> &sd)
 
     for (int i = 0; i < 9; i++)
     {
-        representative.fields.directions[i] = U(i / 3, i % 3) * svals(i / 3);
-    }
-
-    glm::vec3 ev[3];
-    ev[0] = glm::make_vec3(representative.fields.directions + 0);
-    ev[1] = glm::make_vec3(representative.fields.directions + 1);
-    ev[2] = glm::make_vec3(representative.fields.directions + 2);
-
-    for (int i = 0; i < 3; i++)
-    {
-        ev[i] = glm::normalize(ev[i]);
-        for (int j = 0; j < 3; j++)
-        {
-            representative.fields.directions[i * 3 + j] = glm::value_ptr(ev[i])[j];
+        representative.fields.directions[i] = eigenvectors.col(i / 3)(i % 3) / 10.0f * axes_lengths[i / 3]; // * axes_lengths[i / 3]
+        if(isnanf(representative.fields.directions[i])){
+            printf("broke here idk\n");
         }
     }
+    representative.fields.directions[0] = 0.01f;
+    representative.fields.directions[1] = 0.0f;
+    representative.fields.directions[2] = 0.0f;
+    representative.fields.directions[3] = 0.0f;
+    representative.fields.directions[4] = 0.01f;
+    representative.fields.directions[5] = 0.0f;
+    representative.fields.directions[6] = 0.0f;
+    representative.fields.directions[7] = 0.0f;
+    representative.fields.directions[8] = 0.01f;
 
-    for (int i = 0; i < 9; i++)
-    {
-        representative.fields.directions[i] *= svals(i / 3);
-    }
-
-    float proportions[9];
-    for (int i = 0; i < 9; i++)
-    {
-        proportions[i] = representative.fields.directions[i] / sd[base_splats[0]].fields.directions[i];
-    }
 
     representative.fields.position[0] = weighted_mean(0);
     representative.fields.position[1] = weighted_mean(1);
@@ -291,11 +277,18 @@ void computeNodeRepresentative(GaussianBVH *node, std::vector<SplatData> &sd)
     /* Colors (a.k.a. Sphere harmonics) */
     for (int i = 0; i < 48; i++)
     {
-        representative.fields.SH[i] /= opacityWeight;
+        representative.fields.SH[i] /= splatWeight;
     }
 
     /* Opacity */
-    representative.fields.opacity /= volumeWeight;
+
+    float approx_splat_volume = std::max(glm::abs(cov.determinant()), 0.001f);
+    representative.fields.opacity = 0.0f;
+
+    for (auto w : densities)
+    {
+        representative.fields.opacity += (w / (glm::pow(approx_splat_volume, 0.33) * 9));
+    }
 
     sd.push_back(representative);
     node->representative = sd.size() - 1;
@@ -636,9 +629,9 @@ int markForRender(bool *renderMask, uint32_t num_primitives, GaussianBVH *root, 
         }
         if (root->level < renderLevel && root->isLeaf)
         {
-            for (auto splat : root->containedSplats)
-                renderMask[splat] = true;
-            return root->containedSplats.size();
+            // for (auto splat : root->containedSplats)
+            //     renderMask[splat] = true;
+            // return root->containedSplats.size();
         }
         if (!root->isLeaf && root->level < renderLevel)
         {
