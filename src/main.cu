@@ -163,7 +163,7 @@ int main(){
     volatile int progress = 0;
     HybridVH * spacePartitioningRoot;
 
-    spacePartitioningRoot = buildHybridVH(sd, num_elements, &progress);
+    // spacePartitioningRoot = buildHybridVH(sd, num_elements, &progress);
 
     omp_set_num_threads(4);
     #pragma omp parallel num_threads(3) default(shared) shared(progress)
@@ -183,7 +183,7 @@ int main(){
         }
     }
 
-    #pragma omp taskwait
+    // #pragma omp taskwait
     
     int old_num_elements = num_elements;
 

@@ -10,16 +10,16 @@
 #define MAX_OCTREE_LEVEL 15
 #define MIN_RESOLUTION MAX_OCTREE_LEVEL - 4
 
-#define HYBRID_OCTREE_LIMIT 10
-#define TOTAL_HYBRID_LIMIT 5
+#define HYBRID_OCTREE_LIMIT 13
+#define TOTAL_HYBRID_LIMIT 18
 
-// #define INRIA_CLUSTER
+#define INRIA_CLUSTER
 
 float fovy = M_PI / 2.0f;
 float fovx = M_PI / 2.0f * 16 / 9;
 int selectedViewMode = 0;
 int renderPrimitive = 0;
-int renderLevel = MIN_BVH_RESOLUTION;
+int renderLevel = HYBRID_OCTREE_LIMIT;
 int cameraIndex = 0;
 int cameraMode = 0;
 int autoLevel = 0;
@@ -66,7 +66,7 @@ void buildInterface(){
     ImGui::RadioButton("Auto", &autoLevel, 1); ImGui::SameLine();
     ImGui::RadioButton("Manual", &autoLevel, 0);
 
-    ImGui::SliderInt("Render Level", &renderLevel, MIN_BVH_RESOLUTION, MAX_BVH_LEVEL + 1);
+    ImGui::SliderInt("Render Level", &renderLevel, HYBRID_OCTREE_LIMIT, TOTAL_HYBRID_LIMIT + 1);
     ImGui::SliderFloat("LOD render bias", &diagonalProjectionThreshold, 10.0f, 100.0f);
 
     ImGui::RadioButton("Free camera", &cameraMode, 0); ImGui::SameLine();

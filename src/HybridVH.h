@@ -73,23 +73,25 @@ void computeNodeRepresentative(HybridVH *node, std::vector<SplatData> &sd)
     std::vector<float> pointWeights;
 
     std::vector<uint32_t> base_splats;
-    for (auto child : node->children)
-    {
-        if (child != nullptr && child->representative != 0)
-        {
-            base_splats.push_back(child->representative);
-        }
-    }
-    if (base_splats.size() == 0)
-    {
-        base_splats = node->containedSplats;
-    }
+    base_splats = node->containedSplats;
 
-    if (base_splats.size() == 0)
-    {
-        node->representative = 0;
-        return;
-    }
+    // for (auto child : node->children)
+    // {
+    //     if (child != nullptr && child->representative != 0)
+    //     {
+    //         base_splats.push_back(child->representative);
+    //     }
+    // }
+    // if (base_splats.size() == 0)
+    // {
+    //     base_splats = node->containedSplats;
+    // }
+
+    // if (base_splats.size() == 0)
+    // {
+    //     node->representative = 0;
+    //     return;
+    // }
 
     base_splats.erase(std::remove_if(
         base_splats.begin(),
@@ -586,17 +588,20 @@ HybridVH *buildHybridVH(std::vector<SplatData> &sd, uint32_t num_primitives, vol
         maxBound.z = max(maxBound.z, sd[i].fields.position[2]);
     }
 
-    /* No need for a cube BBox for the BVH */
+    glm::vec3 center = (minBound + maxBound) * 0.5f;
+
+    float maxSpan = max(maxBound.x - minBound.x, max(maxBound.y - minBound.y, maxBound.z - minBound.z));
+
     glm::vec3 rootBbox[2];
-    rootBbox[0] = minBound;
-    rootBbox[1] = maxBound;
+    rootBbox[0] = center - maxSpan;
+    rootBbox[1] = center + maxSpan;
 
     HybridVH *root = new HybridVH(rootBbox);
+
     for (int i = 0; i < num_primitives; i++)
         root->containedSplats.push_back(i);
 
     root->processSplats(0, sd, progress);
-    printf("\n");
 
     *progress = 16;
     return root;
@@ -629,9 +634,9 @@ int markForRender(bool *renderMask, uint32_t num_primitives, HybridVH *root, std
             else
             {
                 int splatsRendered = 0;
-                for (int i = 0; i < 2; i++)
+                for (auto child : root->children)
                 {
-                    splatsRendered += markForRender(renderMask, num_primitives, root->children[i], sd, renderLevel, cameraPosition, fovy, SW, dpt);
+                    splatsRendered += markForRender(renderMask, num_primitives, child, sd, renderLevel, cameraPosition, fovy, SW, dpt);
                 }
                 return splatsRendered;
             }
@@ -646,10 +651,10 @@ int markForRender(bool *renderMask, uint32_t num_primitives, HybridVH *root, std
             else
             { // Level too low to have a representative, still have to go down
                 int splatsRendered = 0;
-                for (int i = 0; i < 2; i++)
+                for (auto child : root->children)
                 {
-                    if (root->children[i] != nullptr)
-                        splatsRendered += markForRender(renderMask, num_primitives, root->children[i], sd, renderLevel, cameraPosition, fovy, SW, dpt);
+                    if (child != nullptr)
+                        splatsRendered += markForRender(renderMask, num_primitives, child, sd, renderLevel, cameraPosition, fovy, SW, dpt);
                 }
                 return splatsRendered;
             }
@@ -664,16 +669,16 @@ int markForRender(bool *renderMask, uint32_t num_primitives, HybridVH *root, std
         }
         if (root->level < renderLevel && root->isLeaf)
         {
-            // for (auto splat : root->containedSplats)
-            //     renderMask[splat] = true;
-            // return root->containedSplats.size();
+            for (auto splat : root->containedSplats)
+                renderMask[splat] = true;
+            return root->containedSplats.size();
         }
         if (!root->isLeaf && root->level < renderLevel)
         {
             int splatsRendered = 0;
-            for (int i = 0; i < 2; i++)
+            for (HybridVH * child : root->children)
             {
-                splatsRendered += markForRender(renderMask, num_primitives, root->children[i], sd, renderLevel, cameraPosition, fovy, SW, dpt);
+                splatsRendered += markForRender(renderMask, num_primitives, child, sd, renderLevel, cameraPosition, fovy, SW, dpt);
             }
             return splatsRendered;
         }
