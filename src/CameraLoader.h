@@ -10,6 +10,8 @@
 
 nlohmann::json cameraData;
 
+nlohmann::json appConfig;
+
 void loadCameraFile(std::string c){
     std::ifstream file(c);
 
@@ -51,6 +53,17 @@ void getCameraParameters(int idx, glm::vec3 & position, glm::mat3 & rotation){
         rotation[2][i] = data[2];
     }
 
+}
+
+void loadApplicationConfig(std::string c){
+    std::ifstream file(c);
+
+    if(!file){
+        std::cout<<"Unable to open config file: "<<c<<std::endl;
+    }
+
+    file >> appConfig;
+    std::cout << "Volumetric structure type: " << appConfig["structure"].get<std::string>() << std::endl;
 }
 
 #endif

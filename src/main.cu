@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <assert.h>
+#include <memory>
 
 #include <iostream>
 #include <thread>
@@ -128,8 +129,10 @@ int main(){
     std::chrono::steady_clock::time_point begin;
     std::chrono::steady_clock::time_point end;
 
-    loadCameraFile("../../models/train/cameras.json");
+    loadCameraFile("../../models/garden/cameras.json");
     loadGenericProperties(SCREEN_WIDTH, SCREEN_HEIGHT, fovx, fovy);
+
+    loadApplicationConfig("../config.cfg");
 
     numCameraPositions = cameraData.size();
 
@@ -139,7 +142,7 @@ int main(){
     std::vector<SplatData> sd;
     bool * renderMask;
     int num_elements = 0;
-    int res = loadSplatData("../../models/train/point_cloud/iteration_30000/point_cloud.ply", sd, &num_elements);
+    int res = loadSplatData("../../models/garden/point_cloud/iteration_30000/point_cloud.ply", sd, &num_elements);
     printf("Loaded %d splats from file\n", num_elements);
 
     const uint32_t maxDuplicatedGaussians = num_elements * 32;
@@ -163,13 +166,12 @@ int main(){
     volatile int progress = 0;
     HybridVH * spacePartitioningRoot;
 
-    // spacePartitioningRoot = buildHybridVH(sd, num_elements, &progress);
-
     omp_set_num_threads(4);
     #pragma omp parallel num_threads(3) default(shared) shared(progress)
     #pragma omp single
     {
         #pragma omp task
+
         spacePartitioningRoot = buildHybridVH(sd, num_elements, &progress);
 
         while(progress!=16){
