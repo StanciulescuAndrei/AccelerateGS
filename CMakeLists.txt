@@ -33,6 +33,7 @@ add_executable(AccelerateGS
 		src/glad/glad.c
 		src/PLYReader.h
 		src/GUIManager.h
+		src/SpacePartitioningBase.h
 		src/GaussianOctree.h
 		src/GaussianBVH.h
 		src/HybridVH.h

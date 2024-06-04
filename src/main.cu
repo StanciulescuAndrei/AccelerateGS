@@ -164,7 +164,13 @@ int main(){
 
 
     volatile int progress = 0;
-    HybridVH * spacePartitioningRoot;
+    std::unique_ptr<SpacePartitioningBase> spacePartitioningRoot;
+    if(appConfig["structure"].get<std::string>() == std::string("octree"))
+        spacePartitioningRoot = std::make_unique<GaussianOctree>();
+    else if(appConfig["structure"].get<std::string>() == std::string("bvh"))
+        spacePartitioningRoot = std::make_unique<GaussianBVH>();
+    else if(appConfig["structure"].get<std::string>() == std::string("hybrid"))
+        spacePartitioningRoot = std::make_unique<HybridVH>();
 
     omp_set_num_threads(4);
     #pragma omp parallel num_threads(3) default(shared) shared(progress)
@@ -172,7 +178,7 @@ int main(){
     {
         #pragma omp task
 
-        spacePartitioningRoot = buildHybridVH(sd, num_elements, &progress);
+        spacePartitioningRoot->buildVHStructure(sd, num_elements, &progress);
 
         while(progress!=16){
             /* Clear color and depth buffers */
@@ -340,7 +346,7 @@ int main(){
             // for(int i = 0; i < old_num_elements; i++){
             //     renderMask[i] = 1;
             // }
-            renderedSplats = markForRender(renderMask, num_elements, spacePartitioningRoot, sd, autoLevel ? -1 : renderLevel, cameraPosition, fovy, SCREEN_WIDTH, diagonalProjectionThreshold);
+            renderedSplats = spacePartitioningRoot->markForRender(renderMask, num_elements, sd, autoLevel ? -1 : renderLevel, cameraPosition, fovy, SCREEN_WIDTH, diagonalProjectionThreshold);
             // printf("Rendered splats: %d\n", renderedSplats);
 
             checkCudaErrors(cudaMemcpy(d_renderMask, renderMask, sizeof(bool) * num_elements, cudaMemcpyHostToDevice));

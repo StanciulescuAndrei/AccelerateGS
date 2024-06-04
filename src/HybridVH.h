@@ -20,7 +20,7 @@
 
 enum LevelType {OctreeLevel, BipartitionLevel};
 
-class HybridVH
+class HybridVH : public SpacePartitioningBase
 {
 public:
     std::vector<HybridVH*> children;
@@ -34,7 +34,10 @@ public:
     uint32_t representative = 0; /* Will be the splat that is the approximation of all splats contained, will be dynamically added to the array I guess */
 
     void processSplats(uint8_t _level, std::vector<SplatData> &sd, volatile int *progress);
+    void buildVHStructure(std::vector<SplatData> &sd, uint32_t num_primitives, volatile int *progress) override;
+    int markForRender(bool *renderMask, uint32_t num_primitives, std::vector<SplatData> &sd, int renderLevel, glm::vec3 &cameraPosition, float fovy, int SW, float dpt) override;
     HybridVH(glm::vec3 *_bbox);
+    HybridVH();
     ~HybridVH();
 };
 
@@ -45,6 +48,16 @@ HybridVH::HybridVH(glm::vec3 *_bbox)
 
     coverage[0] = _bbox[0];
     coverage[1] = _bbox[1];
+}
+
+HybridVH::HybridVH()
+{
+    glm::vec3 zero(0.0f);
+    bbox[0] = zero;
+    bbox[1] = zero;
+
+    coverage[0] = zero;
+    coverage[1] = zero;
 }
 
 void computeNodeRepresentative(HybridVH *node, std::vector<SplatData> &sd)
@@ -573,7 +586,7 @@ HybridVH::~HybridVH()
         }
 }
 
-HybridVH *buildHybridVH(std::vector<SplatData> &sd, uint32_t num_primitives, volatile int *progress)
+void buildVHStructure(std::vector<SplatData> &sd, uint32_t num_primitives, volatile int *progress)
 {
     glm::vec3 minBound(1e13, 1e13, 1e13);
     glm::vec3 maxBound(-1e13, -1e13, -1e13);
@@ -593,31 +606,28 @@ HybridVH *buildHybridVH(std::vector<SplatData> &sd, uint32_t num_primitives, vol
     float maxSpan = max(maxBound.x - minBound.x, max(maxBound.y - minBound.y, maxBound.z - minBound.z));
 
     glm::vec3 rootBbox[2];
-    rootBbox[0] = center - maxSpan;
-    rootBbox[1] = center + maxSpan;
-
-    HybridVH *root = new HybridVH(rootBbox);
+    this->bbox[0] = center - maxSpan;
+    this->bbox[1] = center + maxSpan;
 
     for (int i = 0; i < num_primitives; i++)
-        root->containedSplats.push_back(i);
+        this->containedSplats.push_back(i);
 
-    root->processSplats(0, sd, progress);
+    this->processSplats(0, sd, progress);
 
     *progress = 16;
-    return root;
 }
 
-int markForRender(bool *renderMask, uint32_t num_primitives, HybridVH *root, std::vector<SplatData> &sd, int renderLevel, glm::vec3 &cameraPosition, float fovy, int SW, float dpt)
+int markForRender(bool *renderMask, uint32_t num_primitives, std::vector<SplatData> &sd, int renderLevel, glm::vec3 &cameraPosition, float fovy, int SW, float dpt)
 {
 
     if (renderLevel == -1)
     {
         int shouldRenderNode = 0;
-        if (root == nullptr)
+        if (this == nullptr)
             return 0;
         /* Easiest implementation, maximum projection by distance */
-        float S = glm::length(root->coverage[0] - root->coverage[1]);
-        float D = glm::length((root->coverage[0] + root->coverage[1]) / 2.0f - cameraPosition);
+        float S = glm::length(this->coverage[0] - this->coverage[1]);
+        float D = glm::length((this->coverage[0] + this->coverage[1]) / 2.0f - cameraPosition);
 
         float P = S / D * (SW / fovy);
 
@@ -625,36 +635,37 @@ int markForRender(bool *renderMask, uint32_t num_primitives, HybridVH *root, std
 
         if (shouldRenderNode)
         { // is node big enough on the screen?
-            if (root->isLeaf && root->containedSplats.size() > 0)
+            if (this->isLeaf && this->containedSplats.size() > 0)
             {
-                for (auto splat : root->containedSplats)
+                for (auto splat : this->containedSplats)
                     renderMask[splat] = true;
-                return root->containedSplats.size();
+                return this->containedSplats.size();
             }
             else
             {
                 int splatsRendered = 0;
-                for (auto child : root->children)
+                for (auto child : this->children)
                 {
-                    splatsRendered += markForRender(renderMask, num_primitives, child, sd, renderLevel, cameraPosition, fovy, SW, dpt);
+                    if(child != nullptr)
+                        splatsRendered += child->markForRender(renderMask, num_primitives, sd, renderLevel, cameraPosition, fovy, SW, dpt);
                 }
                 return splatsRendered;
             }
         }
         else
         {
-            if (root->representative != 0)
+            if (this->representative != 0)
             {
-                renderMask[root->representative] = true;
+                renderMask[this->representative] = true;
                 return 1;
             }
             else
             { // Level too low to have a representative, still have to go down
                 int splatsRendered = 0;
-                for (auto child : root->children)
+                for (auto child : this->children)
                 {
                     if (child != nullptr)
-                        splatsRendered += markForRender(renderMask, num_primitives, child, sd, renderLevel, cameraPosition, fovy, SW, dpt);
+                        splatsRendered += child->markForRender(renderMask, num_primitives, sd, renderLevel, cameraPosition, fovy, SW, dpt);
                 }
                 return splatsRendered;
             }
@@ -662,27 +673,28 @@ int markForRender(bool *renderMask, uint32_t num_primitives, HybridVH *root, std
     }
     else
     {
-        if (root->level == renderLevel)
+        if (this->level == renderLevel)
         {
-            renderMask[root->representative] = true;
+            renderMask[this->representative] = true;
             return 1;
         }
-        if (root->level < renderLevel && root->isLeaf)
+        if (this->level < renderLevel && this->isLeaf)
         {
-            for (auto splat : root->containedSplats)
+            for (auto splat : this->containedSplats)
                 renderMask[splat] = true;
-            return root->containedSplats.size();
+            return this->containedSplats.size();
         }
-        if (!root->isLeaf && root->level < renderLevel)
+        if (!this->isLeaf && this->level < renderLevel)
         {
             int splatsRendered = 0;
-            for (HybridVH * child : root->children)
+            for (HybridVH * child : this->children)
             {
-                splatsRendered += markForRender(renderMask, num_primitives, child, sd, renderLevel, cameraPosition, fovy, SW, dpt);
+                if(child != nullptr)
+                    splatsRendered += child->markForRender(renderMask, num_primitives, sd, renderLevel, cameraPosition, fovy, SW, dpt);
             }
             return splatsRendered;
         }
-        if (root->containedSplats.size() == 0 && root->representative == 0)
+        if (this->containedSplats.size() == 0 && this->representative == 0)
         {
             return 0;
         }
