@@ -492,7 +492,7 @@ GaussianOctree::~GaussianOctree()
         }
 }
 
-GaussianOctree * buildOctree(std::vector<SplatData> & sd, uint32_t num_primitives){
+GaussianOctree * buildOctree(std::vector<SplatData> & sd, uint32_t num_primitives, volatile int * progress){
     glm::vec3 minBound(1e13, 1e13, 1e13);
     glm::vec3 maxBound(-1e13, -1e13, -1e13);
 
@@ -518,6 +518,8 @@ GaussianOctree * buildOctree(std::vector<SplatData> & sd, uint32_t num_primitive
         root->containedSplats.push_back(i);
 
     root->processSplats(0, sd);
+
+    *progress = 16;
 
     return root;
 

@@ -13,7 +13,7 @@
 #define HYBRID_OCTREE_LIMIT 13
 #define TOTAL_HYBRID_LIMIT 18
 
-#define INRIA_CLUSTER
+// #define INRIA_CLUSTER
 
 float fovy = M_PI / 2.0f;
 float fovx = M_PI / 2.0f * 16 / 9;
