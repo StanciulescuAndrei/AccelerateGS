@@ -132,7 +132,7 @@ int main(){
     loadCameraFile("../../models/garden/cameras.json");
     loadGenericProperties(SCREEN_WIDTH, SCREEN_HEIGHT, fovx, fovy);
 
-    loadApplicationConfig("../config.cfg");
+    loadApplicationConfig("../config.cfg", structure, clustering);
 
     numCameraPositions = cameraData.size();
 
@@ -165,11 +165,11 @@ int main(){
 
     volatile int progress = 0;
     std::unique_ptr<SpacePartitioningBase> spacePartitioningRoot;
-    if(appConfig["structure"].get<std::string>() == std::string("octree"))
+    if(structure == std::string("octree"))
         spacePartitioningRoot = std::make_unique<GaussianOctree>();
-    else if(appConfig["structure"].get<std::string>() == std::string("bvh"))
+    else if(structure == std::string("bvh"))
         spacePartitioningRoot = std::make_unique<GaussianBVH>();
-    else if(appConfig["structure"].get<std::string>() == std::string("hybrid"))
+    else if(structure == std::string("hybrid"))
         spacePartitioningRoot = std::make_unique<HybridVH>();
 
     omp_set_num_threads(4);

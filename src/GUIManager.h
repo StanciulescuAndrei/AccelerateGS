@@ -3,6 +3,7 @@
 #include "../../../libs/imgui/imgui.h"
 #include "../../../libs/imgui/backends/imgui_impl_glfw.h"
 #include "../../../libs/imgui/backends/imgui_impl_opengl3.h"
+#include <string>
 
 #define MAX_BVH_LEVEL 20
 #define MIN_BVH_RESOLUTION MAX_BVH_LEVEL - 7
@@ -31,6 +32,10 @@ int renderedSplats = 0;
 int numCameraPositions = 2;
 
 float diagonalProjectionThreshold = 10.0f;
+
+std::string structure;
+std::string clustering;
+
 
 void setupIMGui(GLFWwindow** window){
     IMGUI_CHECKVERSION();

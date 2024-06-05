@@ -55,7 +55,7 @@ void getCameraParameters(int idx, glm::vec3 & position, glm::mat3 & rotation){
 
 }
 
-void loadApplicationConfig(std::string c){
+void loadApplicationConfig(std::string c, std::string & structure, std::string & clustering){
     std::ifstream file(c);
 
     if(!file){
@@ -63,6 +63,8 @@ void loadApplicationConfig(std::string c){
     }
 
     file >> appConfig;
+    structure = appConfig["structure"].get<std::string>();
+    clustering = appConfig["clustering"].get<std::string>();
     std::cout << "Volumetric structure type: " << appConfig["structure"].get<std::string>() << std::endl;
 }
 
