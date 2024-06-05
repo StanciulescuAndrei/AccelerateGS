@@ -6,13 +6,13 @@
 #include <string>
 
 #define MAX_BVH_LEVEL 20
-#define MIN_BVH_RESOLUTION MAX_BVH_LEVEL - 7
+#define MIN_BVH_LEVEL MAX_BVH_LEVEL - 7
 
 #define MAX_OCTREE_LEVEL 15
-#define MIN_RESOLUTION MAX_OCTREE_LEVEL - 4
+#define MIN_OCTREE_LEVEL MAX_OCTREE_LEVEL - 4
 
-#define HYBRID_OCTREE_LIMIT 13
-#define TOTAL_HYBRID_LIMIT 18
+#define MIN_HYBRID_LEVEL 13
+#define MAX_HYBRID_LEVEL 20
 
 // #define INRIA_CLUSTER
 
@@ -20,7 +20,7 @@ float fovy = M_PI / 2.0f;
 float fovx = M_PI / 2.0f * 16 / 9;
 int selectedViewMode = 0;
 int renderPrimitive = 0;
-int renderLevel = HYBRID_OCTREE_LIMIT;
+int renderLevel = 12;
 int cameraIndex = 0;
 int cameraMode = 0;
 int autoLevel = 0;
@@ -71,7 +71,22 @@ void buildInterface(){
     ImGui::RadioButton("Auto", &autoLevel, 1); ImGui::SameLine();
     ImGui::RadioButton("Manual", &autoLevel, 0);
 
-    ImGui::SliderInt("Render Level", &renderLevel, HYBRID_OCTREE_LIMIT, TOTAL_HYBRID_LIMIT + 1);
+    int render_low_limit, render_high_limit;
+
+    if(structure == std::string("octree")){
+        render_low_limit = MIN_OCTREE_LEVEL;
+        render_high_limit = MAX_OCTREE_LEVEL;
+    }
+    else if(structure == std::string("bvh")){
+        render_low_limit = MIN_BVH_LEVEL; 
+        render_high_limit = MAX_BVH_LEVEL;
+    }
+    else if(structure == std::string("hybrid")){
+        render_low_limit = MIN_HYBRID_LEVEL; 
+        render_high_limit = MAX_HYBRID_LEVEL;
+    }
+
+    ImGui::SliderInt("Render Level", &renderLevel, render_low_limit, render_high_limit + 1);
     ImGui::SliderFloat("LOD render bias", &diagonalProjectionThreshold, 10.0f, 100.0f);
 
     ImGui::RadioButton("Free camera", &cameraMode, 0); ImGui::SameLine();

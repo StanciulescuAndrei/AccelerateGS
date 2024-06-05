@@ -164,13 +164,17 @@ int main(){
 
 
     volatile int progress = 0;
-    std::unique_ptr<SpacePartitioningBase> spacePartitioningRoot;
+    std::unique_ptr<SpacePartitioningBase> spacePartitioningRoot = nullptr;
     if(structure == std::string("octree"))
         spacePartitioningRoot = std::make_unique<GaussianOctree>();
     else if(structure == std::string("bvh"))
         spacePartitioningRoot = std::make_unique<GaussianBVH>();
     else if(structure == std::string("hybrid"))
         spacePartitioningRoot = std::make_unique<HybridVH>();
+
+    if(spacePartitioningRoot == nullptr){
+        printf("This ain't good lol....\n");
+    }
 
     omp_set_num_threads(4);
     #pragma omp parallel num_threads(3) default(shared) shared(progress)
@@ -191,9 +195,7 @@ int main(){
         }
     }
 
-    // #pragma omp taskwait
-    
-    int old_num_elements = num_elements;
+    #pragma omp taskwait
 
     num_elements = sd.size();
     renderMask = (bool *)malloc(sizeof(bool) * num_elements);
@@ -201,7 +203,6 @@ int main(){
 
     end = std::chrono::steady_clock::now();
     int octreeTime = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
-    char title[256];
     printf("Octree built in %f s\n", octreeTime / 1000.0f);
     
     printf("Number of splats: %d\n", num_elements);
@@ -377,11 +378,6 @@ int main(){
             d_temp_storage = NULL;
             temp_storage_bytes = 0;
 
-            /* Find highest MSB for RadixSort to eliminate a few of the cycles */
-            uint32_t highestKey = grid.x * grid.y;
-            int highestMsb = 31;
-            // while(highestKey >> highestMsb == 0) highestMsb--;
-
             /* Determine how much temporary storage we need */
             cub::DeviceRadixSort::SortPairs(d_temp_storage, temp_storage_bytes, d_sort_keys_in, d_sort_keys_out, d_sort_ids_in, d_sort_ids_out, totalDuplicateGaussians);
             checkCudaErrors(cudaMalloc(&d_temp_storage, temp_storage_bytes));
@@ -403,7 +399,7 @@ int main(){
             checkCudaErrors(cudaDeviceSynchronize());
         };
 
-        auto saveRenderRoutine = [&](char * filename){
+        auto saveRenderRoutine = [&](const char * filename){
             std::vector<float> floatPixelData(SCREEN_HEIGHT * SCREEN_WIDTH * 4);
             std::vector<unsigned char> pixelData(SCREEN_HEIGHT * SCREEN_WIDTH * 4);
 

@@ -478,7 +478,7 @@ void HybridVH::processSplats(uint8_t _level, std::vector<SplatData> &sd, volatil
         return;
     }
 
-    if (level < HYBRID_OCTREE_LIMIT)
+    if (level < MIN_HYBRID_LEVEL)
     {
         /* Process this as if it were an octree node */
         glm::vec3 halfSize = (bbox[1] - bbox[0]) * 0.5f;
@@ -568,7 +568,7 @@ void HybridVH::processSplats(uint8_t _level, std::vector<SplatData> &sd, volatil
                     addSplatToCoverage(child->coverage, splat, sd);
                 }
             }
-            if (level < TOTAL_HYBRID_LIMIT)
+            if (level < MAX_HYBRID_LEVEL)
             {
                 child->isLeaf = false;
                 child->processSplats(level + 1, sd, progress);
@@ -615,7 +615,6 @@ void HybridVH::buildVHStructure(std::vector<SplatData> &sd, uint32_t num_primiti
 
     float maxSpan = max(maxBound.x - minBound.x, max(maxBound.y - minBound.y, maxBound.z - minBound.z));
 
-    glm::vec3 rootBbox[2];
     this->bbox[0] = center - maxSpan;
     this->bbox[1] = center + maxSpan;
 

@@ -68,7 +68,7 @@ public:
 
     uint32_t representative = 0; /* Will be the splat that is the approximation of all splats contained, will be dynamically added to the array I guess */
 
-    void processSplats(uint8_t _level, std::vector<SplatData> &sd);
+    void processSplats(uint8_t _level, std::vector<SplatData> &sd, volatile int * progress);
     void buildVHStructure(std::vector<SplatData> &sd, uint32_t num_primitives, volatile int *progress) override;
     int markForRender(bool *renderMask, uint32_t num_primitives, std::vector<SplatData> &sd, int renderLevel, glm::vec3 &cameraPosition, float fovy, int SW, float dpt) override;
     GaussianOctree(glm::vec3 *_bbox);
@@ -468,9 +468,13 @@ void computeNodeRepresentative(GaussianOctree *node, std::vector<SplatData> &sd)
     }
 }
 
-void GaussianOctree::processSplats(uint8_t _level, std::vector<SplatData> &sd)
+void GaussianOctree::processSplats(uint8_t _level, std::vector<SplatData> &sd, volatile int * progress)
 {
     level = _level;
+    
+    if(level == 3){
+        (*progress) += 1;
+    }
 
     if (containedSplats.size() == 0)
     {
@@ -518,22 +522,17 @@ void GaussianOctree::processSplats(uint8_t _level, std::vector<SplatData> &sd)
         if (level < MAX_OCTREE_LEVEL)
         {
             children[i]->isLeaf = false;
-            children[i]->processSplats(level + 1, sd);
+            children[i]->processSplats(level + 1, sd, progress);
         }
         else
         {
             children[i]->isLeaf = true;
             computeNodeRepresentative(children[i], sd);
         }
-
-        if (level == 0)
-        {
-            printf("%i / %i\n", i + 1, 8);
-        }
     }
 
     /* Compute representatives before clearing the contained splats vector */
-    if (this->level >= MIN_RESOLUTION)
+    if (this->level >= MIN_OCTREE_LEVEL)
         computeNodeRepresentative(this, sd);
 
     containedSplats.clear();
@@ -573,7 +572,7 @@ void GaussianOctree::buildVHStructure(std::vector<SplatData> &sd, uint32_t num_p
     for (int i = 0; i < num_primitives; i++)
         this->containedSplats.push_back(i);
 
-    this->processSplats(0, sd);
+    this->processSplats(0, sd, progress);
 
     *progress = 16;
 }

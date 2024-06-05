@@ -537,7 +537,7 @@ void GaussianBVH::processSplats(uint8_t _level, std::vector<SplatData> &sd, vola
     }
 
     /* Compute representatives before clearing the contained splats vector */
-    if (this->level >= MIN_BVH_RESOLUTION)
+    if (this->level >= MIN_BVH_LEVEL)
         computeNodeRepresentative(this, sd);
 
     containedSplats.clear();
@@ -568,7 +568,6 @@ void GaussianBVH::buildVHStructure(std::vector<SplatData> &sd, uint32_t num_prim
     }
 
     /* No need for a cube BBox for the BVH */
-    glm::vec3 rootBbox[2];
     this->bbox[0] = minBound;
     this->bbox[1] = maxBound;
 
