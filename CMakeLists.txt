@@ -4,6 +4,8 @@ cmake_policy(SET CMP0072 NEW)
 
 find_package(OpenGL REQUIRED)
 
+find_package(OpenCL REQUIRED)
+
 find_package (Eigen3 3.4 REQUIRED NO_MODULE)
 
 find_package(OpenMP)
@@ -11,7 +13,8 @@ find_package(OpenMP)
 find_package(nanoflann)
 
 set(CMAKE_CXX_COMPILER icpx)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsycl")
+set(CMAKE_C_COMPILER icx)
+# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsycl")
 
 
 set(CMAKE_CUDA_ARCHITECTURES 86)
@@ -71,7 +74,8 @@ target_link_libraries(AccelerateGS
 	glfw
 	${GLEW_LIBRARY}
 	Eigen3::Eigen
-	OpenMP::OpenMP_CXX
+	#OpenMP::OpenMP_CXX
+	iomp5
 	nanoflann::nanoflann
 	/opt/intel/oneapi/dal/2024.2/lib/libonedal.a
 	/opt/intel/oneapi/dal/2024.2/lib/libonedal_dpc.a
@@ -82,18 +86,14 @@ target_link_libraries(AccelerateGS
 	/opt/intel/oneapi/dal/2024.2/lib/libonedal_thread.so.2
 	/opt/intel/oneapi/tbb/2021.12/lib/intel64/gcc4.8/libtbb.so.12 
 	/opt/intel/oneapi/tbb/2021.12/lib/intel64/gcc4.8/libtbbmalloc.so.2 
-	-lstdc++ 
-	-lm 
-	-lpthread 
-	-ldl 
 	/opt/intel/oneapi/dal/2024.2/lib/libonedal.so.2 
 	/opt/intel/oneapi/dal/2024.2/lib/libonedal_parameters.so.2 
 	/opt/intel/oneapi/dal/2024.2/lib/libonedal_core.so.2 
 	/opt/intel/oneapi/dal/2024.2/lib/libonedal_thread.so.2
-	-ltbb
-	-ltbbmalloc
-	-lpthread
-	-lsycl
-	-lgomp
+	tbb
+	tbbmalloc
+	pthread
+	sycl
+	OpenCL
 )
 
