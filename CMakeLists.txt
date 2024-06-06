@@ -94,5 +94,6 @@ target_link_libraries(AccelerateGS
 	-ltbbmalloc
 	-lpthread
 	-lsycl
+	-lgomp
 )
 

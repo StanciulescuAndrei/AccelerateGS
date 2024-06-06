@@ -514,80 +514,116 @@ void HybridVH::processSplats(uint8_t _level, std::vector<SplatData> &sd, volatil
     }
     else
     {
-        DBSCANClustering();
-        /* Binary split nodes, here we do da smart stuff */
-        glm::vec3 halfSize = (bbox[1] - bbox[0]);
+        int nClusters;
+        std::vector<int> assignment;
+        assignment.reserve(containedSplats.size());
 
-        /* Find the largest dimension of the initial box */
-        std::vector<float> projs;
-        int maxDim = -1;
-        if (halfSize.x > max(halfSize.y, halfSize.z))
-        {
-            maxDim = 0;
-        }
-        else if (halfSize.y > max(halfSize.x, halfSize.z))
-        {
-            maxDim = 1;
-        }
-        else
-        {
-            maxDim = 2;
-        }
-
-        for (auto splat : containedSplats)
-        {
-            projs.push_back(sd[splat].fields.position[maxDim]);
-        }
-
-        std::sort(projs.begin(), projs.end());
-
-        float median = (projs[projs.size() / 2] + projs[projs.size() / 2 - 1]) / 2.0f;
-
-        glm::vec3 childBbox1[2];
-        childBbox1[0][0] = bbox[0][0];
-        childBbox1[0][1] = bbox[0][1];
-        childBbox1[0][2] = bbox[0][2];
-        childBbox1[1][0] = childBbox1[0][0] + ((0 == maxDim) ? (median - childBbox1[0][0]) : halfSize[0]);
-        childBbox1[1][1] = childBbox1[0][1] + ((1 == maxDim) ? (median - childBbox1[0][1]) : halfSize[1]);
-        childBbox1[1][2] = childBbox1[0][2] + ((2 == maxDim) ? (median - childBbox1[0][2]) : halfSize[2]);
-
-        glm::vec3 childBbox2[2];
-        childBbox2[1][0] = bbox[1][0];
-        childBbox2[1][1] = bbox[1][1];
-        childBbox2[1][2] = bbox[1][2];
-        childBbox2[0][0] = childBbox1[0][0] + ((0 == maxDim) ? (median - childBbox1[0][0]) : 0);
-        childBbox2[0][1] = childBbox1[0][1] + ((1 == maxDim) ? (median - childBbox1[0][1]) : 0);
-        childBbox2[0][2] = childBbox1[0][2] + ((2 == maxDim) ? (median - childBbox1[0][2]) : 0);
-
-        for (int i = 0; i < 2; i++)
-        {
-            HybridVH *child = new HybridVH((i == 0) ? childBbox1 : childBbox2);
-            // See which of the splats go into the newly created node
-            for (int k = 0; k < containedSplats.size(); k++)
-            {
-                auto splat = containedSplats[k];
-                if (insideBBox(child->bbox, splat, sd))
+        if(DBSCANClustering(containedSplats, sd, nClusters, assignment) == 0){
+            for(int i = 0; i < nClusters; i++){
+                HybridVH *child = new HybridVH();
+                // See which of the splats go into the newly created node
+                for (int k = 0; k < containedSplats.size(); k++)
                 {
-                    child->containedSplats.push_back(splat);
-                    addSplatToCoverage(child->coverage, splat, sd);
+                    if(assignment[k] == i){
+                        auto splat = containedSplats[k];
+                        child->containedSplats.push_back(splat);
+                        addSplatToCoverage(child->coverage, splat, sd);
+                    }
                 }
+                /* Actual split is not that relevant */
+                child->bbox[0] = child->coverage[0];
+                child->bbox[1] = child->coverage[1];
+                if (level < MAX_HYBRID_LEVEL)
+                {
+                    child->isLeaf = false;
+                    child->processSplats(level + 1, sd, progress);
+                }
+                else
+                {
+                    child->isLeaf = true;
+                    computeNodeRepresentative(child, sd);
+                }
+
+                children.push_back(child);
             }
-            if (level < MAX_HYBRID_LEVEL)
+            computeNodeRepresentative(this, sd);
+            containedSplats.clear();
+        }
+        else{
+            /* Binary split nodes, here we do da smart stuff */
+            glm::vec3 halfSize = (bbox[1] - bbox[0]);
+
+            /* Find the largest dimension of the initial box */
+            std::vector<float> projs;
+            int maxDim = -1;
+            if (halfSize.x > max(halfSize.y, halfSize.z))
             {
-                child->isLeaf = false;
-                child->processSplats(level + 1, sd, progress);
+                maxDim = 0;
+            }
+            else if (halfSize.y > max(halfSize.x, halfSize.z))
+            {
+                maxDim = 1;
             }
             else
             {
-                child->isLeaf = true;
-                computeNodeRepresentative(child, sd);
+                maxDim = 2;
             }
 
-            children.push_back(child);
-        }
+            for (auto splat : containedSplats)
+            {
+                projs.push_back(sd[splat].fields.position[maxDim]);
+            }
 
-        computeNodeRepresentative(this, sd);
-        containedSplats.clear();
+            std::sort(projs.begin(), projs.end());
+
+            float median = (projs[projs.size() / 2] + projs[projs.size() / 2 - 1]) / 2.0f;
+
+            glm::vec3 childBbox1[2];
+            childBbox1[0][0] = bbox[0][0];
+            childBbox1[0][1] = bbox[0][1];
+            childBbox1[0][2] = bbox[0][2];
+            childBbox1[1][0] = childBbox1[0][0] + ((0 == maxDim) ? (median - childBbox1[0][0]) : halfSize[0]);
+            childBbox1[1][1] = childBbox1[0][1] + ((1 == maxDim) ? (median - childBbox1[0][1]) : halfSize[1]);
+            childBbox1[1][2] = childBbox1[0][2] + ((2 == maxDim) ? (median - childBbox1[0][2]) : halfSize[2]);
+
+            glm::vec3 childBbox2[2];
+            childBbox2[1][0] = bbox[1][0];
+            childBbox2[1][1] = bbox[1][1];
+            childBbox2[1][2] = bbox[1][2];
+            childBbox2[0][0] = childBbox1[0][0] + ((0 == maxDim) ? (median - childBbox1[0][0]) : 0);
+            childBbox2[0][1] = childBbox1[0][1] + ((1 == maxDim) ? (median - childBbox1[0][1]) : 0);
+            childBbox2[0][2] = childBbox1[0][2] + ((2 == maxDim) ? (median - childBbox1[0][2]) : 0);
+
+            for (int i = 0; i < 2; i++)
+            {
+                HybridVH *child = new HybridVH((i == 0) ? childBbox1 : childBbox2);
+                // See which of the splats go into the newly created node
+                for (int k = 0; k < containedSplats.size(); k++)
+                {
+                    auto splat = containedSplats[k];
+                    if (insideBBox(child->bbox, splat, sd))
+                    {
+                        child->containedSplats.push_back(splat);
+                        addSplatToCoverage(child->coverage, splat, sd);
+                    }
+                }
+                if (level < MAX_HYBRID_LEVEL)
+                {
+                    child->isLeaf = false;
+                    child->processSplats(level + 1, sd, progress);
+                }
+                else
+                {
+                    child->isLeaf = true;
+                    computeNodeRepresentative(child, sd);
+                }
+
+                children.push_back(child);
+            }
+
+            computeNodeRepresentative(this, sd);
+            containedSplats.clear();
+        } 
     }
 }
 
