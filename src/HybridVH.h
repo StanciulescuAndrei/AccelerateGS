@@ -14,6 +14,8 @@
 #include "GUIManager.h"
 #include "GaussianOctree.h"
 
+#include "PointClustering.h"
+
 #define OPACITY_THRESHOLD 0.2f
 
 enum LevelType
@@ -512,6 +514,8 @@ void HybridVH::processSplats(uint8_t _level, std::vector<SplatData> &sd, volatil
     }
     else
     {
+        DBSCANClustering();
+        /* Binary split nodes, here we do da smart stuff */
         glm::vec3 halfSize = (bbox[1] - bbox[0]);
 
         /* Find the largest dimension of the initial box */
