@@ -30,6 +30,7 @@ include_directories(
 	../../libs/nlohmann/
 	${STB_PATH}
 	/opt/intel/oneapi/dal/2024.2/include/
+	/opt/intel/oneapi/dal/2024.2/include/dal
 )
 
 add_executable(AccelerateGS 
