@@ -5,7 +5,7 @@
 #include <memory>
 
 #include <iostream>
-#include <thread>
+#include <pthread.h>
 
 #include "glad/glad.h"
 #include <GLFW/glfw3.h>
@@ -123,6 +123,19 @@ void initGLContextAndWindow(GLFWwindow** window){
     setupIMGui(window);
 }
 
+struct ThreadPayload{
+    std::shared_ptr<SpacePartitioningBase> spacePartitioningRoot;
+    std::vector<SplatData> * sd;
+    int * num_elements;
+    volatile int * progress;
+};
+
+void * spacePartitioningThread(void * input){
+    ThreadPayload * payload = static_cast<ThreadPayload *>(input);
+    payload->spacePartitioningRoot->buildVHStructure(*(payload->sd), *(payload->num_elements), payload->progress);
+    pthread_exit(NULL);
+}
+
 int main(){
     GLFWwindow* window;
 
@@ -149,9 +162,9 @@ int main(){
 
     // First of all, build da octree
     begin = std::chrono::steady_clock::now();
-    #if defined(_OPENMP)
-        printf("Using OpenMP, yey\n");
-    #endif
+    // #if defined(_OPENMP)
+    //     printf("Using OpenMP, yey\n");
+    // #endif
 
     /* OpenGL configuration */
     glPixelStorei(GL_UNPACK_ALIGNMENT, 16);      // 4-byte pixel alignment
@@ -164,38 +177,46 @@ int main(){
 
 
     volatile int progress = 0;
-    std::unique_ptr<SpacePartitioningBase> spacePartitioningRoot = nullptr;
-    if(structure == std::string("octree"))
-        spacePartitioningRoot = std::make_unique<GaussianOctree>();
-    else if(structure == std::string("bvh"))
-        spacePartitioningRoot = std::make_unique<GaussianBVH>();
-    else if(structure == std::string("hybrid"))
-        spacePartitioningRoot = std::make_unique<HybridVH>();
+    float progressmax = 16.0f;
+    std::shared_ptr<SpacePartitioningBase> spacePartitioningRoot = nullptr;
+    if(structure == std::string("octree")){
+        spacePartitioningRoot = std::make_shared<GaussianOctree>();
+        progressmax = 16.0f;
+    }
+    else if(structure == std::string("bvh")){
+        spacePartitioningRoot = std::make_shared<GaussianBVH>();
+    }
+    else if(structure == std::string("hybrid")){
+        spacePartitioningRoot = std::make_shared<HybridVH>();
+        progressmax = 16.0f;
+    }
 
     if(spacePartitioningRoot == nullptr){
         printf("This ain't good lol....\n");
     }
 
-    omp_set_num_threads(4);
-    #pragma omp parallel num_threads(3) default(shared) shared(progress)
-    #pragma omp single
-    {
-        #pragma omp task
+    /* Compute space partitioning in a separate PThread */
+    pthread_t t_id;
+    ThreadPayload payload;
+    payload.num_elements = &num_elements;
+    payload.progress = &progress;
+    payload.spacePartitioningRoot = spacePartitioningRoot;
+    payload.sd = &sd;
 
-        spacePartitioningRoot->buildVHStructure(sd, num_elements, &progress);
+    pthread_create(&t_id, NULL, spacePartitioningThread, (void *)(&payload));
 
-        while(progress!=16){
-            /* Clear color and depth buffers */
-            glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
-            buildLoadingInterface(progress / 16.0f);
-            renderInterface();
-            /* Swap buffers and handle GLFW events */
-            glfwSwapBuffers(window);
-            glfwPollEvents();
-        }
+    while(progress!=1024){
+        /* Clear color and depth buffers */
+        glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+        buildLoadingInterface(progress / progressmax);
+        renderInterface();
+        /* Swap buffers and handle GLFW events */
+        glfwSwapBuffers(window);
+        glfwPollEvents();
     }
 
-    #pragma omp taskwait
+    pthread_join(t_id, NULL);
+    printf("progress: %d\n", progress);
 
     num_elements = sd.size();
     renderMask = (bool *)malloc(sizeof(bool) * num_elements);

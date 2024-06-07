@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(AccelerateGS VERSION 0.1.0 LANGUAGES C CXX CUDA)
+project(AccelerateGS VERSION 0.1.0 LANGUAGES CXX C CUDA)
 cmake_policy(SET CMP0072 NEW)
 
 find_package(OpenGL REQUIRED)
@@ -74,8 +74,6 @@ target_link_libraries(AccelerateGS
 	glfw
 	${GLEW_LIBRARY}
 	Eigen3::Eigen
-	#OpenMP::OpenMP_CXX
-	iomp5
 	nanoflann::nanoflann
 	/opt/intel/oneapi/dal/2024.2/lib/libonedal.a
 	/opt/intel/oneapi/dal/2024.2/lib/libonedal_dpc.a

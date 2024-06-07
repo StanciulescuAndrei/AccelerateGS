@@ -167,7 +167,6 @@ void computeNodeRepresentative(GaussianBVH *node, std::vector<SplatData> &sd)
 
         float min_density = 1e10;
         float max_density = 0.0f;
-        omp_set_num_threads(4);
 
         PointCloudAdaptor pcAdaptor(coveragePoints);
 

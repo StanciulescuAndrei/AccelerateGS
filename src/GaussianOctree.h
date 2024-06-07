@@ -229,7 +229,6 @@ void computeNodeRepresentative(GaussianOctree *node, std::vector<SplatData> &sd)
 
         float min_density = 1e10;
         float max_density = 0.0f;
-        omp_set_num_threads(4);
 
         PointCloudAdaptor pcAdaptor(coveragePoints);
 
@@ -574,7 +573,7 @@ void GaussianOctree::buildVHStructure(std::vector<SplatData> &sd, uint32_t num_p
 
     this->processSplats(0, sd, progress);
 
-    *progress = 16;
+    *progress = 1024;
 }
 
 int GaussianOctree::markForRender(bool *renderMask, uint32_t num_primitives, std::vector<SplatData> &sd, int renderLevel, glm::vec3 &cameraPosition, float fovy, int SW, float dpt)
