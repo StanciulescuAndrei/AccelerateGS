@@ -628,10 +628,10 @@ void HybridVH::processSplats(uint8_t _level, std::vector<SplatData> &sd, volatil
 
 HybridVH::~HybridVH()
 {
-    for (int i = 0; i < 2; i++)
-        if (children[i] != nullptr)
+    for (auto child : children)
+        if (child != nullptr)
         {
-            delete children[i];
+            delete child;
         }
 }
 

@@ -124,7 +124,7 @@ void initGLContextAndWindow(GLFWwindow** window){
 }
 
 struct ThreadPayload{
-    std::shared_ptr<SpacePartitioningBase> spacePartitioningRoot;
+    SpacePartitioningBase * spacePartitioningRoot;
     std::vector<SplatData> * sd;
     int * num_elements;
     volatile int * progress;
@@ -178,16 +178,16 @@ int main(){
 
     volatile int progress = 0;
     float progressmax = 16.0f;
-    std::shared_ptr<SpacePartitioningBase> spacePartitioningRoot = nullptr;
+    SpacePartitioningBase * spacePartitioningRoot = (nullptr);
     if(structure == std::string("octree")){
-        spacePartitioningRoot = std::make_shared<GaussianOctree>();
+        spacePartitioningRoot = new GaussianOctree();
         progressmax = 16.0f;
     }
     else if(structure == std::string("bvh")){
-        spacePartitioningRoot = std::make_shared<GaussianBVH>();
+        spacePartitioningRoot = new GaussianBVH();
     }
     else if(structure == std::string("hybrid")){
-        spacePartitioningRoot = std::make_shared<HybridVH>();
+        spacePartitioningRoot = new HybridVH();
         progressmax = 16.0f;
     }
 
@@ -202,6 +202,8 @@ int main(){
     payload.progress = &progress;
     payload.spacePartitioningRoot = spacePartitioningRoot;
     payload.sd = &sd;
+
+    // spacePartitioningThread(&payload);
 
     pthread_create(&t_id, NULL, spacePartitioningThread, (void *)(&payload));
 
