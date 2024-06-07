@@ -11,8 +11,12 @@
 namespace dm = daal::data_management;
 namespace algo =  daal::algorithms;
 
-int DBSCANClustering(std::vector<uint32_t> & containedSplatIds, std::vector<SplatData> & sd, int & nClusters, std::vector<int> & assignment){
+float dbscan_epsilon = 1e-3;
+
+int DBSCANClustering(glm::vec3 * bbox, std::vector<uint32_t> & containedSplatIds, std::vector<SplatData> & sd, int & nClusters, std::vector<int> & assignment){
     size_t inputDataSize = containedSplatIds.size();
+
+    float boxSize = glm::length(bbox[1] - bbox[0]);
 
     /* Transfer point data to float array */
     float * data = new float[3 * inputDataSize];
@@ -26,7 +30,7 @@ int DBSCANClustering(std::vector<uint32_t> & containedSplatIds, std::vector<Spla
     dm::NumericTablePtr pointData = dm::HomogenNumericTable<>::create(data, 3, inputDataSize);
 
     /* Set up DBSCAN algorithm handler */
-    daal::algorithms::dbscan::Batch<> dbscanClusterer(1e-3, 2);
+    daal::algorithms::dbscan::Batch<> dbscanClusterer(boxSize / 30.0f, 2);
     dbscanClusterer.input.set(daal::algorithms::dbscan::data, pointData);
 
     /* Compute clustering */

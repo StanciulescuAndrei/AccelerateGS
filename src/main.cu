@@ -142,10 +142,10 @@ int main(){
     std::chrono::steady_clock::time_point begin;
     std::chrono::steady_clock::time_point end;
 
-    loadCameraFile("../../models/garden/cameras.json");
+    loadCameraFile("../../models/train/cameras.json");
     loadGenericProperties(SCREEN_WIDTH, SCREEN_HEIGHT, fovx, fovy);
 
-    loadApplicationConfig("../config.cfg", structure, clustering);
+    loadApplicationConfig("../config.cfg", structure, clustering, dbscan_epsilon);
 
     numCameraPositions = cameraData.size();
 
@@ -155,7 +155,7 @@ int main(){
     std::vector<SplatData> sd;
     bool * renderMask;
     int num_elements = 0;
-    int res = loadSplatData("../../models/garden/point_cloud/iteration_30000/point_cloud.ply", sd, &num_elements);
+    int res = loadSplatData("../../models/train/point_cloud/iteration_30000/point_cloud.ply", sd, &num_elements);
     printf("Loaded %d splats from file\n", num_elements);
 
     const uint32_t maxDuplicatedGaussians = num_elements * 32;

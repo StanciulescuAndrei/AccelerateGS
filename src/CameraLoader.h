@@ -55,7 +55,7 @@ void getCameraParameters(int idx, glm::vec3 & position, glm::mat3 & rotation){
 
 }
 
-void loadApplicationConfig(std::string c, std::string & structure, std::string & clustering){
+void loadApplicationConfig(std::string c, std::string & structure, std::string & clustering, float & bdscan_epsilon){
     std::ifstream file(c);
 
     if(!file){
@@ -65,7 +65,9 @@ void loadApplicationConfig(std::string c, std::string & structure, std::string &
     file >> appConfig;
     structure = appConfig["structure"].get<std::string>();
     clustering = appConfig["clustering"].get<std::string>();
+    dbscan_epsilon = appConfig["dbscan_epsilon"].get<float>();
     std::cout << "Volumetric structure type: " << appConfig["structure"].get<std::string>() << std::endl;
+    printf("DBSCAN epsilon: %f\n", dbscan_epsilon);
 }
 
 #endif

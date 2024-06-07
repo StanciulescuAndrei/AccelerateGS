@@ -576,7 +576,7 @@ void GaussianBVH::buildVHStructure(std::vector<SplatData> &sd, uint32_t num_prim
     this->processSplats(0, sd, progress);
     printf("\n");
 
-    *progress = 16;
+    *progress = 1024;
 }
 
 int GaussianBVH::markForRender(bool *renderMask, uint32_t num_primitives, std::vector<SplatData> &sd, int renderLevel, glm::vec3 &cameraPosition, float fovy, int SW, float dpt)

@@ -517,7 +517,7 @@ void HybridVH::processSplats(uint8_t _level, std::vector<SplatData> &sd, volatil
         std::vector<int> assignment;
         assignment.reserve(containedSplats.size());
 
-        if(DBSCANClustering(containedSplats, sd, nClusters, assignment) == 0){
+        if(DBSCANClustering(coverage, containedSplats, sd, nClusters, assignment) == 0){
             for(int i = 0; i < nClusters; i++){
                 HybridVH *child = new HybridVH();
                 // See which of the splats go into the newly created node
@@ -662,7 +662,7 @@ void HybridVH::buildVHStructure(std::vector<SplatData> &sd, uint32_t num_primiti
 
     this->processSplats(0, sd, progress);
 
-    *progress = 16;
+    *progress = 1024;
 }
 
 int HybridVH::markForRender(bool *renderMask, uint32_t num_primitives, std::vector<SplatData> &sd, int renderLevel, glm::vec3 &cameraPosition, float fovy, int SW, float dpt)
