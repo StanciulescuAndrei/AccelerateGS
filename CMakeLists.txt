@@ -10,6 +10,8 @@ find_package (Eigen3 3.4 REQUIRED NO_MODULE)
 
 find_package(OpenMP)
 
+find_package(Threads REQUIRED)
+
 find_package(nanoflann)
 
 set(CMAKE_CXX_COMPILER icpx)
@@ -20,9 +22,9 @@ set(CMAKE_C_COMPILER icx)
 set(CMAKE_CUDA_ARCHITECTURES 86)
 set(OpenGL_GL_PREFERENCE GLVND)
 
-set(IMGUI_PATH /home/andrei/Documents/libs/imgui)
+set(IMGUI_PATH ../../libs/imgui)
 
-set(STB_PATH /home/andrei/Documents/libs/stb)
+set(STB_PATH ../../libs/stb)
 
 include_directories(
 	${GLFW_INCLUDE_PATH}
@@ -74,6 +76,7 @@ target_link_libraries(AccelerateGS
 	glfw
 	${GLEW_LIBRARY}
 	Eigen3::Eigen
+	Threads::Threads
 	nanoflann::nanoflann
 	/opt/intel/oneapi/dal/2024.2/lib/libonedal.a
 	/opt/intel/oneapi/dal/2024.2/lib/libonedal_dpc.a
