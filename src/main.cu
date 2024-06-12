@@ -142,7 +142,7 @@ int main(){
     std::chrono::steady_clock::time_point begin;
     std::chrono::steady_clock::time_point end;
 
-    loadCameraFile("../../models/train/cameras.json");
+    loadCameraFile("../../models/garden/cameras.json");
     loadGenericProperties(SCREEN_WIDTH, SCREEN_HEIGHT, fovx, fovy);
 
     loadApplicationConfig("../config.cfg", structure, clustering, dbscan_epsilon);
@@ -155,7 +155,7 @@ int main(){
     std::vector<SplatData> sd;
     bool * renderMask;
     int num_elements = 0;
-    int res = loadSplatData("../../models/train/point_cloud/iteration_30000/point_cloud.ply", sd, &num_elements);
+    int res = loadSplatData("../../models/garden/point_cloud/iteration_30000/point_cloud.ply", sd, &num_elements);
     printf("Loaded %d splats from file\n", num_elements);
 
     const uint32_t maxDuplicatedGaussians = num_elements * 32;
@@ -195,30 +195,32 @@ int main(){
         printf("This ain't good lol....\n");
     }
 
-    /* Compute space partitioning in a separate PThread */
-    pthread_t t_id;
-    ThreadPayload payload;
-    payload.num_elements = &num_elements;
-    payload.progress = &progress;
-    payload.spacePartitioningRoot = spacePartitioningRoot;
-    payload.sd = &sd;
+    // /* Compute space partitioning in a separate PThread */
+    // pthread_t t_id;
+    // ThreadPayload payload;
+    // payload.num_elements = &num_elements;
+    // payload.progress = &progress;
+    // payload.spacePartitioningRoot = spacePartitioningRoot;
+    // payload.sd = &sd;
 
-    // spacePartitioningThread(&payload);
+    // // spacePartitioningThread(&payload);
 
-    pthread_create(&t_id, NULL, spacePartitioningThread, (void *)(&payload));
+    // pthread_create(&t_id, NULL, spacePartitioningThread, (void *)(&payload));
 
-    while(progress!=1024){
-        /* Clear color and depth buffers */
-        glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
-        buildLoadingInterface(progress / progressmax);
-        renderInterface();
-        /* Swap buffers and handle GLFW events */
-        glfwSwapBuffers(window);
-        glfwPollEvents();
-    }
+    // while(progress!=1024){
+    //     /* Clear color and depth buffers */
+    //     glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+    //     buildLoadingInterface(progress / progressmax);
+    //     renderInterface();
+    //     /* Swap buffers and handle GLFW events */
+    //     glfwSwapBuffers(window);
+    //     glfwPollEvents();
+    // }
 
-    pthread_join(t_id, NULL);
-    printf("progress: %d\n", progress);
+    // pthread_join(t_id, NULL);
+    // printf("progress: %d\n", progress);
+
+    spacePartitioningRoot->buildVHStructure(sd, num_elements, &progress);
 
     num_elements = sd.size();
     renderMask = (bool *)malloc(sizeof(bool) * num_elements);
@@ -441,8 +443,15 @@ int main(){
             cameraMode = 1;
             for(int i = 0; i < cameraData.size(); i++){
                 char filename[64];
+                /* Color */
+                selectedViewMode = 0;
                 softwareRasterizer(i);
                 snprintf(filename, 64, "renders/%05d.png", i);
+                saveRenderRoutine(filename);
+                /* Depth */
+                selectedViewMode = 1;
+                softwareRasterizer(i);
+                snprintf(filename, 64, "renders/d%05d.png", i);
                 saveRenderRoutine(filename);
             }
         }
@@ -523,6 +532,7 @@ int main(){
     checkCudaErrors(cudaFree(d_sort_ids_in));
     checkCudaErrors(cudaFree(d_sort_ids_out));
 
+    if(spacePartitioningRoot != nullptr) delete spacePartitioningRoot;
     delete [] imageData;
     free(renderMask);
 

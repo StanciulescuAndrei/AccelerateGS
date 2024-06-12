@@ -12,7 +12,7 @@
 #define MIN_OCTREE_LEVEL MAX_OCTREE_LEVEL - 4
 
 #define MIN_HYBRID_LEVEL 13
-#define MAX_HYBRID_LEVEL 23
+#define MAX_HYBRID_LEVEL 20
 
 // #define INRIA_CLUSTER
 
@@ -20,7 +20,7 @@ float fovy = M_PI / 2.0f;
 float fovx = M_PI / 2.0f * 16 / 9;
 int selectedViewMode = 0;
 int renderPrimitive = 0;
-int renderLevel = 12;
+int renderLevel = 21;
 int cameraIndex = 0;
 int cameraMode = 0;
 int autoLevel = 0;

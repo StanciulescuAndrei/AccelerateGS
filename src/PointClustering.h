@@ -29,34 +29,58 @@ int DBSCANClustering(glm::vec3 * bbox, std::vector<uint32_t> & containedSplatIds
     /* Move data to a oneDAL numeric table */
     dm::NumericTablePtr pointData = dm::HomogenNumericTable<>::create(data, 3, inputDataSize);
 
-    /* Set up DBSCAN algorithm handler */
-    daal::algorithms::dbscan::Batch<> dbscanClusterer(boxSize / 30.0f, 2);
-    dbscanClusterer.input.set(daal::algorithms::dbscan::data, pointData);
+    dm::NumericTablePtr nclustersResult;
+    dm::NumericTablePtr assignmenResult;
 
-    /* Compute clustering */
-    dbscanClusterer.compute();
-
-    /* Cleanup, then retrieve results */
-
-    delete [] data;
-
-    dm::NumericTablePtr nclustersResult = dbscanClusterer.getResult()->get(algo::dbscan::nClusters);
-    dm::NumericTablePtr assignmenResult = dbscanClusterer.getResult()->get(algo::dbscan::assignments);
-
-    /* Prepare to extract data */
+    /* Data extraction containers */
     dm::BlockDescriptor<int> block;
     int *array;
 
-    /* Get the number of identified clusters */
-    nclustersResult->getBlockOfRows(0, 1, dm::ReadWriteMode::readOnly, block);
-    array = block.getBlockPtr();
+    float dynamicEpsilon = boxSize / 30.0f;
 
-    nClusters = array[0];
+    
+    int nTries = 0;
 
-    nclustersResult->releaseBlockOfRows(block);
+    while(nTries < 10){
+
+        /* Set up DBSCAN algorithm handler */
+        daal::algorithms::dbscan::Batch<> dbscanClusterer(dynamicEpsilon, 2);
+        dbscanClusterer.input.set(daal::algorithms::dbscan::data, pointData);
+
+        /* Compute clustering */
+        dbscanClusterer.compute();
+
+        nclustersResult = dbscanClusterer.getResult()->get(algo::dbscan::nClusters);
+        assignmenResult = dbscanClusterer.getResult()->get(algo::dbscan::assignments);
+
+        /* Get the number of identified clusters */
+        nclustersResult->getBlockOfRows(0, 1, dm::ReadWriteMode::readOnly, block);
+        array = block.getBlockPtr();
+
+        nClusters = array[0];
+
+        nclustersResult->releaseBlockOfRows(block);
+
+        if(nClusters > 3){
+            dynamicEpsilon *= 1.5f;
+            nTries++;
+        }
+        else if(nClusters == 1){
+            dynamicEpsilon /= 1.5f;
+            nTries++;
+        }
+        else{
+            break;
+        }
+        
+    }
+
     if(nClusters < 2){
         return -1; // Not great, we would like 2/3 clusters, not 1 or 0
     }
+
+    /* Cleanup, then retrieve results */
+    delete [] data;
     
     /* If good number of clusters, get cluster assignment */
 
