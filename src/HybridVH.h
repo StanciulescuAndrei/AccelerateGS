@@ -517,7 +517,9 @@ void HybridVH::processSplats(uint8_t _level, std::vector<SplatData> &sd, volatil
         std::vector<int> assignment;
         assignment.reserve(containedSplats.size());
 
-        if(DBSCANClustering(coverage, containedSplats, sd, nClusters, assignment) == 0){ //DBSCANClustering(coverage, containedSplats, sd, nClusters, assignment) == 0
+        nClusters = 3;
+
+        if(containedSplats.size() > nClusters && SpectralClustering(coverage, containedSplats, sd, nClusters, assignment) == 0){ //DBSCANClustering(coverage, containedSplats, sd, nClusters, assignment) == 0
             for(int i = 0; i < nClusters; i++){
                 HybridVH *child = new HybridVH();
                 // See which of the splats go into the newly created node

@@ -31,7 +31,7 @@ int batchRender = 0;
 int renderedSplats = 0;
 int numCameraPositions = 2;
 
-float diagonalProjectionThreshold = 10.0f;
+float diagonalProjectionThreshold = 30.0f;
 
 std::string structure;
 std::string clustering;
@@ -87,7 +87,7 @@ void buildInterface(){
     }
 
     ImGui::SliderInt("Render Level", &renderLevel, render_low_limit, render_high_limit + 1);
-    ImGui::SliderFloat("LOD render bias", &diagonalProjectionThreshold, 10.0f, 100.0f);
+    ImGui::SliderFloat("LOD render bias", &diagonalProjectionThreshold, 10.0f, 300.0f);
 
     ImGui::RadioButton("Free camera", &cameraMode, 0); ImGui::SameLine();
     ImGui::RadioButton("COLMAP Camera", &cameraMode, 1);
