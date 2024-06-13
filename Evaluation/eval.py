@@ -19,7 +19,8 @@ def main():
     # Directory containing the images
     directory = '../../renders'
 
-    tests = ['orig', 'octree', 'bvh', 'hybrid_cluster']
+    # tests = ['orig', 'octree', 'bvh', 'hybrid_cluster', 'kmeans']
+    tests = ['kmeans']
 
     for test in tests:
 
@@ -30,7 +31,7 @@ def main():
         n_images = 185
         depth_threshold = 68
 
-        for i in tqdm(range(n_images)):
+        for i in tqdm(range(0, n_images, 10)):
             # Format the image index
             img_index = str(i).zfill(5)
 

@@ -195,32 +195,31 @@ int main(){
         printf("This ain't good lol....\n");
     }
 
-    // /* Compute space partitioning in a separate PThread */
-    // pthread_t t_id;
-    // ThreadPayload payload;
-    // payload.num_elements = &num_elements;
-    // payload.progress = &progress;
-    // payload.spacePartitioningRoot = spacePartitioningRoot;
-    // payload.sd = &sd;
+    /* Compute space partitioning in a separate PThread */
+    pthread_t t_id;
+    ThreadPayload payload;
+    payload.num_elements = &num_elements;
+    payload.progress = &progress;
+    payload.spacePartitioningRoot = spacePartitioningRoot;
+    payload.sd = &sd;
 
-    // // spacePartitioningThread(&payload);
+    // spacePartitioningThread(&payload);
 
-    // pthread_create(&t_id, NULL, spacePartitioningThread, (void *)(&payload));
+    pthread_create(&t_id, NULL, spacePartitioningThread, (void *)(&payload));
 
-    // while(progress!=1024){
-    //     /* Clear color and depth buffers */
-    //     glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
-    //     buildLoadingInterface(progress / progressmax);
-    //     renderInterface();
-    //     /* Swap buffers and handle GLFW events */
-    //     glfwSwapBuffers(window);
-    //     glfwPollEvents();
-    // }
+    while(progress!=1024){
+        /* Clear color and depth buffers */
+        glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+        buildLoadingInterface(progress / progressmax);
+        renderInterface();
+        /* Swap buffers and handle GLFW events */
+        glfwSwapBuffers(window);
+        glfwPollEvents();
+    }
 
-    // pthread_join(t_id, NULL);
-    // printf("progress: %d\n", progress);
+    pthread_join(t_id, NULL);
 
-    spacePartitioningRoot->buildVHStructure(sd, num_elements, &progress);
+    // spacePartitioningRoot->buildVHStructure(sd, num_elements, &progress);
 
     num_elements = sd.size();
     renderMask = (bool *)malloc(sizeof(bool) * num_elements);
@@ -441,7 +440,7 @@ int main(){
 
         if(batchRender){
             cameraMode = 1;
-            for(int i = 0; i < cameraData.size(); i++){
+            for(int i = 0; i < cameraData.size(); i+=10){
                 char filename[64];
                 /* Color */
                 selectedViewMode = 0;
