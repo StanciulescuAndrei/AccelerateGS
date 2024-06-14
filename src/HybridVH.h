@@ -16,8 +16,6 @@
 
 #include "PointClustering.h"
 
-#define OPACITY_THRESHOLD 0.2f
-
 enum LevelType
 {
     OctreeLevel,
@@ -458,7 +456,6 @@ void computeNodeRepresentative(HybridVH *node, std::vector<SplatData> &sd)
 
 void HybridVH::processSplats(uint8_t _level, std::vector<SplatData> &sd, volatile int *progress)
 {
-
     level = _level;
 
     if (level == 3)
@@ -517,9 +514,9 @@ void HybridVH::processSplats(uint8_t _level, std::vector<SplatData> &sd, volatil
         std::vector<int> assignment;
         assignment.reserve(containedSplats.size());
 
-        nClusters = 3;
+        nClusters = 2;
 
-        if(containedSplats.size() > nClusters && SpectralClustering(coverage, containedSplats, sd, nClusters, assignment) == 0){ //DBSCANClustering(coverage, containedSplats, sd, nClusters, assignment) == 0
+        if(false && containedSplats.size() > nClusters && containedSplats.size() < 16 && SpectralClustering(coverage, containedSplats, sd, nClusters, assignment) == 0){ //DBSCANClustering(coverage, containedSplats, sd, nClusters, assignment) == 0
             for(int i = 0; i < nClusters; i++){
                 HybridVH *child = new HybridVH();
                 // See which of the splats go into the newly created node

@@ -17,7 +17,7 @@ int SpectralClustering(glm::vec3 * bbox, std::vector<uint32_t> & containedSplatI
     size_t inputDataSize = containedSplatIds.size();
 
     float boxSize = glm::length(bbox[1] - bbox[0]);
-    int nIterations = 20;
+    int nIterations = 8;
 
     /* Transfer point data to float array */
     float * data = new float[3 * inputDataSize];
@@ -26,6 +26,19 @@ int SpectralClustering(glm::vec3 * bbox, std::vector<uint32_t> & containedSplatI
         data[i * 3 + 1] = sd[containedSplatIds[i]].fields.position[1];
         data[i * 3 + 2] = sd[containedSplatIds[i]].fields.position[2];
     }
+
+    // int nSamples = std::min(100, inputDataSize);
+
+    // std::vector<int> indices(inputDataSize);
+    // for (int i = 0; i < inputDataSize; ++i) {
+    //     indices[i] = i;
+    // }
+
+    // std::srand(std::time(0));
+
+    // std::random_shuffle(indices.begin(), indices.end());
+
+    // indices.resize(nSamples);
 
     Eigen::MatrixXf A(inputDataSize, inputDataSize);
     Eigen::MatrixXf L(inputDataSize, inputDataSize);
@@ -51,7 +64,6 @@ int SpectralClustering(glm::vec3 * bbox, std::vector<uint32_t> & containedSplatI
 
     /* Laplacian of the affinity matrix: L = D^(-1/2) * A * D^(-1/2) */
     L = D*A*D;
-    
     Eigen::EigenSolver<Eigen::MatrixXf> eigensolver(L);
 
     if (eigensolver.info() != Eigen::Success)
@@ -124,7 +136,7 @@ int SpectralClustering(glm::vec3 * bbox, std::vector<uint32_t> & containedSplatI
     assignmentResult->getBlockOfRows(0, nRows, dm::ReadWriteMode::readOnly, block);
     array = block.getBlockPtr();
     for(int i = 0; i < nRows; i++){
-        assignment[i] = array[i];
+        assignment.push_back(array[i]);
     }
     assignmentResult->releaseBlockOfRows(block);
 
