@@ -282,15 +282,15 @@ void computeNodeRepresentative(HybridVH *node, std::vector<SplatData> &sd)
                 printf("broke here idk\n");
             }
         }
-        representative.fields.directions[0] = 0.01f;
-        representative.fields.directions[1] = 0.0f;
-        representative.fields.directions[2] = 0.0f;
-        representative.fields.directions[3] = 0.0f;
-        representative.fields.directions[4] = 0.01f;
-        representative.fields.directions[5] = 0.0f;
-        representative.fields.directions[6] = 0.0f;
-        representative.fields.directions[7] = 0.0f;
-        representative.fields.directions[8] = 0.01f;
+        // representative.fields.directions[0] = 0.01f;
+        // representative.fields.directions[1] = 0.0f;
+        // representative.fields.directions[2] = 0.0f;
+        // representative.fields.directions[3] = 0.0f;
+        // representative.fields.directions[4] = 0.01f;
+        // representative.fields.directions[5] = 0.0f;
+        // representative.fields.directions[6] = 0.0f;
+        // representative.fields.directions[7] = 0.0f;
+        // representative.fields.directions[8] = 0.01f;
 
         representative.fields.position[0] = weighted_mean(0);
         representative.fields.position[1] = weighted_mean(1);
@@ -503,9 +503,11 @@ void HybridVH::processSplats(uint8_t _level, std::vector<SplatData> &sd, volatil
                 }
             }
             child->isLeaf = false;
+            child->representative = 0;
             child->processSplats(level + 1, sd, progress);
             children.push_back(child);
         }
+        // computeNodeRepresentative(this, sd);
         containedSplats.clear();
     }
     else
@@ -516,7 +518,7 @@ void HybridVH::processSplats(uint8_t _level, std::vector<SplatData> &sd, volatil
 
         nClusters = 2;
 
-        if(false && containedSplats.size() > nClusters && containedSplats.size() < 16 && SpectralClustering(coverage, containedSplats, sd, nClusters, assignment) == 0){ //DBSCANClustering(coverage, containedSplats, sd, nClusters, assignment) == 0
+        if(containedSplats.size() > nClusters && containedSplats.size() < 32 && SpectralClustering(coverage, containedSplats, sd, nClusters, assignment) == 0){ //DBSCANClustering(coverage, containedSplats, sd, nClusters, assignment) == 0
             for(int i = 0; i < nClusters; i++){
                 HybridVH *child = new HybridVH();
                 // See which of the splats go into the newly created node
@@ -545,6 +547,7 @@ void HybridVH::processSplats(uint8_t _level, std::vector<SplatData> &sd, volatil
 
                 children.push_back(child);
             }
+            // representative = containedSplats[0];
             computeNodeRepresentative(this, sd);
             containedSplats.clear();
         }
@@ -609,18 +612,20 @@ void HybridVH::processSplats(uint8_t _level, std::vector<SplatData> &sd, volatil
                 if (level < MAX_HYBRID_LEVEL - 1)
                 {
                     child->isLeaf = false;
+                    child->representative = 0;
                     child->processSplats(level + 1, sd, progress);
                 }
                 else
                 {
                     child->isLeaf = true;
                     child->level = MAX_HYBRID_LEVEL;
+                    child->representative = 0;
                     computeNodeRepresentative(child, sd);
                 }
 
                 children.push_back(child);
             }
-
+            // representative = containedSplats[0];
             computeNodeRepresentative(this, sd);
             containedSplats.clear();
         } 

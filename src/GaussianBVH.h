@@ -14,8 +14,6 @@
 #include "GUIManager.h"
 #include "GaussianOctree.h"
 
-#define OPACITY_THRESHOLD 0.2f
-
 class GaussianBVH : public SpacePartitioningBase
 {
 public:
