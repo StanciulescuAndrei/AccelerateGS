@@ -27,76 +27,84 @@ int SpectralClustering(glm::vec3 * bbox, std::vector<uint32_t> & containedSplatI
         data[i * 3 + 2] = sd[containedSplatIds[i]].fields.position[2];
     }
 
-    // // int nSamples = std::min(100, inputDataSize);
+    // int nSamples = std::min(100, inputDataSize);
 
-    // // std::vector<int> indices(inputDataSize);
-    // // for (int i = 0; i < inputDataSize; ++i) {
-    // //     indices[i] = i;
-    // // }
-
-    // // std::srand(std::time(0));
-
-    // // std::random_shuffle(indices.begin(), indices.end());
-
-    // // indices.resize(nSamples);
-
-    // Eigen::MatrixXf A(inputDataSize, inputDataSize);
-    // Eigen::MatrixXf L(inputDataSize, inputDataSize);
-    // Eigen::DiagonalMatrix<float, Eigen::Dynamic> D(inputDataSize);
-
-    // /* Build affinity matrix */
-    // for(int i = 0; i < inputDataSize; i++){
-    //     for(int j = 0; j < inputDataSize; j++){
-    //         if(i == j){
-    //             A(i, j) = 0.0f;
-    //         }
-    //         else{
-    //             A(i, j) = glm::exp(-glm::distance(glm::make_vec3(data + i * 3), glm::make_vec3(data + j * 3)) / 8);
-    //         }
-    //     }
+    // std::vector<int> indices(inputDataSize);
+    // for (int i = 0; i < inputDataSize; ++i) {
+    //     indices[i] = i;
     // }
 
-    // /* Build diagonal matrix and compute inverse square root */
-    // D.diagonal() = A.rowwise().sum();
-    // for(int i = 0; i < inputDataSize; i++){
-    //     D.diagonal()[i] = 1 / glm::sqrt(D.diagonal()[i]);
-    // }
+    // std::srand(std::time(0));
 
-    // /* Laplacian of the affinity matrix: L = D^(-1/2) * A * D^(-1/2) */
-    // L = D*A*D;
-    // Eigen::EigenSolver<Eigen::MatrixXf> eigensolver(L);
+    // std::random_shuffle(indices.begin(), indices.end());
 
-    // if (eigensolver.info() != Eigen::Success)
-    // {
-    //     printf("Error in eigen-decomposition for Spectral Clustering!!!\n");
-    // }
+    // indices.resize(nSamples);
 
-    // Eigen::VectorXf eigenvalues = eigensolver.eigenvalues().real();
-    // Eigen::MatrixXf eigenvectors = eigensolver.eigenvectors().real();
+    /*  Only do the spectral clustering part when there are few points.
+        Otherwise, the eigenvector computation fo spectral decomposition 
+        takes waay to long and requires too much RAM to be reasonable
+    */
+    if(inputDataSize < 32){
+        Eigen::MatrixXf A(inputDataSize, inputDataSize);
+        Eigen::MatrixXf L(inputDataSize, inputDataSize);
+        Eigen::DiagonalMatrix<float, Eigen::Dynamic> D(inputDataSize);
 
-    // /* Deal with negative eigenvalues */
-    // eigenvalues = eigenvalues.cwiseAbs();
+        /* Build affinity matrix */
+        for(int i = 0; i < inputDataSize; i++){
+            for(int j = 0; j < inputDataSize; j++){
+                if(i == j){
+                    A(i, j) = 0.0f;
+                }
+                else{
+                    A(i, j) = glm::exp(-glm::distance(glm::make_vec3(data + i * 3), glm::make_vec3(data + j * 3)) / 8);
+                }
+            }
+        }
 
-    // // Create a vector of pairs where first element of pair is eigenvalue and second is corresponding eigenvector
-    // std::vector<std::pair<float, Eigen::VectorXf>> eigenPairs;
-    // for (int i = 0; i < eigenvalues.size(); i++) {
-    //     float eigenValue = eigenvalues(i);
-    //     Eigen::VectorXf eigenVector = eigenvectors.col(i);
-    //     eigenPairs.push_back(std::make_pair(eigenValue, eigenVector)); 
-    // }
+        /* Build diagonal matrix and compute inverse square root */
+        D.diagonal() = A.rowwise().sum();
+        for(int i = 0; i < inputDataSize; i++){
+            D.diagonal()[i] = 1 / glm::sqrt(D.diagonal()[i]);
+        }
 
-    // // Sort the eigenpairs in descending order of eigenvalues
-    // std::sort(eigenPairs.begin(), eigenPairs.end(), [](std::pair<float, Eigen::VectorXf> a, std::pair<float, Eigen::VectorXf> b){
-    //     return a.first > b.first;
-    // });
+        /* Laplacian of the affinity matrix: L = D^(-1/2) * A * D^(-1/2) */
+        L = D*A*D;
+        Eigen::EigenSolver<Eigen::MatrixXf> eigensolver(L);
 
-    // /* Change data to reprojected points */
-    // for(int i = 0; i < inputDataSize; i++){
-    //     data[i * 3 + 0] = eigenPairs[0].second(i);
-    //     data[i * 3 + 1] = eigenPairs[1].second(i);
-    //     data[i * 3 + 2] = eigenPairs[2].second(i);
-    // }
+        if (eigensolver.info() != Eigen::Success)
+        {
+            printf("Error in eigen-decomposition for Spectral Clustering!!!\n");
+        }
 
+        Eigen::VectorXf eigenvalues = eigensolver.eigenvalues().real();
+        Eigen::MatrixXf eigenvectors = eigensolver.eigenvectors().real();
+
+        /* Deal with negative eigenvalues */
+        eigenvalues = eigenvalues.cwiseAbs();
+
+        // Create a vector of pairs where first element of pair is eigenvalue and second is corresponding eigenvector
+        std::vector<std::pair<float, Eigen::VectorXf>> eigenPairs;
+        for (int i = 0; i < eigenvalues.size(); i++) {
+            float eigenValue = eigenvalues(i);
+            Eigen::VectorXf eigenVector = eigenvectors.col(i);
+            eigenPairs.push_back(std::make_pair(eigenValue, eigenVector)); 
+        }
+
+        // Sort the eigenpairs in descending order of eigenvalues
+        std::sort(eigenPairs.begin(), eigenPairs.end(), [](std::pair<float, Eigen::VectorXf> a, std::pair<float, Eigen::VectorXf> b){
+            return a.first > b.first;
+        });
+
+        /* Change data to reprojected points */
+        for(int i = 0; i < inputDataSize; i++){
+            data[i * 3 + 0] = eigenPairs[0].second(i);
+            data[i * 3 + 1] = eigenPairs[1].second(i);
+            data[i * 3 + 2] = eigenPairs[2].second(i);
+        }
+
+    }
+
+    
     /* Move data to a oneDAL numeric table */
     dm::NumericTablePtr pointData = dm::HomogenNumericTable<>::create(data, 3, inputDataSize);
 

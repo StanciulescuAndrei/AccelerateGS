@@ -271,15 +271,6 @@ void computeNodeRepresentative(GaussianBVH *node, std::vector<SplatData> &sd)
                 printf("broke here idk\n");
             }
         }
-        representative.fields.directions[0] = 0.01f;
-        representative.fields.directions[1] = 0.0f;
-        representative.fields.directions[2] = 0.0f;
-        representative.fields.directions[3] = 0.0f;
-        representative.fields.directions[4] = 0.01f;
-        representative.fields.directions[5] = 0.0f;
-        representative.fields.directions[6] = 0.0f;
-        representative.fields.directions[7] = 0.0f;
-        representative.fields.directions[8] = 0.01f;
 
         representative.fields.position[0] = weighted_mean(0);
         representative.fields.position[1] = weighted_mean(1);

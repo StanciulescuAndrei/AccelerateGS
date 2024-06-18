@@ -19,8 +19,8 @@ def main():
     # Directory containing the images
     directory = '../../renders'
 
-    # tests = ['orig', 'octree', 'bvh', 'hybrid_cluster', 'kmeans']
-    tests = ['test']
+    tests = ['octree', 'bvh', 'hybrid_cluster', 'test']
+    # tests = ['test']
 
     for test in tests:
 
@@ -36,7 +36,7 @@ def main():
             img_index = str(i).zfill(5)
 
             # Load the images
-            ref_img_path = os.path.join(directory, f'octree/{img_index}.png')
+            ref_img_path = os.path.join(directory, f'orig/{img_index}.png')
             lod_img_path = os.path.join(directory, f'{test}/{img_index}.png')
             depth_img_path = os.path.join(directory, f'{test}/d{img_index}.png')
 
@@ -68,7 +68,7 @@ def main():
         global_psnr_lod_bg = global_psnr_lod_bg / 19
         global_psnr_lod_fg = global_psnr_lod_fg / 19
         
-        print(f'Renders {test} stats: PSNR FG: {global_psnr_lod_fg} / PSNR BG: {global_psnr_lod_bg}')
+        print(f'Renders {test} stats: PSNR FG: {global_psnr_lod_fg} / PSNR BG: {global_psnr_lod_bg} / SSIM: {global_ssim_lod}')
 
 if __name__ == "__main__":
     main()
