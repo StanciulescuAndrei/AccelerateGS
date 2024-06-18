@@ -10,6 +10,8 @@
 
 nlohmann::json cameraData;
 
+nlohmann::json appConfig;
+
 void loadCameraFile(std::string c){
     std::ifstream file(c);
 
@@ -51,6 +53,21 @@ void getCameraParameters(int idx, glm::vec3 & position, glm::mat3 & rotation){
         rotation[2][i] = data[2];
     }
 
+}
+
+void loadApplicationConfig(std::string c, std::string & structure, std::string & clustering, float & bdscan_epsilon){
+    std::ifstream file(c);
+
+    if(!file){
+        std::cout<<"Unable to open config file: "<<c<<std::endl;
+    }
+
+    file >> appConfig;
+    structure = appConfig["structure"].get<std::string>();
+    clustering = appConfig["clustering"].get<std::string>();
+    dbscan_epsilon = appConfig["dbscan_epsilon"].get<float>();
+    std::cout << "Volumetric structure type: " << appConfig["structure"].get<std::string>() << std::endl;
+    printf("DBSCAN epsilon: %f\n", dbscan_epsilon);
 }
 
 #endif

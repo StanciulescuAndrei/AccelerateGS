@@ -118,7 +118,7 @@ static s_CudaErrorStr sCudaDrvErrorString[] = {
      * current thread. This can also be returned if the context passed to an
      * API call is not a valid handle (such as a context that has had
      * ::cuCtxDestroy() invoked on it). This can also be returned if a user
-     * mixes different API versions (i.e. 3010 context with 3020 API calls).
+     * mixes different API versions (i.e. n_images0 context with 3020 API calls).
      * See ::cuCtxGetApiVersion() for more details.
      */
     {"CUDA_ERROR_INVALID_CONTEXT", 201},
@@ -237,7 +237,7 @@ static s_CudaErrorStr sCudaDrvErrorString[] = {
     /**
      * This indicates that the file specified was not found.
      */
-    {"CUDA_ERROR_FILE_NOT_FOUND", 301},
+    {"CUDA_ERROR_FILE_NOT_FOUND", n_images},
 
     /**
      * This indicates that a link to a shared object failed to resolve.

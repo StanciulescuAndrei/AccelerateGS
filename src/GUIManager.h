@@ -3,12 +3,18 @@
 #include "../../../libs/imgui/imgui.h"
 #include "../../../libs/imgui/backends/imgui_impl_glfw.h"
 #include "../../../libs/imgui/backends/imgui_impl_opengl3.h"
+#include <string>
 
 #define MAX_BVH_LEVEL 20
-#define MIN_BVH_RESOLUTION MAX_BVH_LEVEL - 4
+#define MIN_BVH_LEVEL MAX_BVH_LEVEL - 7
 
-#define MAX_OCTREE_LEVEL 15
-#define MIN_RESOLUTION MAX_OCTREE_LEVEL - 4
+#define MAX_OCTREE_LEVEL 20
+#define MIN_OCTREE_LEVEL MAX_OCTREE_LEVEL - 4
+
+#define MIN_HYBRID_LEVEL 15
+#define MAX_HYBRID_LEVEL 21
+
+// #define INRIA_CLUSTER
 
 // #define INRIA_CLUSTER
 
@@ -16,7 +22,7 @@ float fovy = M_PI / 2.0f;
 float fovx = M_PI / 2.0f * 16 / 9;
 int selectedViewMode = 0;
 int renderPrimitive = 0;
-int renderLevel = MIN_BVH_RESOLUTION;
+int renderLevel = 21;
 int cameraIndex = 0;
 int cameraMode = 0;
 int autoLevel = 0;
@@ -27,7 +33,11 @@ int batchRender = 0;
 int renderedSplats = 0;
 int numCameraPositions = 2;
 
-float diagonalProjectionThreshold = 10.0f;
+float diagonalProjectionThreshold = 30.0f;
+
+std::string structure;
+std::string clustering;
+
 
 void setupIMGui(GLFWwindow** window){
     IMGUI_CHECKVERSION();
@@ -63,8 +73,23 @@ void buildInterface(){
     ImGui::RadioButton("Auto", &autoLevel, 1); ImGui::SameLine();
     ImGui::RadioButton("Manual", &autoLevel, 0);
 
-    ImGui::SliderInt("Render Level", &renderLevel, MIN_BVH_RESOLUTION, MAX_BVH_LEVEL + 1);
-    ImGui::SliderFloat("LOD render bias", &diagonalProjectionThreshold, 10.0f, 100.0f);
+    int render_low_limit, render_high_limit;
+
+    if(structure == std::string("octree")){
+        render_low_limit = MIN_OCTREE_LEVEL;
+        render_high_limit = MAX_OCTREE_LEVEL;
+    }
+    else if(structure == std::string("bvh")){
+        render_low_limit = MIN_BVH_LEVEL; 
+        render_high_limit = MAX_BVH_LEVEL;
+    }
+    else if(structure == std::string("hybrid")){
+        render_low_limit = MIN_HYBRID_LEVEL; 
+        render_high_limit = MAX_HYBRID_LEVEL;
+    }
+
+    ImGui::SliderInt("Render Level", &renderLevel, render_low_limit, render_high_limit + 1);
+    ImGui::SliderFloat("LOD render bias", &diagonalProjectionThreshold, 10.0f, 300.0f);
 
     ImGui::RadioButton("Free camera", &cameraMode, 0); ImGui::SameLine();
     ImGui::RadioButton("COLMAP Camera", &cameraMode, 1);

@@ -5,7 +5,7 @@
 #include <string>
 #include "raster_helper.cuh"
 
-int loadSplatData(char* path, std::vector<SplatData> & dataBuffer, int * numElements){
+int loadSplatData(const char* path, std::vector<SplatData> & dataBuffer, int * numElements){
     if(path == nullptr)
     {
         // invalid path

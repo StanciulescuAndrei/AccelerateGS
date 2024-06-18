@@ -2,9 +2,10 @@
 #include <stdlib.h>
 #include <math.h>
 #include <assert.h>
+#include <memory>
 
 #include <iostream>
-#include <thread>
+#include <pthread.h>
 
 #include "glad/glad.h"
 #include <GLFW/glfw3.h>
@@ -122,6 +123,19 @@ void initGLContextAndWindow(GLFWwindow** window){
     setupIMGui(window);
 }
 
+struct ThreadPayload{
+    SpacePartitioningBase * spacePartitioningRoot;
+    std::vector<SplatData> * sd;
+    int * num_elements;
+    volatile int * progress;
+};
+
+void * spacePartitioningThread(void * input){
+    ThreadPayload * payload = static_cast<ThreadPayload *>(input);
+    payload->spacePartitioningRoot->buildVHStructure(*(payload->sd), *(payload->num_elements), payload->progress);
+    pthread_exit(NULL);
+}
+
 int main(){
     GLFWwindow* window;
 
@@ -130,6 +144,8 @@ int main(){
 
     loadCameraFile("../../models/train/cameras.json");
     loadGenericProperties(SCREEN_WIDTH, SCREEN_HEIGHT, fovx, fovy);
+
+    loadApplicationConfig("../config.cfg", structure, clustering, dbscan_epsilon);
 
     numCameraPositions = cameraData.size();
 
@@ -140,14 +156,15 @@ int main(){
     bool * renderMask;
     int num_elements = 0;
     int res = loadSplatData("../../models/train/point_cloud/iteration_30000/point_cloud.ply", sd, &num_elements);
+    printf("Loaded %d splats from file\n", num_elements);
 
     const uint32_t maxDuplicatedGaussians = num_elements * 32;
 
     // First of all, build da octree
     begin = std::chrono::steady_clock::now();
-    #if defined(_OPENMP)
-        printf("Using OpenMP, yey\n");
-    #endif
+    // #if defined(_OPENMP)
+    //     printf("Using OpenMP, yey\n");
+    // #endif
 
     /* OpenGL configuration */
     glPixelStorei(GL_UNPACK_ALIGNMENT, 16);      // 4-byte pixel alignment
@@ -160,28 +177,50 @@ int main(){
 
 
     volatile int progress = 0;
-    GaussianBVH * spacePartitioningRoot;
-    omp_set_num_threads(4);
-    #pragma omp parallel num_threads(3) default(shared) shared(progress)
-    #pragma omp single
-    {
-        #pragma omp task
-        spacePartitioningRoot = buildBVH(sd, num_elements, &progress);
-
-        while(progress!=16){
-            /* Clear color and depth buffers */
-            glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
-            buildLoadingInterface(progress / 16.0f);
-            renderInterface();
-            /* Swap buffers and handle GLFW events */
-            glfwSwapBuffers(window);
-            glfwPollEvents();
-        }
+    float progressmax = 16.0f;
+    SpacePartitioningBase * spacePartitioningRoot = (nullptr);
+    if(structure == std::string("octree")){
+        spacePartitioningRoot = new GaussianOctree();
+        progressmax = 256.0f;
+    }
+    else if(structure == std::string("bvh")){
+        spacePartitioningRoot = new GaussianBVH();
+    }
+    else if(structure == std::string("hybrid")){
+        spacePartitioningRoot = new HybridVH();
+        progressmax = 256.0f;
     }
 
-    #pragma omp taskwait
-    
-    int old_num_elements = num_elements;
+    if(spacePartitioningRoot == nullptr){
+        printf("This ain't good lol....\n");
+    }
+
+
+    /* Compute space partitioning in a separate PThread */
+    pthread_t t_id;
+    ThreadPayload payload;
+    payload.num_elements = &num_elements;
+    payload.progress = &progress;
+    payload.spacePartitioningRoot = spacePartitioningRoot;
+    payload.sd = &sd;
+
+    // spacePartitioningThread(&payload);
+
+    pthread_create(&t_id, NULL, spacePartitioningThread, (void *)(&payload));
+
+    while(progress!=1024){
+        /* Clear color and depth buffers */
+        glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+        buildLoadingInterface(progress / progressmax);
+        renderInterface();
+        /* Swap buffers and handle GLFW events */
+        glfwSwapBuffers(window);
+        glfwPollEvents();
+    }
+
+    pthread_join(t_id, NULL);
+
+    spacePartitioningRoot->buildVHStructure(sd, num_elements, &progress);
 
     num_elements = sd.size();
     renderMask = (bool *)malloc(sizeof(bool) * num_elements);
@@ -189,7 +228,6 @@ int main(){
 
     end = std::chrono::steady_clock::now();
     int octreeTime = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
-    char title[256];
     printf("Octree built in %f s\n", octreeTime / 1000.0f);
     
     printf("Number of splats: %d\n", num_elements);
@@ -334,7 +372,7 @@ int main(){
             // for(int i = 0; i < old_num_elements; i++){
             //     renderMask[i] = 1;
             // }
-            renderedSplats = markForRender(renderMask, num_elements, spacePartitioningRoot, sd, autoLevel ? -1 : renderLevel, cameraPosition, fovy, SCREEN_WIDTH, diagonalProjectionThreshold);
+            renderedSplats = spacePartitioningRoot->markForRender(renderMask, num_elements, sd, autoLevel ? -1 : renderLevel, cameraPosition, fovy, SCREEN_WIDTH, diagonalProjectionThreshold);
             // printf("Rendered splats: %d\n", renderedSplats);
 
             checkCudaErrors(cudaMemcpy(d_renderMask, renderMask, sizeof(bool) * num_elements, cudaMemcpyHostToDevice));
@@ -365,11 +403,6 @@ int main(){
             d_temp_storage = NULL;
             temp_storage_bytes = 0;
 
-            /* Find highest MSB for RadixSort to eliminate a few of the cycles */
-            uint32_t highestKey = grid.x * grid.y;
-            int highestMsb = 31;
-            // while(highestKey >> highestMsb == 0) highestMsb--;
-
             /* Determine how much temporary storage we need */
             cub::DeviceRadixSort::SortPairs(d_temp_storage, temp_storage_bytes, d_sort_keys_in, d_sort_keys_out, d_sort_ids_in, d_sort_ids_out, totalDuplicateGaussians);
             checkCudaErrors(cudaMalloc(&d_temp_storage, temp_storage_bytes));
@@ -391,7 +424,7 @@ int main(){
             checkCudaErrors(cudaDeviceSynchronize());
         };
 
-        auto saveRenderRoutine = [&](char * filename){
+        auto saveRenderRoutine = [&](const char * filename){
             std::vector<float> floatPixelData(SCREEN_HEIGHT * SCREEN_WIDTH * 4);
             std::vector<unsigned char> pixelData(SCREEN_HEIGHT * SCREEN_WIDTH * 4);
 
@@ -408,10 +441,17 @@ int main(){
 
         if(batchRender){
             cameraMode = 1;
-            for(int i = 0; i < cameraData.size(); i++){
+            for(int i = 0; i < cameraData.size(); i+=10){
                 char filename[64];
+                /* Color */
+                selectedViewMode = 0;
                 softwareRasterizer(i);
                 snprintf(filename, 64, "renders/%05d.png", i);
+                saveRenderRoutine(filename);
+                /* Depth */
+                selectedViewMode = 1;
+                softwareRasterizer(i);
+                snprintf(filename, 64, "renders/d%05d.png", i);
                 saveRenderRoutine(filename);
             }
         }
@@ -492,6 +532,7 @@ int main(){
     checkCudaErrors(cudaFree(d_sort_ids_in));
     checkCudaErrors(cudaFree(d_sort_ids_out));
 
+    if(spacePartitioningRoot != nullptr) delete spacePartitioningRoot;
     delete [] imageData;
     free(renderMask);
 

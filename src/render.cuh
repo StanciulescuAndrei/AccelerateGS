@@ -124,12 +124,20 @@ __global__ void preprocessGaussians(int num_splats, SplatData * sd,
 	if ((rect_max.x - rect_min.x) * (rect_max.y - rect_min.y) == 0)
 		return;
 
+	// Store some useful helper data for the next steps.
+	depth[idx] = position_viewport.z;
+	radius[idx] = my_radius;
+	image_point[idx] = point_image;
+	// Inverse 2D covariance and opacity neatly pack into one float4
+	conic_opacity[idx] = { conic.x, conic.y, conic.z, sd[idx].fields.opacity };
+	num_tiles_overlap[idx] = (rect_max.y - rect_min.y) * (rect_max.x - rect_min.x);
+
 	if(renderMode>>4 == 0){
 		glm::vec3 result = computeColorFromSH(idx, 3, sd[idx].fields, camPos);
 		rgb[idx] = {result.x, result.y, result.z};
 	}
 	else if(renderMode>>4 == 1){
-		rgb[idx] = {1.0f - position_viewport.z / 10.0f, 1.0f - position_viewport.z / 10.0f, 1.0f - position_viewport.z / 10.0f};
+		rgb[idx] = {position_viewport.z / 20.0f, position_viewport.z / 20.0f, position_viewport.z / 20.0f};
 	}
 	else if(renderMode>>4 == 2){
 		glm::vec3 norm_cov = glm::normalize(glm::vec3(cov.x, cov.y, cov.z));
@@ -140,16 +148,6 @@ __global__ void preprocessGaussians(int num_splats, SplatData * sd,
 	// 	rgb[idx] = {1.0f, 0.0f, 0.0f};
 	// }
 
-	
-
-
-	// Store some useful helper data for the next steps.
-	depth[idx] = position_viewport.z;
-	radius[idx] = my_radius;
-	image_point[idx] = point_image;
-	// Inverse 2D covariance and opacity neatly pack into one float4
-	conic_opacity[idx] = { conic.x, conic.y, conic.z, sd[idx].fields.opacity };
-	num_tiles_overlap[idx] = (rect_max.y - rect_min.y) * (rect_max.x - rect_min.x);
 
 }
 
