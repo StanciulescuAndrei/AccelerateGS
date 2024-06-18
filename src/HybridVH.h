@@ -516,7 +516,7 @@ void HybridVH::processSplats(uint8_t _level, std::vector<SplatData> &sd, volatil
         std::vector<int> assignment;
         assignment.reserve(containedSplats.size());
 
-        nClusters = 2;
+        nClusters = 3;
 
         if(containedSplats.size() > nClusters && SpectralClustering(coverage, containedSplats, sd, nClusters, assignment) == 0){ //DBSCANClustering(coverage, containedSplats, sd, nClusters, assignment) == 0
             for(int i = 0; i < nClusters; i++){
@@ -727,7 +727,7 @@ int HybridVH::markForRender(bool *renderMask, uint32_t num_primitives, std::vect
     }
     else
     {
-        if (this->level == renderLevel)
+        if (this->level == renderLevel && this->representative != 0)
         {
             renderMask[this->representative] = true;
             return 1;

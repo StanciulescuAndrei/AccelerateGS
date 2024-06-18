@@ -624,7 +624,7 @@ int GaussianBVH::markForRender(bool *renderMask, uint32_t num_primitives, std::v
     }
     else
     {
-        if (this->level == renderLevel)
+        if (this->level == renderLevel && this->representative != 0)
         {
             renderMask[this->representative] = true;
             return 1;

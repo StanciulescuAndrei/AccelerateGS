@@ -1,4 +1,4 @@
-#define OPACITY_THRESHOLD 0.1f
+#define OPACITY_THRESHOLD 0.2f
 
 class SpacePartitioningBase 
 {

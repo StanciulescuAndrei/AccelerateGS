@@ -27,24 +27,11 @@ int SpectralClustering(glm::vec3 * bbox, std::vector<uint32_t> & containedSplatI
         data[i * 3 + 2] = sd[containedSplatIds[i]].fields.position[2];
     }
 
-    // int nSamples = std::min(100, inputDataSize);
-
-    // std::vector<int> indices(inputDataSize);
-    // for (int i = 0; i < inputDataSize; ++i) {
-    //     indices[i] = i;
-    // }
-
-    // std::srand(std::time(0));
-
-    // std::random_shuffle(indices.begin(), indices.end());
-
-    // indices.resize(nSamples);
-
     /*  Only do the spectral clustering part when there are few points.
         Otherwise, the eigenvector computation fo spectral decomposition 
         takes waay to long and requires too much RAM to be reasonable
     */
-    if(inputDataSize < 32){
+    if(inputDataSize < 1){
         Eigen::MatrixXf A(inputDataSize, inputDataSize);
         Eigen::MatrixXf L(inputDataSize, inputDataSize);
         Eigen::DiagonalMatrix<float, Eigen::Dynamic> D(inputDataSize);
@@ -104,17 +91,18 @@ int SpectralClustering(glm::vec3 * bbox, std::vector<uint32_t> & containedSplatI
 
     }
 
-    
     /* Move data to a oneDAL numeric table */
     dm::NumericTablePtr pointData = dm::HomogenNumericTable<>::create(data, 3, inputDataSize);
 
     /* Get k-means initialization points */
-    algo::kmeans::init::Batch<float, algo::kmeans::init::randomDense> init(nClusters);
+    algo::kmeans::init::Batch<float, algo::kmeans::init::plusPlusDense> init(nClusters);
     init.input.set(algo::kmeans::init::data, pointData);
 
     init.compute();
 
     dm::NumericTablePtr centroids = init.getResult()->get(algo::kmeans::init::centroids);
+
+    init.resetCompute();
 
     /* Create an algorithm object for the K-Means algorithm */
     algo::kmeans::Batch<> algorithm(nClusters, nIterations);
@@ -133,6 +121,8 @@ int SpectralClustering(glm::vec3 * bbox, std::vector<uint32_t> & containedSplatI
     dm::NumericTablePtr assignmentResult;
 
     assignmentResult = algorithm.getResult()->get(algo::kmeans::assignments);
+
+    algorithm.resetCompute();
     /* Data extraction containers */
     dm::BlockDescriptor<int> block;
     int *array;
@@ -147,6 +137,9 @@ int SpectralClustering(glm::vec3 * bbox, std::vector<uint32_t> & containedSplatI
         assignment.push_back(array[i]);
     }
     assignmentResult->releaseBlockOfRows(block);
+
+    assignmentResult.reset();
+    pointData.reset();
 
     return 0;
 }

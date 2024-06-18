@@ -632,17 +632,20 @@ int GaussianOctree::markForRender(bool *renderMask, uint32_t num_primitives, std
     }
     else
     {
-        if (this->level == renderLevel)
+        if (this->level == renderLevel && this->representative != 0)
         {
             renderMask[this->representative] = true;
             return 1;
         }
+
         if (this->level < renderLevel && this->isLeaf)
         {
-            for (auto splat : this->containedSplats)
+            for (auto splat : this->containedSplats){
                 renderMask[splat] = true;
+            }
             return this->containedSplats.size();
         }
+
         if (!this->isLeaf && this->level < renderLevel)
         {
             int splatsRendered = 0;
@@ -653,6 +656,7 @@ int GaussianOctree::markForRender(bool *renderMask, uint32_t num_primitives, std
             }
             return splatsRendered;
         }
+
         if (this->containedSplats.size() == 0 && this->representative == 0)
         {
             return 0;
