@@ -55,7 +55,7 @@ void getCameraParameters(int idx, glm::vec3 & position, glm::mat3 & rotation){
 
 }
 
-void loadApplicationConfig(std::string c, std::string & structure, std::string & clustering, float & bdscan_epsilon){
+void loadApplicationConfig(std::string c, RenderConfig & rc){
     std::ifstream file(c);
 
     if(!file){
@@ -63,11 +63,15 @@ void loadApplicationConfig(std::string c, std::string & structure, std::string &
     }
 
     file >> appConfig;
-    structure = appConfig["structure"].get<std::string>();
-    clustering = appConfig["clustering"].get<std::string>();
-    dbscan_epsilon = appConfig["dbscan_epsilon"].get<float>();
-    std::cout << "Volumetric structure type: " << appConfig["structure"].get<std::string>() << std::endl;
-    printf("DBSCAN epsilon: %f\n", dbscan_epsilon);
+    rc.structure = appConfig["structure"].get<std::string>();
+    rc.clustering = appConfig["clustering"].get<std::string>();
+    rc.dbscan_epsilon = appConfig["dbscan_epsilon"].get<float>();
+    rc.numClusterFeatures = appConfig["numClusterFeatures"].get<int>();
+    rc.spectralClusteringThreshold = appConfig["spectralClusteringThreshold"].get<int>();
+    std::cout << "Volumetric structure type: " << rc.structure << std::endl;
+    std::cout << "Clustering type: " << rc.clustering << std::endl;
+    std::cout << "Number of features for clustering: " << rc.numClusterFeatures << std::endl;
+    std::cout << "Spectral cluster limit: " << rc.spectralClusteringThreshold << std::endl;
 }
 
 #endif

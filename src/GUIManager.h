@@ -11,7 +11,7 @@
 #define MAX_OCTREE_LEVEL 20
 #define MIN_OCTREE_LEVEL MAX_OCTREE_LEVEL - 4
 
-#define MIN_HYBRID_LEVEL 15
+#define MIN_HYBRID_LEVEL 14
 #define MAX_HYBRID_LEVEL 21
 
 // #define INRIA_CLUSTER
@@ -35,9 +35,15 @@ int numCameraPositions = 2;
 
 float diagonalProjectionThreshold = 30.0f;
 
-std::string structure;
-std::string clustering;
+struct RenderConfig{
+    std::string structure;
+    std::string clustering;
+    int numClusterFeatures;
+    int spectralClusteringThreshold;
+    float dbscan_epsilon;
+};
 
+RenderConfig renderConfig;
 
 void setupIMGui(GLFWwindow** window){
     IMGUI_CHECKVERSION();
@@ -75,15 +81,15 @@ void buildInterface(){
 
     int render_low_limit, render_high_limit;
 
-    if(structure == std::string("octree")){
+    if(renderConfig.structure == std::string("octree")){
         render_low_limit = MIN_OCTREE_LEVEL;
         render_high_limit = MAX_OCTREE_LEVEL;
     }
-    else if(structure == std::string("bvh")){
+    else if(renderConfig.structure == std::string("bvh")){
         render_low_limit = MIN_BVH_LEVEL; 
         render_high_limit = MAX_BVH_LEVEL;
     }
-    else if(structure == std::string("hybrid")){
+    else if(renderConfig.structure == std::string("hybrid")){
         render_low_limit = MIN_HYBRID_LEVEL; 
         render_high_limit = MAX_HYBRID_LEVEL;
     }

@@ -7,31 +7,40 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <vector>
 #include "raster_helper.cuh"
+#include "GUIManager.h"
 
 namespace dm = daal::data_management;
 namespace algo =  daal::algorithms;
-
-float dbscan_epsilon = 1e-3;
 
 int SpectralClustering(glm::vec3 * bbox, std::vector<uint32_t> & containedSplatIds, std::vector<SplatData> & sd, int & nClusters, std::vector<int> & assignment){
     size_t inputDataSize = containedSplatIds.size();
 
     float boxSize = glm::length(bbox[1] - bbox[0]);
-    int nIterations = 8;
+    int nIterations = 16;
+
+    const int numFeatures = renderConfig.numClusterFeatures;
 
     /* Transfer point data to float array */
-    float * data = new float[3 * inputDataSize];
+    float * data = new float[numFeatures * inputDataSize];
     for(int i = 0; i < inputDataSize; i++){
-        data[i * 3 + 0] = sd[containedSplatIds[i]].fields.position[0];
-        data[i * 3 + 1] = sd[containedSplatIds[i]].fields.position[1];
-        data[i * 3 + 2] = sd[containedSplatIds[i]].fields.position[2];
+        data[i * numFeatures + 0] = sd[containedSplatIds[i]].fields.SH[0];
+        data[i * numFeatures + 1] = sd[containedSplatIds[i]].fields.SH[1];
+        data[i * numFeatures + 2] = sd[containedSplatIds[i]].fields.SH[2];
+        if(renderConfig.numClusterFeatures == 7){
+            data[i * numFeatures + 3] = sd[containedSplatIds[i]].fields.SH[0]   * boxSize;
+            data[i * numFeatures + 4] = sd[containedSplatIds[i]].fields.SH[1]   * boxSize;  
+            data[i * numFeatures + 5] = sd[containedSplatIds[i]].fields.SH[2]   * boxSize;  
+            data[i * numFeatures + 6] = sd[containedSplatIds[i]].fields.opacity * boxSize;  
+        }
+        
     }
 
     /*  Only do the spectral clustering part when there are few points.
         Otherwise, the eigenvector computation fo spectral decomposition 
         takes waay to long and requires too much RAM to be reasonable
     */
-    if(inputDataSize < 1){
+    bool reprojectPoints = (inputDataSize < renderConfig.spectralClusteringThreshold);
+    if(reprojectPoints){
         Eigen::MatrixXf A(inputDataSize, inputDataSize);
         Eigen::MatrixXf L(inputDataSize, inputDataSize);
         Eigen::DiagonalMatrix<float, Eigen::Dynamic> D(inputDataSize);
@@ -43,7 +52,7 @@ int SpectralClustering(glm::vec3 * bbox, std::vector<uint32_t> & containedSplatI
                     A(i, j) = 0.0f;
                 }
                 else{
-                    A(i, j) = glm::exp(-glm::distance(glm::make_vec3(data + i * 3), glm::make_vec3(data + j * 3)) / 8);
+                    A(i, j) = glm::exp(-glm::distance(glm::make_vec3(data + i * numFeatures), glm::make_vec3(data + j * numFeatures)) / 8);
                 }
             }
         }
@@ -92,10 +101,10 @@ int SpectralClustering(glm::vec3 * bbox, std::vector<uint32_t> & containedSplatI
     }
 
     /* Move data to a oneDAL numeric table */
-    dm::NumericTablePtr pointData = dm::HomogenNumericTable<>::create(data, 3, inputDataSize);
+    dm::NumericTablePtr pointData = dm::HomogenNumericTable<>::create(data, numFeatures, inputDataSize);
 
     /* Get k-means initialization points */
-    algo::kmeans::init::Batch<float, algo::kmeans::init::plusPlusDense> init(nClusters);
+    algo::kmeans::init::Batch<float, algo::kmeans::init::randomDense> init(nClusters);
     init.input.set(algo::kmeans::init::data, pointData);
 
     init.compute();

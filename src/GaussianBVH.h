@@ -59,7 +59,7 @@ void computeNodeRepresentative(GaussianBVH *node, std::vector<SplatData> &sd)
     if (node == nullptr)
         return;
 
-    if (clustering == std::string("pca"))
+    if (renderConfig.clustering == std::string("pca"))
     {
         size_t num_fields = sizeof(SplatData) / sizeof(float);
         float nodeSize = (node->bbox[1].x - node->bbox[0].x) / (node->level * node->level);
@@ -295,7 +295,7 @@ void computeNodeRepresentative(GaussianBVH *node, std::vector<SplatData> &sd)
         sd.push_back(representative);
         node->representative = sd.size() - 1;
     }
-    else if (clustering == std::string("inria"))
+    else if (renderConfig.clustering == std::string("inria"))
     {
         size_t num_fields = sizeof(SplatData) / sizeof(float);
         float nodeSize = (node->bbox[1].x - node->bbox[0].x) / (node->level * node->level);

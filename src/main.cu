@@ -4,6 +4,10 @@
 #include <assert.h>
 #include <memory>
 
+#include <iomanip>
+#include <ctime>
+#include <sstream>
+
 #include <iostream>
 #include <pthread.h>
 
@@ -145,7 +149,7 @@ int main(){
     loadCameraFile("../../models/train/cameras.json");
     loadGenericProperties(SCREEN_WIDTH, SCREEN_HEIGHT, fovx, fovy);
 
-    loadApplicationConfig("../config.cfg", structure, clustering, dbscan_epsilon);
+    loadApplicationConfig("../config.cfg", renderConfig);
 
     numCameraPositions = cameraData.size();
 
@@ -179,14 +183,14 @@ int main(){
     volatile int progress = 0;
     float progressmax = 16.0f;
     SpacePartitioningBase * spacePartitioningRoot = (nullptr);
-    if(structure == std::string("octree")){
+    if(renderConfig.structure == std::string("octree")){
         spacePartitioningRoot = new GaussianOctree();
         progressmax = 256.0f;
     }
-    else if(structure == std::string("bvh")){
+    else if(renderConfig.structure == std::string("bvh")){
         spacePartitioningRoot = new GaussianBVH();
     }
-    else if(structure == std::string("hybrid")){
+    else if(renderConfig.structure == std::string("hybrid")){
         spacePartitioningRoot = new HybridVH();
         progressmax = 256.0f;
     }
@@ -220,7 +224,7 @@ int main(){
 
     pthread_join(t_id, NULL);
 
-    spacePartitioningRoot->buildVHStructure(sd, num_elements, &progress);
+    // spacePartitioningRoot->buildVHStructure(sd, num_elements, &progress);
 
     num_elements = sd.size();
     renderMask = (bool *)malloc(sizeof(bool) * num_elements);
@@ -463,7 +467,13 @@ int main(){
         buildInterface();
 
         if(saveRender){
-            saveRenderRoutine("renders/output.png");
+            auto t = std::time(nullptr);
+            auto tm = *std::localtime(&t);
+
+            std::ostringstream oss;
+            oss << "renders/output_" << std::put_time(&tm, "%d-%m %H-%M-%S")<<".png";
+            auto str = oss.str();
+            saveRenderRoutine(str.c_str());
         }
 
         /* Unmap the OpenGL resources */
