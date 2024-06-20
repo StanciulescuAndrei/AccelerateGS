@@ -5,14 +5,14 @@
 #include "../../../libs/imgui/backends/imgui_impl_opengl3.h"
 #include <string>
 
-#define MAX_BVH_LEVEL 20
-#define MIN_BVH_LEVEL MAX_BVH_LEVEL - 7
+#define MAX_BVH_LEVEL 15
+#define MIN_BVH_LEVEL 0
 
+#define MIN_OCTREE_LEVEL 11
 #define MAX_OCTREE_LEVEL 20
-#define MIN_OCTREE_LEVEL MAX_OCTREE_LEVEL - 4
 
-#define MIN_HYBRID_LEVEL 14
-#define MAX_HYBRID_LEVEL 21
+#define MIN_HYBRID_LEVEL 0
+#define MAX_HYBRID_LEVEL 15
 
 // #define INRIA_CLUSTER
 
@@ -41,6 +41,7 @@ struct RenderConfig{
     int numClusterFeatures;
     int spectralClusteringThreshold;
     float dbscan_epsilon;
+    int nClusters;
 };
 
 RenderConfig renderConfig;

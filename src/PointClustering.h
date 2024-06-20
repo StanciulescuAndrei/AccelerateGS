@@ -16,21 +16,21 @@ int SpectralClustering(glm::vec3 * bbox, std::vector<uint32_t> & containedSplatI
     size_t inputDataSize = containedSplatIds.size();
 
     float boxSize = glm::length(bbox[1] - bbox[0]);
-    int nIterations = 16;
+    int nIterations = 64;
 
     const int numFeatures = renderConfig.numClusterFeatures;
 
     /* Transfer point data to float array */
     float * data = new float[numFeatures * inputDataSize];
     for(int i = 0; i < inputDataSize; i++){
-        data[i * numFeatures + 0] = sd[containedSplatIds[i]].fields.SH[0];
-        data[i * numFeatures + 1] = sd[containedSplatIds[i]].fields.SH[1];
-        data[i * numFeatures + 2] = sd[containedSplatIds[i]].fields.SH[2];
+        data[i * numFeatures + 0] = sd[containedSplatIds[i]].fields.position[0];
+        data[i * numFeatures + 1] = sd[containedSplatIds[i]].fields.position[1];
+        data[i * numFeatures + 2] = sd[containedSplatIds[i]].fields.position[2];
         if(renderConfig.numClusterFeatures == 7){
-            data[i * numFeatures + 3] = sd[containedSplatIds[i]].fields.SH[0]   * boxSize;
-            data[i * numFeatures + 4] = sd[containedSplatIds[i]].fields.SH[1]   * boxSize;  
-            data[i * numFeatures + 5] = sd[containedSplatIds[i]].fields.SH[2]   * boxSize;  
-            data[i * numFeatures + 6] = sd[containedSplatIds[i]].fields.opacity * boxSize;  
+            data[i * numFeatures + 3] = sd[containedSplatIds[i]].fields.SH[0]   ; //* boxSize;
+            data[i * numFeatures + 4] = sd[containedSplatIds[i]].fields.SH[1]   ; //* boxSize;  
+            data[i * numFeatures + 5] = sd[containedSplatIds[i]].fields.SH[2]   ; //* boxSize;  
+            data[i * numFeatures + 6] = sd[containedSplatIds[i]].fields.opacity ; //* boxSize;  
         }
         
     }
@@ -40,6 +40,15 @@ int SpectralClustering(glm::vec3 * bbox, std::vector<uint32_t> & containedSplatI
         takes waay to long and requires too much RAM to be reasonable
     */
     bool reprojectPoints = (inputDataSize < renderConfig.spectralClusteringThreshold);
+
+    float * reprojectedPointsData;
+    if(reprojectPoints){
+        reprojectedPointsData = new float[nClusters * inputDataSize];
+    }
+    else{
+        reprojectedPointsData = data;
+    }
+
     if(reprojectPoints){
         Eigen::MatrixXf A(inputDataSize, inputDataSize);
         Eigen::MatrixXf L(inputDataSize, inputDataSize);
@@ -93,15 +102,15 @@ int SpectralClustering(glm::vec3 * bbox, std::vector<uint32_t> & containedSplatI
 
         /* Change data to reprojected points */
         for(int i = 0; i < inputDataSize; i++){
-            data[i * 3 + 0] = eigenPairs[0].second(i);
-            data[i * 3 + 1] = eigenPairs[1].second(i);
-            data[i * 3 + 2] = eigenPairs[2].second(i);
+            for(int k = 0; k < nClusters; k++){
+                reprojectedPointsData[i * nClusters + k] = eigenPairs[k].second(i);
+            }
         }
 
     }
 
     /* Move data to a oneDAL numeric table */
-    dm::NumericTablePtr pointData = dm::HomogenNumericTable<>::create(data, numFeatures, inputDataSize);
+    dm::NumericTablePtr pointData = dm::HomogenNumericTable<>::create(reprojectedPointsData, reprojectPoints ? nClusters : numFeatures, inputDataSize);
 
     /* Get k-means initialization points */
     algo::kmeans::init::Batch<float, algo::kmeans::init::randomDense> init(nClusters);
@@ -126,6 +135,9 @@ int SpectralClustering(glm::vec3 * bbox, std::vector<uint32_t> & containedSplatI
 
     /* Cleanup, then retrieve results */
     delete [] data;
+    if(reprojectPoints){
+        delete [] reprojectedPointsData; 
+    }
 
     dm::NumericTablePtr assignmentResult;
 

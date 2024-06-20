@@ -65,7 +65,7 @@ HybridVH::HybridVH()
 void computeNodeRepresentative(HybridVH *node, std::vector<SplatData> &sd)
 {
 
-    if (node == nullptr)
+    if (node == nullptr || node->containedSplats.size() == 0)
         return;
 
     if (renderConfig.clustering == std::string("pca"))
@@ -501,14 +501,12 @@ void HybridVH::processSplats(uint8_t _level, std::vector<SplatData> &sd, volatil
     }
     else
     {
-        int nClusters;
         std::vector<int> assignment;
         assignment.reserve(containedSplats.size());
 
-        nClusters = 2;
 
-        if(containedSplats.size() > nClusters && SpectralClustering(coverage, containedSplats, sd, nClusters, assignment) == 0){ //DBSCANClustering(coverage, containedSplats, sd, nClusters, assignment) == 0
-            for(int i = 0; i < nClusters; i++){
+        if(containedSplats.size() > renderConfig.nClusters && SpectralClustering(coverage, containedSplats, sd, renderConfig.nClusters, assignment) == 0){ //DBSCANClustering(coverage, containedSplats, sd, nClusters, assignment) == 0
+            for(int i = 0; i < renderConfig.nClusters; i++){
                 HybridVH *child = new HybridVH();
                 // See which of the splats go into the newly created node
                 for (int k = 0; k < containedSplats.size(); k++)

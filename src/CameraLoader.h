@@ -68,6 +68,7 @@ void loadApplicationConfig(std::string c, RenderConfig & rc){
     rc.dbscan_epsilon = appConfig["dbscan_epsilon"].get<float>();
     rc.numClusterFeatures = appConfig["numClusterFeatures"].get<int>();
     rc.spectralClusteringThreshold = appConfig["spectralClusteringThreshold"].get<int>();
+    rc.nClusters = appConfig["numClusters"].get<int>();
     std::cout << "Volumetric structure type: " << rc.structure << std::endl;
     std::cout << "Clustering type: " << rc.clustering << std::endl;
     std::cout << "Number of features for clustering: " << rc.numClusterFeatures << std::endl;
