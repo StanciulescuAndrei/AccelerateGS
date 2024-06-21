@@ -162,7 +162,7 @@ int main(){
     int res = loadSplatData("../../models/train/point_cloud/iteration_40000/point_cloud.ply", sd, &num_elements);
     printf("Loaded %d splats from file\n", num_elements);
 
-    const uint32_t maxDuplicatedGaussians = num_elements * 32;
+    const uint32_t maxDuplicatedGaussians = num_elements * 256;
 
     // First of all, build da octree
     begin = std::chrono::steady_clock::now();

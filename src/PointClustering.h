@@ -15,22 +15,45 @@ namespace algo =  daal::algorithms;
 int SpectralClustering(glm::vec3 * bbox, std::vector<uint32_t> & containedSplatIds, std::vector<SplatData> & sd, int & nClusters, std::vector<int> & assignment){
     size_t inputDataSize = containedSplatIds.size();
 
-    float boxSize = glm::length(bbox[1] - bbox[0]);
-    int nIterations = 64;
+    /* Compute coverage spanned by splat centers */
 
+    glm::vec3 minBound(1e13, 1e13, 1e13);
+    glm::vec3 maxBound(-1e13, -1e13, -1e13);
+
+    for (auto splat : containedSplatIds)
+    {
+        minBound.x = min(minBound.x, sd[splat].fields.position[0]);
+        minBound.y = min(minBound.y, sd[splat].fields.position[1]);
+        minBound.z = min(minBound.z, sd[splat].fields.position[2]);
+        maxBound.x = max(maxBound.x, sd[splat].fields.position[0]);
+        maxBound.y = max(maxBound.y, sd[splat].fields.position[1]);
+        maxBound.z = max(maxBound.z, sd[splat].fields.position[2]);
+    }
+
+    float boxSize = glm::length(maxBound - minBound);
+
+    glm::vec3 meanPosition(0.0f);
+    for(auto splat : containedSplatIds){
+        meanPosition += glm::make_vec3(sd[splat].fields.position);
+    }
+
+    meanPosition /= inputDataSize;
+
+    int nIterations = 64;
     const int numFeatures = renderConfig.numClusterFeatures;
 
     /* Transfer point data to float array */
     float * data = new float[numFeatures * inputDataSize];
+    const float fieldScaling = 0.2f;
     for(int i = 0; i < inputDataSize; i++){
         data[i * numFeatures + 0] = sd[containedSplatIds[i]].fields.position[0];
         data[i * numFeatures + 1] = sd[containedSplatIds[i]].fields.position[1];
         data[i * numFeatures + 2] = sd[containedSplatIds[i]].fields.position[2];
         if(renderConfig.numClusterFeatures == 7){
-            data[i * numFeatures + 3] = sd[containedSplatIds[i]].fields.SH[0]   ; //* boxSize;
-            data[i * numFeatures + 4] = sd[containedSplatIds[i]].fields.SH[1]   ; //* boxSize;  
-            data[i * numFeatures + 5] = sd[containedSplatIds[i]].fields.SH[2]   ; //* boxSize;  
-            data[i * numFeatures + 6] = sd[containedSplatIds[i]].fields.opacity ; //* boxSize;  
+            data[i * numFeatures + 3] = sd[containedSplatIds[i]].fields.SH[0]   * boxSize * fieldScaling;
+            data[i * numFeatures + 4] = sd[containedSplatIds[i]].fields.SH[1]   * boxSize * fieldScaling;  
+            data[i * numFeatures + 5] = sd[containedSplatIds[i]].fields.SH[2]   * boxSize * fieldScaling;  
+            data[i * numFeatures + 6] = sd[containedSplatIds[i]].fields.opacity * boxSize * fieldScaling;  
         }
         
     }
@@ -113,7 +136,7 @@ int SpectralClustering(glm::vec3 * bbox, std::vector<uint32_t> & containedSplatI
     dm::NumericTablePtr pointData = dm::HomogenNumericTable<>::create(reprojectedPointsData, reprojectPoints ? nClusters : numFeatures, inputDataSize);
 
     /* Get k-means initialization points */
-    algo::kmeans::init::Batch<float, algo::kmeans::init::randomDense> init(nClusters);
+    algo::kmeans::init::Batch<float, algo::kmeans::init::parallelPlusDense> init(nClusters);
     init.input.set(algo::kmeans::init::data, pointData);
 
     init.compute();
