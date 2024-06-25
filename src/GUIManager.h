@@ -8,15 +8,11 @@
 #define MAX_BVH_LEVEL 15
 #define MIN_BVH_LEVEL 0
 
-#define MIN_OCTREE_LEVEL 11
-#define MAX_OCTREE_LEVEL 20
+#define MIN_OCTREE_LEVEL 0
+#define MAX_OCTREE_LEVEL 15
 
-#define MIN_HYBRID_LEVEL 0
+#define MIN_HYBRID_LEVEL 6
 #define MAX_HYBRID_LEVEL 15
-
-// #define INRIA_CLUSTER
-
-// #define INRIA_CLUSTER
 
 float fovy = M_PI / 2.0f;
 float fovx = M_PI / 2.0f * 16 / 9;

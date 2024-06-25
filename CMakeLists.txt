@@ -38,6 +38,8 @@ include_directories(
 	/opt/intel/oneapi/dal/2024.2/include/dal
 )
 
+add_compile_definitions("RELEASE=$<CONFIG:Release>")
+
 add_executable(AccelerateGS 
 		src/main.cu 
 		src/glad/glad.h

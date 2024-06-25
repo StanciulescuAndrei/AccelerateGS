@@ -501,6 +501,31 @@ void HybridVH::processSplats(uint8_t _level, std::vector<SplatData> &sd, volatil
     }
     else
     {
+
+        containedSplats.erase(std::remove_if(
+                              containedSplats.begin(),
+                              containedSplats.end(),
+                              [&](uint32_t k)
+                              {
+                                  if (k < sd.size())
+                                      return (sd[k].fields.opacity < OPACITY_THRESHOLD);
+                                  return true;
+                              }),
+                          containedSplats.end());
+        
+        if (containedSplats.size() == 0)
+        {
+            isLeaf = true;
+            representative = 0;
+            return;
+        }
+        if (containedSplats.size() == 1)
+        {
+            isLeaf = true;
+            representative = containedSplats[0];
+            return;
+        }
+
         std::vector<int> assignment;
         assignment.reserve(containedSplats.size());
 

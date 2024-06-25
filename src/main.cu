@@ -208,8 +208,7 @@ int main(){
     payload.spacePartitioningRoot = spacePartitioningRoot;
     payload.sd = &sd;
 
-    // spacePartitioningThread(&payload);
-
+#if RELEASE
     pthread_create(&t_id, NULL, spacePartitioningThread, (void *)(&payload));
 
     while(progress!=1024){
@@ -223,6 +222,9 @@ int main(){
     }
 
     pthread_join(t_id, NULL);
+#else
+    spacePartitioningThread(&payload);
+#endif
 
     // spacePartitioningRoot->buildVHStructure(sd, num_elements, &progress);
 

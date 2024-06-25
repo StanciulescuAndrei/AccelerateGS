@@ -71,6 +71,7 @@ void loadApplicationConfig(std::string c, RenderConfig & rc){
     rc.nClusters = appConfig["numClusters"].get<int>();
     std::cout << "Volumetric structure type: " << rc.structure << std::endl;
     std::cout << "Clustering type: " << rc.clustering << std::endl;
+    std::cout << "# of required clusters: " << rc.nClusters << std::endl;
     std::cout << "Number of features for clustering: " << rc.numClusterFeatures << std::endl;
     std::cout << "Spectral cluster limit: " << rc.spectralClusteringThreshold << std::endl;
 }

@@ -136,7 +136,7 @@ int SpectralClustering(glm::vec3 * bbox, std::vector<uint32_t> & containedSplatI
     dm::NumericTablePtr pointData = dm::HomogenNumericTable<>::create(reprojectedPointsData, reprojectPoints ? nClusters : numFeatures, inputDataSize);
 
     /* Get k-means initialization points */
-    algo::kmeans::init::Batch<float, algo::kmeans::init::parallelPlusDense> init(nClusters);
+    algo::kmeans::init::Batch<float, algo::kmeans::init::randomDense> init(nClusters);
     init.input.set(algo::kmeans::init::data, pointData);
 
     init.compute();
