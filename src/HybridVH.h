@@ -68,7 +68,7 @@ void computeNodeRepresentative(HybridVH *node, std::vector<SplatData> &sd)
     if (node == nullptr || node->containedSplats.size() == 0)
         return;
 
-    if (renderConfig.clustering == std::string("pca"))
+    if (renderConfig.representative == std::string("pca"))
     {
         size_t num_fields = sizeof(SplatData) / sizeof(float);
         float nodeSize = (node->bbox[1].x - node->bbox[0].x) / (node->level * node->level);
@@ -315,7 +315,7 @@ void computeNodeRepresentative(HybridVH *node, std::vector<SplatData> &sd)
         sd.push_back(representative);
         node->representative = sd.size() - 1;
     }
-    else if (renderConfig.clustering == std::string("inria"))
+    else if (renderConfig.representative == std::string("inria"))
     {
         size_t num_fields = sizeof(SplatData) / sizeof(float);
         float nodeSize = (node->bbox[1].x - node->bbox[0].x) / (node->level * node->level);
@@ -502,16 +502,16 @@ void HybridVH::processSplats(uint8_t _level, std::vector<SplatData> &sd, volatil
     else
     {
 
-        containedSplats.erase(std::remove_if(
-                              containedSplats.begin(),
-                              containedSplats.end(),
-                              [&](uint32_t k)
-                              {
-                                  if (k < sd.size())
-                                      return (sd[k].fields.opacity < OPACITY_THRESHOLD);
-                                  return true;
-                              }),
-                          containedSplats.end());
+        // containedSplats.erase(std::remove_if(
+        //                       containedSplats.begin(),
+        //                       containedSplats.end(),
+        //                       [&](uint32_t k)
+        //                       {
+        //                           if (k < sd.size())
+        //                               return (sd[k].fields.opacity < OPACITY_THRESHOLD);
+        //                           return true;
+        //                       }),
+        //                   containedSplats.end());
         
         if (containedSplats.size() == 0)
         {
@@ -530,7 +530,11 @@ void HybridVH::processSplats(uint8_t _level, std::vector<SplatData> &sd, volatil
         assignment.reserve(containedSplats.size());
 
 
-        if(containedSplats.size() > renderConfig.nClusters && SpectralClustering(coverage, containedSplats, sd, renderConfig.nClusters, assignment) == 0){ //DBSCANClustering(coverage, containedSplats, sd, nClusters, assignment) == 0
+        if(containedSplats.size() > renderConfig.nClusters){
+            if(renderConfig.clustering == std::string("pcdecomp"))
+                PCReprojectionClustering(coverage, containedSplats, sd, renderConfig.nClusters, assignment);
+            else if(renderConfig.clustering == std::string("spectral"))
+                SpectralClustering(coverage, containedSplats, sd, renderConfig.nClusters, assignment);
             for(int i = 0; i < renderConfig.nClusters; i++){
                 HybridVH *child = new HybridVH();
                 // See which of the splats go into the newly created node
