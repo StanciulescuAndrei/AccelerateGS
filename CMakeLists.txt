@@ -1,6 +1,8 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.18 FATAL_ERROR)
 project(AccelerateGS VERSION 0.1.0 LANGUAGES CXX C CUDA)
 cmake_policy(SET CMP0072 NEW)
+
+list(APPEND CMAKE_PREFIX_PATH "/home/andrei/Documents/libs/libtorch")
 
 find_package(OpenGL REQUIRED)
 
@@ -14,9 +16,11 @@ find_package(Threads REQUIRED)
 
 find_package(nanoflann)
 
+find_package(Torch REQUIRED)
+
 set(CMAKE_CXX_COMPILER icpx)
 set(CMAKE_C_COMPILER icx)
-# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsycl")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${TORCH_CXX_FLAGS}")
 
 
 set(CMAKE_CUDA_ARCHITECTURES 86)
@@ -36,6 +40,7 @@ include_directories(
 	${STB_PATH}
 	/opt/intel/oneapi/dal/2024.2/include/
 	/opt/intel/oneapi/dal/2024.2/include/dal
+	/../../libs/libtorch/include
 )
 
 add_compile_definitions("RELEASE=$<CONFIG:Release>")
@@ -98,5 +103,8 @@ target_link_libraries(AccelerateGS
 	pthread
 	sycl
 	OpenCL
+	"${TORCH_LIBRARIES}"
 )
+
+set_property(TARGET AccelerateGS PROPERTY CXX_STANDARD 17)
 

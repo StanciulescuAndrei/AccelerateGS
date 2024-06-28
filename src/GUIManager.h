@@ -8,14 +8,14 @@
 #define MIN_BVH_LEVEL 14
 #define MAX_BVH_LEVEL 21
 
-#define MIN_OCTREE_LEVEL 0
-#define MAX_OCTREE_LEVEL 15
+#define MIN_OCTREE_LEVEL 15
+#define MAX_OCTREE_LEVEL 21
 
-// #define MIN_HYBRID_LEVEL 16
-// #define MAX_HYBRID_LEVEL 21
+#define MIN_HYBRID_LEVEL 15
+#define MAX_HYBRID_LEVEL 21
 
-#define MIN_HYBRID_LEVEL 6
-#define MAX_HYBRID_LEVEL 15
+// #define MIN_HYBRID_LEVEL 6
+// #define MAX_HYBRID_LEVEL 15
 
 float fovy = M_PI / 2.0f;
 float fovx = M_PI / 2.0f * 16 / 9;

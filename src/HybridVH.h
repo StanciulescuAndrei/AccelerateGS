@@ -26,7 +26,7 @@ class HybridVH : public SpacePartitioningBase
 {
 public:
     std::vector<HybridVH *> children;
-    std::vector<uint32_t> containedSplats;
+    std::vector<uint32_t> * containedSplats;
     LevelType levelType;
     uint8_t level = 0;
     bool isLeaf = false;
@@ -50,6 +50,8 @@ HybridVH::HybridVH(glm::vec3 *_bbox)
 
     coverage[0] = _bbox[0];
     coverage[1] = _bbox[1];
+
+    containedSplats = new std::vector<uint32_t>();
 }
 
 HybridVH::HybridVH()
@@ -60,12 +62,14 @@ HybridVH::HybridVH()
 
     coverage[0] = zero;
     coverage[1] = zero;
+
+    containedSplats = new std::vector<uint32_t>();
 }
 
 void computeNodeRepresentative(HybridVH *node, std::vector<SplatData> &sd)
 {
 
-    if (node == nullptr || node->containedSplats.size() == 0)
+    if (node == nullptr || node->containedSplats->size() == 0)
         return;
 
     if (renderConfig.representative == std::string("pca"))
@@ -84,12 +88,12 @@ void computeNodeRepresentative(HybridVH *node, std::vector<SplatData> &sd)
         }
 
         PointCloud coveragePoints;
-        coveragePoints.reserve(node->containedSplats.size() * 7);
+        coveragePoints.reserve(node->containedSplats->size() * 7);
 
         std::vector<float> pointWeights;
 
         std::vector<uint32_t> base_splats;
-        base_splats = node->containedSplats;
+        base_splats = *(node->containedSplats);
 
         // for (auto child : node->children)
         // {
@@ -323,7 +327,7 @@ void computeNodeRepresentative(HybridVH *node, std::vector<SplatData> &sd)
         std::vector<uint32_t> base_splats;
         if (node->isLeaf)
         {
-            base_splats = node->containedSplats;
+            base_splats = *(node->containedSplats);
         }
         else
         {
@@ -452,16 +456,16 @@ void HybridVH::processSplats(uint8_t _level, std::vector<SplatData> &sd, volatil
         (*progress)++;
     }
 
-    if (containedSplats.size() == 0)
+    if (containedSplats->size() == 0)
     {
         isLeaf = true;
         representative = 0;
         return;
     }
-    if (containedSplats.size() == 1)
+    if (containedSplats->size() == 1)
     {
         isLeaf = true;
-        representative = containedSplats[0];
+        representative = (*containedSplats)[0];
         return;
     }
 
@@ -482,22 +486,26 @@ void HybridVH::processSplats(uint8_t _level, std::vector<SplatData> &sd, volatil
             HybridVH *child = new HybridVH(childBbox);
 
             // See which of the splats go into the newly created node
-            for (int k = 0; k < containedSplats.size(); k++)
+            for (int k = 0; k < containedSplats->size(); k++)
             {
-                auto splat = containedSplats[k];
+                auto splat = (*containedSplats)[k];
                 if (insideBBox(child->bbox, splat, sd))
                 {
-                    child->containedSplats.push_back(splat);
+                    child->containedSplats->push_back(splat);
                     addSplatToCoverage(child->coverage, splat, sd);
                 }
             }
             child->isLeaf = false;
             child->representative = 0;
-            child->processSplats(level + 1, sd, progress);
             children.push_back(child);
         }
         // computeNodeRepresentative(this, sd);
-        containedSplats.clear();
+        containedSplats->clear();
+        delete containedSplats;
+
+        for(auto child : children){
+            child->processSplats(level + 1, sd, progress);
+        }
     }
     else
     {
@@ -513,59 +521,46 @@ void HybridVH::processSplats(uint8_t _level, std::vector<SplatData> &sd, volatil
         //                       }),
         //                   containedSplats.end());
         
-        if (containedSplats.size() == 0)
+        if (containedSplats->size() == 0)
         {
             isLeaf = true;
             representative = 0;
             return;
         }
-        if (containedSplats.size() == 1)
+        if (containedSplats->size() == 1)
         {
             isLeaf = true;
-            representative = containedSplats[0];
+            representative = (*containedSplats)[0];
             return;
         }
 
         std::vector<int> assignment;
-        assignment.reserve(containedSplats.size());
+        assignment.reserve(containedSplats->size());
 
+        computeNodeRepresentative(this, sd);
 
-        if(containedSplats.size() > renderConfig.nClusters){
+        if(containedSplats->size() > renderConfig.nClusters){
             if(renderConfig.clustering == std::string("pcdecomp"))
-                PCReprojectionClustering(coverage, containedSplats, sd, renderConfig.nClusters, assignment);
+                PCReprojectionClustering(coverage, *containedSplats, sd, renderConfig.nClusters, assignment);
             else if(renderConfig.clustering == std::string("spectral"))
-                SpectralClustering(coverage, containedSplats, sd, renderConfig.nClusters, assignment);
+                SpectralClustering(coverage, *containedSplats, sd, renderConfig.nClusters, assignment);
             for(int i = 0; i < renderConfig.nClusters; i++){
                 HybridVH *child = new HybridVH();
                 // See which of the splats go into the newly created node
-                for (int k = 0; k < containedSplats.size(); k++)
+                for (int k = 0; k < containedSplats->size(); k++)
                 {
                     if(assignment[k] == i){
-                        auto splat = containedSplats[k];
-                        child->containedSplats.push_back(splat);
+                        auto splat = (*containedSplats)[k];
+                        child->containedSplats->push_back(splat);
                         addSplatToCoverage(child->coverage, splat, sd);
                     }
                 }
                 /* Actual split is not that relevant */
                 child->bbox[0] = child->coverage[0];
                 child->bbox[1] = child->coverage[1];
-                if (level < MAX_HYBRID_LEVEL - 1)
-                {
-                    child->isLeaf = false;
-                    child->processSplats(level + 1, sd, progress);
-                }
-                else
-                {
-                    child->isLeaf = true;
-                    child->level = MAX_HYBRID_LEVEL;
-                    computeNodeRepresentative(child, sd);
-                }
 
                 children.push_back(child);
             }
-            // representative = containedSplats[0];
-            computeNodeRepresentative(this, sd);
-            containedSplats.clear();
         }
         else{
             /* Binary split nodes, here we do da smart stuff */
@@ -587,7 +582,7 @@ void HybridVH::processSplats(uint8_t _level, std::vector<SplatData> &sd, volatil
                 maxDim = 2;
             }
 
-            for (auto splat : containedSplats)
+            for (auto splat : *containedSplats)
             {
                 projs.push_back(sd[splat].fields.position[maxDim]);
             }
@@ -616,35 +611,36 @@ void HybridVH::processSplats(uint8_t _level, std::vector<SplatData> &sd, volatil
             {
                 HybridVH *child = new HybridVH((i == 0) ? childBbox1 : childBbox2);
                 // See which of the splats go into the newly created node
-                for (int k = 0; k < containedSplats.size(); k++)
+                for (int k = 0; k < containedSplats->size(); k++)
                 {
-                    auto splat = containedSplats[k];
+                    auto splat = (*containedSplats)[k];
                     if (insideBBox(child->bbox, splat, sd))
                     {
-                        child->containedSplats.push_back(splat);
+                        child->containedSplats->push_back(splat);
                         addSplatToCoverage(child->coverage, splat, sd);
                     }
-                }
-                if (level < MAX_HYBRID_LEVEL - 1)
-                {
-                    child->isLeaf = false;
-                    child->representative = 0;
-                    child->processSplats(level + 1, sd, progress);
-                }
-                else
-                {
-                    child->isLeaf = true;
-                    // child->level = MAX_HYBRID_LEVEL;
-                    child->representative = 0;
-                    computeNodeRepresentative(child, sd);
                 }
 
                 children.push_back(child);
             }
-            // representative = containedSplats[0];
-            computeNodeRepresentative(this, sd);
-            containedSplats.clear();
         } 
+        
+        containedSplats->clear();
+        delete containedSplats;
+        
+        for(auto child : children){
+            if (level < MAX_HYBRID_LEVEL - 1)
+            {
+                child->isLeaf = false;
+                child->processSplats(level + 1, sd, progress);
+            }
+            else
+            {
+                child->isLeaf = true;
+                child->level = MAX_HYBRID_LEVEL;
+                computeNodeRepresentative(child, sd);
+            } 
+        }
     }
 }
 
@@ -680,7 +676,7 @@ void HybridVH::buildVHStructure(std::vector<SplatData> &sd, uint32_t num_primiti
     this->bbox[1] = center + maxSpan;
 
     for (int i = 0; i < num_primitives; i++)
-        this->containedSplats.push_back(i);
+        this->containedSplats->push_back(i);
 
     this->processSplats(0, sd, progress);
 
@@ -705,11 +701,11 @@ int HybridVH::markForRender(bool *renderMask, uint32_t num_primitives, std::vect
 
         if (shouldRenderNode)
         { // is node big enough on the screen?
-            if (this->isLeaf && this->containedSplats.size() > 0)
+            if (this->isLeaf && this->containedSplats->size() > 0)
             {
-                for (auto splat : this->containedSplats)
+                for (auto splat : *(this->containedSplats))
                     renderMask[splat] = true;
-                return this->containedSplats.size();
+                return this->containedSplats->size();
             }
             else
             {
@@ -750,10 +746,10 @@ int HybridVH::markForRender(bool *renderMask, uint32_t num_primitives, std::vect
         }
         if (this->level < renderLevel && this->isLeaf)
         {
-            for (auto splat : this->containedSplats){
+            for (auto splat : *(this->containedSplats)){
                 renderMask[splat] = true;
             }
-            return this->containedSplats.size();
+            return this->containedSplats->size();
         }
         if (!this->isLeaf && this->level < renderLevel)
         {
@@ -765,7 +761,7 @@ int HybridVH::markForRender(bool *renderMask, uint32_t num_primitives, std::vect
             }
             return splatsRendered;
         }
-        if (this->containedSplats.size() == 0 && this->representative == 0)
+        if (this->containedSplats->size() == 0 && this->representative == 0)
         {
             return 0;
         }

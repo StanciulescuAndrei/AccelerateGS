@@ -9,6 +9,8 @@
 #include "raster_helper.cuh"
 #include "GUIManager.h"
 
+#include <torch/torch.h>
+
 namespace dm = daal::data_management;
 namespace algo =  daal::algorithms;
 
@@ -16,6 +18,14 @@ int PCReprojectionClustering(glm::vec3 * bbox, std::vector<uint32_t> & contained
     size_t inputDataSize = containedSplatIds.size();
     int nIterations = 64;
     const int numFeatures = renderConfig.numClusterFeatures;
+
+    // for(int i = 0; i < inputDataSize / 2; i++){
+    //     assignment.push_back(0);
+    // }
+    // for(int i = inputDataSize / 2; i < inputDataSize; i++){
+    //     assignment.push_back(1);
+    // }
+    // return 0;
 
     glm::vec3 minBound(1e13, 1e13, 1e13);
     glm::vec3 maxBound(-1e13, -1e13, -1e13);
@@ -104,6 +114,11 @@ int PCReprojectionClustering(glm::vec3 * bbox, std::vector<uint32_t> & contained
         return a.first > b.first;
     });
 
+    /* Normalize first nClusters eigenvectors */
+    for(int i = 0; i < nClusters; i++){
+        eigenPairs[i].second.normalize();
+    }
+
     /* Change data to reprojected points */
     for(int i = 0; i < inputDataSize; i++){
         for(int k = 0; k < nClusters; k++){
@@ -160,6 +175,7 @@ int PCReprojectionClustering(glm::vec3 * bbox, std::vector<uint32_t> & contained
     assignmentResult->releaseBlockOfRows(block);
 
     assignmentResult.reset();
+    centroids.reset();
     pointData.reset();
 
     return 0;
