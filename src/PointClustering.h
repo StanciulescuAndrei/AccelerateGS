@@ -19,13 +19,6 @@ int PCReprojectionClustering(glm::vec3 * bbox, std::vector<uint32_t> & contained
     int nIterations = 64;
     const int numFeatures = renderConfig.numClusterFeatures;
 
-    // for(int i = 0; i < inputDataSize / 2; i++){
-    //     assignment.push_back(0);
-    // }
-    // for(int i = inputDataSize / 2; i < inputDataSize; i++){
-    //     assignment.push_back(1);
-    // }
-    // return 0;
 
     glm::vec3 minBound(1e13, 1e13, 1e13);
     glm::vec3 maxBound(-1e13, -1e13, -1e13);
@@ -145,8 +138,7 @@ int PCReprojectionClustering(glm::vec3 * bbox, std::vector<uint32_t> & contained
     algorithm.input.set(algo::kmeans::data, pointData);
     algorithm.input.set(algo::kmeans::inputCentroids, centroids);
 
-    algorithm.parameter().resultsToEvaluate = algo::kmeans::computeAssignments |
-                                              algo::kmeans::computeExactObjectiveFunction;
+    algorithm.parameter().resultsToEvaluate = algo::kmeans::computeAssignments;
 
     algorithm.compute();
 
@@ -159,6 +151,7 @@ int PCReprojectionClustering(glm::vec3 * bbox, std::vector<uint32_t> & contained
     assignmentResult = algorithm.getResult()->get(algo::kmeans::assignments);
 
     algorithm.resetCompute();
+    
     /* Data extraction containers */
     dm::BlockDescriptor<int> block;
     int *array;
