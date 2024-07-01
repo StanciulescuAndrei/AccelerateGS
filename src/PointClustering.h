@@ -175,59 +175,10 @@ int PCReprojectionClustering(glm::vec3 * bbox, std::vector<uint32_t> & contained
     }
 
     KMeansClustering(reprojectedPointsData, inputDataSize, nClusters, assignment);
-    return 0;
 
-    /* Move data to a oneDAL numeric table */
-    dm::NumericTablePtr pointData = dm::HomogenNumericTable<>::create(reprojectedPointsData, nClusters, inputDataSize);
-
-    /* Get k-means initialization points */
-    std::unique_ptr<algo::kmeans::init::Batch<float, algo::kmeans::init::randomDense>> init(new algo::kmeans::init::Batch<float, algo::kmeans::init::randomDense>(nClusters));
-    init->input.set(algo::kmeans::init::data, pointData);
-
-    init->compute();
-
-    dm::NumericTablePtr centroids = init->getResult()->get(algo::kmeans::init::centroids);
-
-    init->resetCompute();
-
-    /* Create an algorithm object for the K-Means algorithm */
-    std::unique_ptr<algo::kmeans::Batch<>> algorithm(new algo::kmeans::Batch<>(nClusters, nIterations));
-
-    algorithm->input.set(algo::kmeans::data, pointData);
-    algorithm->input.set(algo::kmeans::inputCentroids, centroids);
-
-    algorithm->parameter().resultsToEvaluate = algo::kmeans::computeAssignments;
-
-    algorithm->compute();
-
-    /* Cleanup, then retrieve results */
+    /* Cleanup */
     delete [] data;
     delete [] reprojectedPointsData; 
-
-    dm::NumericTablePtr assignmentResult;
-
-    assignmentResult = algorithm->getResult()->get(algo::kmeans::assignments);
-
-    algorithm->resetCompute();
-    
-    /* Data extraction containers */
-    dm::BlockDescriptor<int> block;
-    int *array;
-
-    /* If good number of clusters, get cluster assignment */
-    size_t nRows = assignmentResult->getNumberOfRows();
-    size_t nCols = assignmentResult->getNumberOfColumns();
-
-    assignmentResult->getBlockOfRows(0, nRows, dm::ReadWriteMode::readOnly, block);
-    array = block.getBlockPtr();
-    for(int i = 0; i < nRows; i++){
-        assignment.push_back(array[i]);
-    }
-    assignmentResult->releaseBlockOfRows(block);
-
-    assignmentResult.reset();
-    centroids.reset();
-    pointData.reset();
 
     return 0;
 }
