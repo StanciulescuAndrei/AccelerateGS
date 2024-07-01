@@ -15,6 +15,60 @@
 namespace dm = daal::data_management;
 namespace algo =  daal::algorithms;
 
+void KMeansClustering(float * pointData, int dataSize, int numFeatures, std::vector<int> & assignment){
+    /* The number of point features is equal to the number of requested clusters (after spectral reprojection) */
+    int n_iter = 12;
+    
+    float * means = new float[numFeatures * numFeatures];
+
+    /* Initialize means to first points in the data */
+    for(int i = 0; i < numFeatures * numFeatures; i++){
+        means[i] = pointData[i];
+    }
+
+    for(int iteration = 0; iteration < n_iter; iteration++){
+        /* Find current assignments */
+        for(int point = 0; point < dataSize; point++){
+            float best_distance = 1e13;
+            size_t best_cluster = 0;
+            for(int cluster = 0; cluster < numFeatures; cluster++){
+                float crt_distance = 0.0f;
+                for(int feat = 0; feat < numFeatures; feat++){
+                    crt_distance += std::pow(pointData[point * numFeatures + feat] - means[cluster * numFeatures + feat], 2);
+                }
+                if(crt_distance < best_distance){
+                    best_distance = crt_distance;
+                    best_cluster = cluster;
+                }
+            }
+            assignment[point] = best_cluster;
+        }
+
+        /* Recompute means for new assignments */
+        std::vector<size_t> counts(numFeatures, 0);
+        for(int i = 0; i < numFeatures * numFeatures; i++){
+            means[i] = 0.0f;
+        }
+        for(int point = 0; point < dataSize; point++){
+            const size_t cluster = assignment[point];
+            counts[cluster]++;
+            for(int feat = 0; feat < numFeatures; feat++){
+                means[cluster * numFeatures + feat] += pointData[point * numFeatures + feat];
+            }
+        }
+
+        for(int cluster = 0; cluster < numFeatures; cluster++){
+            const size_t div = std::max((size_t)1, counts[cluster]);
+            for(int feat = 0; feat < numFeatures; feat++){
+                means[cluster * numFeatures + feat] /= div;
+            }
+        }
+    }
+
+    delete [] means;
+
+}
+
 int PCReprojectionClustering(glm::vec3 * bbox, std::vector<uint32_t> & containedSplatIds, std::vector<SplatData> & sd, int & nClusters, std::vector<int> & assignment){
     size_t inputDataSize = containedSplatIds.size();
     int nIterations = 64;
@@ -119,6 +173,9 @@ int PCReprojectionClustering(glm::vec3 * bbox, std::vector<uint32_t> & contained
             reprojectedPointsData[i * nClusters + k] = pointFeatures.row(i) * eigenPairs[k].second;
         }
     }
+
+    KMeansClustering(reprojectedPointsData, inputDataSize, nClusters, assignment);
+    return 0;
 
     /* Move data to a oneDAL numeric table */
     dm::NumericTablePtr pointData = dm::HomogenNumericTable<>::create(reprojectedPointsData, nClusters, inputDataSize);
