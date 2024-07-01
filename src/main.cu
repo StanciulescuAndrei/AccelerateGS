@@ -223,10 +223,10 @@ int main(){
 
     pthread_join(t_id, NULL);
 #else
-    spacePartitioningThread(&payload);
+    spacePartitioningRoot->buildVHStructure(sd, num_elements, &progress);
 #endif
 
-    // spacePartitioningRoot->buildVHStructure(sd, num_elements, &progress);
+    printf("Done building space partitioning\n");
 
     num_elements = sd.size();
     renderMask = (bool *)malloc(sizeof(bool) * num_elements);

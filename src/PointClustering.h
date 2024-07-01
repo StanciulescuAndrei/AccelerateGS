@@ -8,8 +8,9 @@
 #include <vector>
 #include "raster_helper.cuh"
 #include "GUIManager.h"
+#include <memory>
 
-#include <torch/torch.h>
+// #include <torch/torch.h>
 
 namespace dm = daal::data_management;
 namespace algo =  daal::algorithms;
@@ -19,7 +20,7 @@ int PCReprojectionClustering(glm::vec3 * bbox, std::vector<uint32_t> & contained
     int nIterations = 64;
     const int numFeatures = renderConfig.numClusterFeatures;
 
-
+    /* Determine centers space bounds for centering and normalization */
     glm::vec3 minBound(1e13, 1e13, 1e13);
     glm::vec3 maxBound(-1e13, -1e13, -1e13);
 
@@ -123,24 +124,24 @@ int PCReprojectionClustering(glm::vec3 * bbox, std::vector<uint32_t> & contained
     dm::NumericTablePtr pointData = dm::HomogenNumericTable<>::create(reprojectedPointsData, nClusters, inputDataSize);
 
     /* Get k-means initialization points */
-    algo::kmeans::init::Batch<float, algo::kmeans::init::plusPlusDense> init(nClusters);
-    init.input.set(algo::kmeans::init::data, pointData);
+    std::unique_ptr<algo::kmeans::init::Batch<float, algo::kmeans::init::randomDense>> init(new algo::kmeans::init::Batch<float, algo::kmeans::init::randomDense>(nClusters));
+    init->input.set(algo::kmeans::init::data, pointData);
 
-    init.compute();
+    init->compute();
 
-    dm::NumericTablePtr centroids = init.getResult()->get(algo::kmeans::init::centroids);
+    dm::NumericTablePtr centroids = init->getResult()->get(algo::kmeans::init::centroids);
 
-    init.resetCompute();
+    init->resetCompute();
 
     /* Create an algorithm object for the K-Means algorithm */
-    algo::kmeans::Batch<> algorithm(nClusters, nIterations);
+    std::unique_ptr<algo::kmeans::Batch<>> algorithm(new algo::kmeans::Batch<>(nClusters, nIterations));
 
-    algorithm.input.set(algo::kmeans::data, pointData);
-    algorithm.input.set(algo::kmeans::inputCentroids, centroids);
+    algorithm->input.set(algo::kmeans::data, pointData);
+    algorithm->input.set(algo::kmeans::inputCentroids, centroids);
 
-    algorithm.parameter().resultsToEvaluate = algo::kmeans::computeAssignments;
+    algorithm->parameter().resultsToEvaluate = algo::kmeans::computeAssignments;
 
-    algorithm.compute();
+    algorithm->compute();
 
     /* Cleanup, then retrieve results */
     delete [] data;
@@ -148,9 +149,9 @@ int PCReprojectionClustering(glm::vec3 * bbox, std::vector<uint32_t> & contained
 
     dm::NumericTablePtr assignmentResult;
 
-    assignmentResult = algorithm.getResult()->get(algo::kmeans::assignments);
+    assignmentResult = algorithm->getResult()->get(algo::kmeans::assignments);
 
-    algorithm.resetCompute();
+    algorithm->resetCompute();
     
     /* Data extraction containers */
     dm::BlockDescriptor<int> block;
