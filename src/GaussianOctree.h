@@ -70,7 +70,7 @@ public:
 
     void processSplats(uint8_t _level, std::vector<SplatData> &sd, volatile int * progress);
     void buildVHStructure(std::vector<SplatData> &sd, uint32_t num_primitives, volatile int *progress) override;
-    int markForRender(bool *renderMask, uint32_t num_primitives, std::vector<SplatData> &sd, int renderLevel, glm::vec3 &cameraPosition, float fovy, int SW, float dpt) override;
+    int markForRender(bool *renderMask, uint32_t num_primitives, int renderLevel, glm::vec3 &cameraPosition, float fovy, int SW, float dpt) override;
     GaussianOctree(glm::vec3 *_bbox);
     GaussianOctree();
     ~GaussianOctree();
@@ -576,7 +576,7 @@ void GaussianOctree::buildVHStructure(std::vector<SplatData> &sd, uint32_t num_p
     *progress = 1024;
 }
 
-int GaussianOctree::markForRender(bool *renderMask, uint32_t num_primitives, std::vector<SplatData> &sd, int renderLevel, glm::vec3 &cameraPosition, float fovy, int SW, float dpt)
+int GaussianOctree::markForRender(bool *renderMask, uint32_t num_primitives, int renderLevel, glm::vec3 &cameraPosition, float fovy, int SW, float dpt)
 {
 
     if (renderLevel == -1)
@@ -606,7 +606,7 @@ int GaussianOctree::markForRender(bool *renderMask, uint32_t num_primitives, std
                 for (int i = 0; i < 8; i++)
                 {
                     if (this->children[i] != nullptr)
-                        splatsRendered += this->children[i]->markForRender(renderMask, num_primitives, sd, renderLevel, cameraPosition, fovy, SW, dpt);
+                        splatsRendered += this->children[i]->markForRender(renderMask, num_primitives, renderLevel, cameraPosition, fovy, SW, dpt);
                 }
                 return splatsRendered;
             }
@@ -624,7 +624,7 @@ int GaussianOctree::markForRender(bool *renderMask, uint32_t num_primitives, std
                 for (int i = 0; i < 8; i++)
                 {
                     if (this->children[i] != nullptr)
-                        splatsRendered += this->children[i]->markForRender(renderMask, num_primitives, sd, renderLevel, cameraPosition, fovy, SW, dpt);
+                        splatsRendered += this->children[i]->markForRender(renderMask, num_primitives, renderLevel, cameraPosition, fovy, SW, dpt);
                 }
                 return splatsRendered;
             }
@@ -652,7 +652,7 @@ int GaussianOctree::markForRender(bool *renderMask, uint32_t num_primitives, std
             for (int i = 0; i < 8; i++)
             {
                 if (this->children[i] != nullptr)
-                    splatsRendered += this->children[i]->markForRender(renderMask, num_primitives, sd, renderLevel, cameraPosition, fovy, SW, dpt);
+                    splatsRendered += this->children[i]->markForRender(renderMask, num_primitives, renderLevel, cameraPosition, fovy, SW, dpt);
             }
             return splatsRendered;
         }

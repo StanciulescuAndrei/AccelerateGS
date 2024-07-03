@@ -18,8 +18,6 @@ find_package(nanoflann)
 
 find_package(Torch REQUIRED)
 
-set(CMAKE_CXX_COMPILER icpx)
-set(CMAKE_C_COMPILER icx)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${TORCH_CXX_FLAGS}")
 
 
@@ -38,8 +36,6 @@ include_directories(
 	../../libs/imgui/backends/
 	../../libs/nlohmann/
 	${STB_PATH}
-	/opt/intel/oneapi/dal/2024.2/include/
-	/opt/intel/oneapi/dal/2024.2/include/dal
 	/../../libs/libtorch/include
 )
 
@@ -85,23 +81,9 @@ target_link_libraries(AccelerateGS
 	Eigen3::Eigen
 	Threads::Threads
 	nanoflann::nanoflann
-	/opt/intel/oneapi/dal/2024.2/lib/libonedal.a
-	/opt/intel/oneapi/dal/2024.2/lib/libonedal_dpc.a
-	/opt/intel/oneapi/dal/2024.2/lib/libonedal_parameters_dpc.a
-	/opt/intel/oneapi/dal/2024.2/lib/libonedal_sycl.a
-	/opt/intel/oneapi/dal/2024.2/lib/libonedal_parameters.so.2
-	/opt/intel/oneapi/dal/2024.2/lib/libonedal_core.so.2 
-	/opt/intel/oneapi/dal/2024.2/lib/libonedal_thread.so.2
-	/opt/intel/oneapi/tbb/2021.12/lib/intel64/gcc4.8/libtbb.so.12 
-	/opt/intel/oneapi/tbb/2021.12/lib/intel64/gcc4.8/libtbbmalloc.so.2 
-	/opt/intel/oneapi/dal/2024.2/lib/libonedal.so.2 
-	/opt/intel/oneapi/dal/2024.2/lib/libonedal_parameters.so.2 
-	/opt/intel/oneapi/dal/2024.2/lib/libonedal_core.so.2 
-	/opt/intel/oneapi/dal/2024.2/lib/libonedal_thread.so.2
 	tbb
 	tbbmalloc
 	pthread
-	sycl
 	OpenCL
 	"${TORCH_LIBRARIES}"
 )

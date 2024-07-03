@@ -5,13 +5,13 @@
 #include "../../../libs/imgui/backends/imgui_impl_opengl3.h"
 #include <string>
 
-#define MIN_BVH_LEVEL 14
+#define MIN_BVH_LEVEL 13
 #define MAX_BVH_LEVEL 21
 
-#define MIN_OCTREE_LEVEL 14
+#define MIN_OCTREE_LEVEL 13
 #define MAX_OCTREE_LEVEL 21
 
-#define MIN_HYBRID_LEVEL 14
+#define MIN_HYBRID_LEVEL 13
 #define MAX_HYBRID_LEVEL 21
 
 // #define MIN_HYBRID_LEVEL 6

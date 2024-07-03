@@ -37,7 +37,7 @@ public:
 
     void processSplats(uint8_t _level, std::vector<SplatData> &sd, volatile int *progress);
     void buildVHStructure(std::vector<SplatData> &sd, uint32_t num_primitives, volatile int *progress) override;
-    int markForRender(bool *renderMask, uint32_t num_primitives, std::vector<SplatData> &sd, int renderLevel, glm::vec3 &cameraPosition, float fovy, int SW, float dpt) override;
+    int markForRender(bool *renderMask, uint32_t num_primitives, int renderLevel, glm::vec3 &cameraPosition, float fovy, int SW, float dpt) override;
     HybridVH(glm::vec3 *_bbox);
     HybridVH();
     ~HybridVH();
@@ -543,7 +543,7 @@ void HybridVH::processSplats(uint8_t _level, std::vector<SplatData> &sd, volatil
             if(renderConfig.clustering == std::string("pcdecomp"))
                 PCReprojectionClustering(coverage, *containedSplats, sd, renderConfig.nClusters, assignment);
             else if(renderConfig.clustering == std::string("spectral"))
-                SpectralClustering(coverage, *containedSplats, sd, renderConfig.nClusters, assignment);
+                printf("Spectral clustering support dropped!\n"); //SpectralClustering(coverage, *containedSplats, sd, renderConfig.nClusters, assignment);
             for(int i = 0; i < renderConfig.nClusters; i++){
                 HybridVH *child = new HybridVH();
                 // See which of the splats go into the newly created node
@@ -683,7 +683,7 @@ void HybridVH::buildVHStructure(std::vector<SplatData> &sd, uint32_t num_primiti
     *progress = 1024;
 }
 
-int HybridVH::markForRender(bool *renderMask, uint32_t num_primitives, std::vector<SplatData> &sd, int renderLevel, glm::vec3 &cameraPosition, float fovy, int SW, float dpt)
+int HybridVH::markForRender(bool *renderMask, uint32_t num_primitives, int renderLevel, glm::vec3 &cameraPosition, float fovy, int SW, float dpt)
 {
 
     if (renderLevel == -1)
@@ -713,7 +713,7 @@ int HybridVH::markForRender(bool *renderMask, uint32_t num_primitives, std::vect
                 for (auto child : this->children)
                 {
                     if (child != nullptr)
-                        splatsRendered += child->markForRender(renderMask, num_primitives, sd, renderLevel, cameraPosition, fovy, SW, dpt);
+                        splatsRendered += child->markForRender(renderMask, num_primitives, renderLevel, cameraPosition, fovy, SW, dpt);
                 }
                 return splatsRendered;
             }
@@ -731,7 +731,7 @@ int HybridVH::markForRender(bool *renderMask, uint32_t num_primitives, std::vect
                 for (auto child : this->children)
                 {
                     if (child != nullptr)
-                        splatsRendered += child->markForRender(renderMask, num_primitives, sd, renderLevel, cameraPosition, fovy, SW, dpt);
+                        splatsRendered += child->markForRender(renderMask, num_primitives, renderLevel, cameraPosition, fovy, SW, dpt);
                 }
                 return splatsRendered;
             }
@@ -757,7 +757,7 @@ int HybridVH::markForRender(bool *renderMask, uint32_t num_primitives, std::vect
             for (HybridVH *child : this->children)
             {
                 if (child != nullptr)
-                    splatsRendered += child->markForRender(renderMask, num_primitives, sd, renderLevel, cameraPosition, fovy, SW, dpt);
+                    splatsRendered += child->markForRender(renderMask, num_primitives, renderLevel, cameraPosition, fovy, SW, dpt);
             }
             return splatsRendered;
         }

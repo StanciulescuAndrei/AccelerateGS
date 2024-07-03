@@ -28,7 +28,7 @@ def main():
         global_psnr_lod_bg = 0
         global_ssim_lod = 0
 
-        n_images = 301
+        n_images = 181
         depth_threshold = 30
         cnt = 0
 
@@ -47,7 +47,7 @@ def main():
             depth_img = cv2.imread(depth_img_path)
 
             # Ensure the images are in the same size
-            resize_dim = (1959, 1090)
+            resize_dim = (5187, 3361)
             ref_img  = cv2.resize(ref_img,  resize_dim)
             lod_img  = cv2.resize(lod_img,  resize_dim)
             depth_img  = cv2.resize(depth_img,  resize_dim)
@@ -57,7 +57,7 @@ def main():
             global_ssim_lod = global_ssim_lod + ssim
 
             # PSNR foreground
-            psnr = calculate_psnr(ref_img, lod_img, depth_img < np.average(depth_img[depth_img > 0]))
+            psnr = calculate_psnr(ref_img, lod_img, depth_img < 100000000000) # np.average(depth_img[depth_img > 0])
             global_psnr_lod_fg = global_psnr_lod_fg + psnr
 
             # PSNR background

@@ -27,8 +27,12 @@
 
 #include "CameraLoader.h"
 
+#include <deque>
+
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
+#include "raster_helper.cuh"
+#include "HybridVH.h"
 
 
 #define N 100000000
@@ -52,6 +56,66 @@ const float movement_step = 0.1f;
 static void error_callback(int error, const char* description)
 {
     fprintf(stderr, "Error: %s\n", description);
+}
+
+int markForRender(bool *renderMask, std::vector<HybridVH *> & nodes, int renderLevel, glm::vec3 &cameraPosition, float fovy, int SW, float dpt, int numSplats)
+{
+	int rendered = 0;
+    omp_set_num_threads(6);
+    #pragma omp parallel for
+	for(int i = 0; i < nodes.size(); i++){
+        HybridVH * node = nodes[i];
+		if (renderLevel == -1)
+		{
+			int shouldRenderNode = 0;
+			if (node == nullptr)
+				continue;
+			/* Easiest implementation, maximum projection by distance */
+			float S = glm::length(node->coverage[0] - node->coverage[1]);
+			float D = glm::length((node->coverage[0] + node->coverage[1]) / 2.0f - cameraPosition);
+
+			float P = S / D * (SW / fovy);
+
+			shouldRenderNode = (P > dpt);
+
+			if (shouldRenderNode)
+			{ // is node big enough on the screen?
+				if (node->isLeaf && node->containedSplats->size() > 0)
+				{
+					for (uint32_t splat : *(node->containedSplats))
+						renderMask[splat] = true;
+				}
+			}
+			else
+			{
+				if (node->representative != 0)
+				{
+					renderMask[node->representative] = true;
+				}
+			}
+		}
+		else
+		{
+			if (node->level == renderLevel && node->representative != 0)
+			{
+				renderMask[node->representative] = true;
+			}
+			if (node->level < renderLevel && node->isLeaf)
+			{
+				for (uint32_t splat : *(node->containedSplats)){
+					renderMask[splat] = true;
+				}
+			}
+		}
+	}
+    
+    for(int i = 0; i < numSplats; i++){
+        if(renderMask[i]){
+            rendered++;
+        }
+    }
+
+    return rendered;
 }
  
 static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
@@ -146,7 +210,7 @@ int main(){
     std::chrono::steady_clock::time_point begin;
     std::chrono::steady_clock::time_point end;
 
-    loadCameraFile("../../models/train/cameras.json");
+    loadCameraFile("../../models/garden/cameras.json");
     loadGenericProperties(SCREEN_WIDTH, SCREEN_HEIGHT, fovx, fovy);
 
     loadApplicationConfig("../config.cfg", renderConfig);
@@ -159,16 +223,16 @@ int main(){
     std::vector<SplatData> sd;
     bool * renderMask;
     int num_elements = 0;
-    int res = loadSplatData("../../models/train/point_cloud/iteration_30000/point_cloud.ply", sd, &num_elements);
+    int res = loadSplatData("../../models/garden/point_cloud/iteration_30000/point_cloud.ply", sd, &num_elements);
     printf("Loaded %d splats from file\n", num_elements);
 
     const uint32_t maxDuplicatedGaussians = num_elements * 64;
 
     // First of all, build da octree
     begin = std::chrono::steady_clock::now();
-    // #if defined(_OPENMP)
-    //     printf("Using OpenMP, yey\n");
-    // #endif
+    #if defined(_OPENMP)
+        printf("Using OpenMP, yey\n");
+    #endif
 
     /* OpenGL configuration */
     glPixelStorei(GL_UNPACK_ALIGNMENT, 16);      // 4-byte pixel alignment
@@ -225,6 +289,21 @@ int main(){
 #else
     spacePartitioningRoot->buildVHStructure(sd, num_elements, &progress);
 #endif
+
+    /* Put node pointers into array for CUDA processing */
+    std::vector<HybridVH *> nodes;
+
+    std::deque<HybridVH *> q_nodes;
+    q_nodes.push_back((HybridVH*)(spacePartitioningRoot));
+
+    while(!q_nodes.empty()){
+        HybridVH * crt_node = q_nodes.front();
+        q_nodes.pop_front();
+        nodes.push_back(crt_node);
+        for(HybridVH* child : crt_node->children){
+            q_nodes.push_back(child);
+        }
+    }
 
     printf("Done building space partitioning\n");
 
@@ -378,7 +457,8 @@ int main(){
             // for(int i = 0; i < old_num_elements; i++){
             //     renderMask[i] = 1;
             // }
-            renderedSplats = spacePartitioningRoot->markForRender(renderMask, num_elements, sd, autoLevel ? -1 : renderLevel, cameraPosition, fovy, SCREEN_WIDTH, diagonalProjectionThreshold);
+            //renderedSplats = spacePartitioningRoot->markForRender(renderMask, num_elements, sd, autoLevel ? -1 : renderLevel, cameraPosition, fovy, SCREEN_WIDTH, diagonalProjectionThreshold);
+            renderedSplats = markForRender(renderMask, nodes, autoLevel ? -1 : renderLevel, cameraPosition, fovy, SCREEN_WIDTH, diagonalProjectionThreshold, num_elements);
             // printf("Rendered splats: %d\n", renderedSplats);
 
             checkCudaErrors(cudaMemcpy(d_renderMask, renderMask, sizeof(bool) * num_elements, cudaMemcpyHostToDevice));
