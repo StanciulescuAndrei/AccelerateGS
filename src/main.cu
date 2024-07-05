@@ -62,51 +62,69 @@ int markForRender(bool *renderMask, std::vector<HybridVH *> & nodes, int renderL
 {
 	int rendered = 0;
     omp_set_num_threads(6);
-    #pragma omp parallel for
+    // #pragma omp parallel for
 	for(int i = 0; i < nodes.size(); i++){
-        HybridVH * node = nodes[i];
-		if (renderLevel == -1)
-		{
-			int shouldRenderNode = 0;
-			if (node == nullptr)
-				continue;
-			/* Easiest implementation, maximum projection by distance */
-			float S = glm::length(node->coverage[0] - node->coverage[1]);
-			float D = glm::length((node->coverage[0] + node->coverage[1]) / 2.0f - cameraPosition);
+        HybridVH * tree_root = nodes[i];
+        std::deque<HybridVH *> process_queue;
+        process_queue.push_back(tree_root);
+        while(!process_queue.empty()){
+            HybridVH * node = process_queue.front();
+            process_queue.pop_front();
+            if (renderLevel == -1)
+            {
+                int shouldRenderNode = 0;
+                if (node == nullptr)
+                    continue;
+                /* Easiest implementation, maximum projection by distance */
+                float S = glm::length(node->coverage[0] - node->coverage[1]);
+                float D = glm::length((node->coverage[0] + node->coverage[1]) / 2.0f - cameraPosition);
 
-			float P = S / D * (SW / fovy);
+                float P = S / D * (SW / fovy);
 
-			shouldRenderNode = (P > dpt);
+                shouldRenderNode = (P > dpt);
 
-			if (shouldRenderNode)
-			{ // is node big enough on the screen?
-				if (node->isLeaf && node->containedSplats->size() > 0)
-				{
-					for (uint32_t splat : *(node->containedSplats))
-						renderMask[splat] = true;
-				}
-			}
-			else
-			{
-				if (node->representative != 0)
-				{
-					renderMask[node->representative] = true;
-				}
-			}
-		}
-		else
-		{
-			if (node->level == renderLevel && node->representative != 0)
-			{
-				renderMask[node->representative] = true;
-			}
-			if (node->level < renderLevel && node->isLeaf)
-			{
-				for (uint32_t splat : *(node->containedSplats)){
-					renderMask[splat] = true;
-				}
-			}
-		}
+                if (shouldRenderNode)
+                { // is node big enough on the screen?
+                    if (node->isLeaf && node->containedSplats->size() > 0)
+                    {
+                        for (uint32_t splat : *(node->containedSplats))
+                            renderMask[splat] = true;
+                    }
+                    else
+                    {
+                        for(auto child : node ->children){
+                            process_queue.push_back(child);
+                        }
+                    }
+                }
+                else
+                {
+                    if (node->representative != 0)
+                    {
+                        renderMask[node->representative] = true;
+                    }
+                    else
+                    {
+                        for(auto child : node ->children){
+                            process_queue.push_back(child);
+                        }
+                    }
+                }
+            }
+            else
+            {
+                if (node->level == renderLevel && node->representative != 0)
+                {
+                    renderMask[node->representative] = true;
+                }
+                if (node->level < renderLevel && node->isLeaf)
+                {
+                    for (uint32_t splat : *(node->containedSplats)){
+                        renderMask[splat] = true;
+                    }
+                }
+            }
+        }
 	}
     
     for(int i = 0; i < numSplats; i++){
@@ -210,7 +228,7 @@ int main(){
     std::chrono::steady_clock::time_point begin;
     std::chrono::steady_clock::time_point end;
 
-    loadCameraFile("../../models/garden/cameras.json");
+    loadCameraFile("../../models/train/cameras.json");
     loadGenericProperties(SCREEN_WIDTH, SCREEN_HEIGHT, fovx, fovy);
 
     loadApplicationConfig("../config.cfg", renderConfig);
@@ -223,7 +241,7 @@ int main(){
     std::vector<SplatData> sd;
     bool * renderMask;
     int num_elements = 0;
-    int res = loadSplatData("../../models/garden/point_cloud/iteration_30000/point_cloud.ply", sd, &num_elements);
+    int res = loadSplatData("../../models/train/point_cloud/iteration_30000/point_cloud.ply", sd, &num_elements);
     printf("Loaded %d splats from file\n", num_elements);
 
     const uint32_t maxDuplicatedGaussians = num_elements * 64;
@@ -272,7 +290,7 @@ int main(){
     payload.spacePartitioningRoot = spacePartitioningRoot;
     payload.sd = &sd;
 
-#if RELEASE
+#if true
     pthread_create(&t_id, NULL, spacePartitioningThread, (void *)(&payload));
 
     while(progress!=1024){
@@ -299,11 +317,23 @@ int main(){
     while(!q_nodes.empty()){
         HybridVH * crt_node = q_nodes.front();
         q_nodes.pop_front();
-        nodes.push_back(crt_node);
+        // if(crt_node->levelType == OctreeLevel && crt_node->isLeaf){
+        //     nodes.push_back(crt_node);
+        //     continue;
+        // }
         for(HybridVH* child : crt_node->children){
-            q_nodes.push_back(child);
+            if(child->levelType = BipartitionLevel){
+                nodes.push_back(crt_node);
+                break;
+            }
+        }
+        for(HybridVH* child : crt_node->children){
+            if(child->levelType == OctreeLevel)
+                q_nodes.push_back(child);
         }
     }
+
+    printf("Built %d subtrees\n", nodes.size());
 
     printf("Done building space partitioning\n");
 

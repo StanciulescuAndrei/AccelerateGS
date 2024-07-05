@@ -471,6 +471,7 @@ void HybridVH::processSplats(uint8_t _level, std::vector<SplatData> &sd, volatil
 
     if (level < MIN_HYBRID_LEVEL)
     {
+        levelType = OctreeLevel;
         /* Process this as if it were an octree node */
         glm::vec3 halfSize = (bbox[1] - bbox[0]) * 0.5f;
 
@@ -509,7 +510,7 @@ void HybridVH::processSplats(uint8_t _level, std::vector<SplatData> &sd, volatil
     }
     else
     {
-
+        levelType = BipartitionLevel;
         // containedSplats.erase(std::remove_if(
         //                       containedSplats.begin(),
         //                       containedSplats.end(),
