@@ -105,7 +105,12 @@ int markForRender(bool *renderMask, std::vector<HybridVH *> & nodes, int renderL
                     }
                     else
                     {
-                        for(auto child : node ->children){
+                        if(node->children.size() == 0){
+                            for(auto splat : *(node->containedSplats)){
+                                renderMask[splat] = 1;
+                            }
+                        }
+                        for(auto child : node->children){
                             process_queue.push_back(child);
                         }
                     }
@@ -121,6 +126,11 @@ int markForRender(bool *renderMask, std::vector<HybridVH *> & nodes, int renderL
                 {
                     for (uint32_t splat : *(node->containedSplats)){
                         renderMask[splat] = true;
+                    }
+                }
+                else if(node->level < renderLevel){
+                    for(HybridVH * child : node->children){
+                        process_queue.push_back(child);
                     }
                 }
             }
@@ -223,6 +233,10 @@ void * spacePartitioningThread(void * input){
 }
 
 int main(){
+
+    printf("%d\n", sizeof(CUDATreeNode));
+    return 0;
+
     GLFWwindow* window;
 
     std::chrono::steady_clock::time_point begin;
@@ -308,30 +322,68 @@ int main(){
     spacePartitioningRoot->buildVHStructure(sd, num_elements, &progress);
 #endif
 
-    /* Put node pointers into array for CUDA processing */
-    std::vector<HybridVH *> nodes;
+    /*
+        Split structure in shallower subtrees.
+        This allows independent marking on each subtree on the GPU.
+    */
+    HybridVH * sparse_node = new HybridVH();
+    sparse_node->isLeaf = true;
+    sparse_node->representative = 0;
+    sparse_node->levelType = OctreeLevel;
 
     std::deque<HybridVH *> q_nodes;
+    std::vector<HybridVH *> nodes;
     q_nodes.push_back((HybridVH*)(spacePartitioningRoot));
 
     while(!q_nodes.empty()){
         HybridVH * crt_node = q_nodes.front();
         q_nodes.pop_front();
-        // if(crt_node->levelType == OctreeLevel && crt_node->isLeaf){
-        //     nodes.push_back(crt_node);
-        //     continue;
-        // }
         for(HybridVH* child : crt_node->children){
-            if(child->levelType = BipartitionLevel){
+            if(child->levelType == BipartitionLevel){
                 nodes.push_back(crt_node);
                 break;
             }
         }
         for(HybridVH* child : crt_node->children){
-            if(child->levelType == OctreeLevel)
-                q_nodes.push_back(child);
+            if(child->levelType == OctreeLevel){
+                if(child->isLeaf){
+                    for(auto splat : *(child->containedSplats))
+                    sparse_node->containedSplats->push_back(splat);
+                }
+                else{
+                    q_nodes.push_back(child);
+                }
+            }    
         }
     }
+    nodes.push_back(sparse_node);
+
+    /* Put node pointers into array for CUDA processing */
+
+    size_t totalStorageSize = 0;
+    size_t nodeHeaderSize = sizeof(CUDATreeNode);
+
+    for(int i = 0; i < nodes.size(); i++){
+        HybridVH * tree_root = nodes[i];
+        std::deque<HybridVH *> process_queue;
+        process_queue.push_back(tree_root);
+        while(!process_queue.empty()){
+            HybridVH * node = process_queue.front();
+
+            totalStorageSize += nodeHeaderSize;
+            
+            process_queue.pop_front();
+            for(HybridVH * child : node->children){
+                process_queue.push_back(child);
+            }
+
+        }
+	}
+
+    /* Get the necessary memory to serialize in RAM the array of subtrees */
+    void * storageBlock = malloc(totalStorageSize);
+
+    
 
     printf("Built %d subtrees\n", nodes.size());
 

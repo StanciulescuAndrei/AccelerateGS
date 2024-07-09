@@ -22,6 +22,17 @@ enum LevelType
     BipartitionLevel
 };
 
+struct CUDATreeNode{
+    uint32_t childrenIndices[2];
+    uint8_t num_children;
+    uint32_t splatIds[21]; // For alignement, whatever
+    uint16_t num_splats;
+    uint8_t flags;
+    float3 center;
+    float diagonal;
+    uint32_t representative;
+};
+
 class HybridVH : public SpacePartitioningBase
 {
 public:
