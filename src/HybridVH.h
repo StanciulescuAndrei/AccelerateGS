@@ -24,9 +24,7 @@ enum LevelType
 
 struct CUDATreeNode{
     uint32_t childrenIndices[2];
-    uint8_t num_children;
-    uint32_t splatIds[21]; // For alignement, whatever
-    uint16_t num_splats;
+    uint32_t splatIds[128]; // For alignement, whatever
     uint8_t flags;
     float3 center;
     float diagonal;
@@ -473,12 +471,12 @@ void HybridVH::processSplats(uint8_t _level, std::vector<SplatData> &sd, volatil
         representative = 0;
         return;
     }
-    if (containedSplats->size() == 1)
-    {
-        isLeaf = true;
-        representative = (*containedSplats)[0];
-        return;
-    }
+    // if (containedSplats->size() == 1)
+    // {
+    //     isLeaf = true;
+    //     representative = (*containedSplats)[0];
+    //     return;
+    // }
 
     if (level < MIN_HYBRID_LEVEL)
     {
@@ -509,15 +507,35 @@ void HybridVH::processSplats(uint8_t _level, std::vector<SplatData> &sd, volatil
             }
             child->isLeaf = false;
             child->representative = 0;
-            children.push_back(child);
+            if(child->containedSplats->size() > 0)
+                children.push_back(child);
+            else 
+                delete child;
         }
         // computeNodeRepresentative(this, sd);
         containedSplats->clear();
-        delete containedSplats;
+
+        // for(int c = 0; c < children.size(); c++){
+        //     if(children[c]->containedSplats->size() == 1){
+        //         for(int n = 0; n < children.size(); n++){
+        //             if(n == c) continue;
+        //             if(children[n]->containedSplats->size() > 0){
+        //                 children[n]->isLeaf = false;
+        //                 children[n]->containedSplats->push_back((*children[c]->containedSplats)[0]);
+        //                 addSplatToCoverage(children[n]->coverage, (*children[c]->containedSplats)[0], sd);
+        //                 children[c]->containedSplats->clear();
+        //                 children[c]->isLeaf = true;
+        //                 children[c]->representative = 0;
+        //                 break;
+        //             }
+        //         }
+        //     }
+        // }
 
         for(auto child : children){
             child->processSplats(level + 1, sd, progress);
         }
+        
     }
     else
     {
@@ -638,7 +656,6 @@ void HybridVH::processSplats(uint8_t _level, std::vector<SplatData> &sd, volatil
         } 
         
         containedSplats->clear();
-        delete containedSplats;
         
         for(auto child : children){
             if (level < MAX_HYBRID_LEVEL - 1)
@@ -663,6 +680,7 @@ HybridVH::~HybridVH()
         {
             delete child;
         }
+    delete containedSplats;
 }
 
 void HybridVH::buildVHStructure(std::vector<SplatData> &sd, uint32_t num_primitives, volatile int *progress)

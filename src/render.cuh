@@ -3,6 +3,7 @@
 #include <cuda_gl_interop.h>
 
 #include "PLYReader.h"
+#include "OctreeSerializer.cuh"
 
 
 __global__ void duplicateGaussians(int num_splats, 
@@ -291,5 +292,69 @@ __global__ void render(int num_splats, SplatData * sd,
 		imageBuffer[thread_y * SCREEN_WIDTH + thread_x].y = pixColor[1];
 		imageBuffer[thread_y * SCREEN_WIDTH + thread_x].z = pixColor[2];
 		imageBuffer[thread_y * SCREEN_WIDTH + thread_x].w = 1.0f;
+	}
+}
+
+
+
+__global__ void CUDAmarkForRender(bool *renderMask, CUDATreeNode * nodes, uint32_t * roots, int num_roots, glm::vec3 cameraPosition, float fovy, int SW, float dpt)
+{
+	int thread_idx = blockIdx.x * blockDim.x + threadIdx.x;
+	if(thread_idx >= num_roots) return;
+
+	int root_id = roots[thread_idx];
+
+	const size_t bufferSize = 128;
+	uint32_t buffer[bufferSize];
+	size_t b_start = 0;
+	size_t b_end = 0;
+
+	insertCircularBuffer(buffer, b_start, b_end, bufferSize, root_id);
+	while(b_start != b_end){
+		uint32_t crt_node_id = popCircularBuffer(buffer, b_start, b_end, bufferSize);
+		
+		int shouldRenderNode = 0;
+		/* Easiest implementation, maximum projection by distance */
+		float S = nodes[crt_node_id].diagonal;
+		glm::vec3 center = glm::vec3(nodes[crt_node_id].center.x, nodes[crt_node_id].center.y, nodes[crt_node_id].center.z);
+		float D = glm::length(center - cameraPosition);
+
+		float P = S / D * (SW / fovy);
+
+		shouldRenderNode = (P > dpt);
+
+		if (shouldRenderNode)
+		{ // is node big enough on the screen?
+			if (nodes[crt_node_id].flags)
+			{
+				for (int s = 0; s < sizeof(nodes[crt_node_id].splatIds) / sizeof(uint32_t); s++)
+					renderMask[nodes[crt_node_id].splatIds[s]] = true;
+			}
+			else
+			{
+				for(int i = 0; i < 2; i++){
+					if(nodes[crt_node_id].childrenIndices[i] != 0)
+						insertCircularBuffer(buffer, b_start, b_end, bufferSize, nodes[crt_node_id].childrenIndices[i]);
+				}
+			}
+		}
+		else
+		{
+			if (nodes[crt_node_id].representative != 0)
+			{
+				renderMask[nodes[crt_node_id].representative] = true;
+			}
+			else
+			{
+				if(nodes[crt_node_id].flags){
+					for (int s = 0; s < sizeof(nodes[crt_node_id].splatIds) / sizeof(uint32_t); s++)
+						renderMask[nodes[crt_node_id].splatIds[s]] = true;
+				}
+				for(int i = 0; i < 2; i++){
+					if(nodes[crt_node_id].childrenIndices[i] != 0)
+						insertCircularBuffer(buffer, b_start, b_end, bufferSize, nodes[crt_node_id].childrenIndices[i]);
+				}
+			}
+		}
 	}
 }

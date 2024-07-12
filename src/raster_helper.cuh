@@ -83,6 +83,19 @@ __device__ void printMat(glm::mat3 m){
 	printf("-----------------------------\n");
 }
 
+__device__ void insertCircularBuffer(uint32_t * data, size_t & begin, size_t & end, size_t bufferSize, uint32_t value){
+	data[end] = value;
+	end++;
+	end = end % bufferSize;
+}
+
+__device__ uint32_t popCircularBuffer(uint32_t * data, size_t & begin, size_t & end, size_t bufferSize){
+	uint32_t retVal = data[begin];
+	begin++;
+	begin = begin % bufferSize;
+	return retVal;
+}
+
 
 __device__ glm::vec3 computeColorFromSH(int idx, int deg, const SplatData::Fields & sdFields, glm::vec3 & campos)
 {

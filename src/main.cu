@@ -85,7 +85,7 @@ int markForRender(bool *renderMask, std::vector<HybridVH *> & nodes, int renderL
 
                 if (shouldRenderNode)
                 { // is node big enough on the screen?
-                    if (node->isLeaf && node->containedSplats->size() > 0)
+                    if (node->containedSplats->size() > 0)
                     {
                         for (uint32_t splat : *(node->containedSplats))
                             renderMask[splat] = true;
@@ -233,10 +233,6 @@ void * spacePartitioningThread(void * input){
 }
 
 int main(){
-
-    printf("%d\n", sizeof(CUDATreeNode));
-    return 0;
-
     GLFWwindow* window;
 
     std::chrono::steady_clock::time_point begin;
@@ -340,8 +336,7 @@ int main(){
         q_nodes.pop_front();
         for(HybridVH* child : crt_node->children){
             if(child->levelType == BipartitionLevel){
-                nodes.push_back(crt_node);
-                break;
+                nodes.push_back(child);
             }
         }
         for(HybridVH* child : crt_node->children){
@@ -357,6 +352,7 @@ int main(){
         }
     }
     nodes.push_back(sparse_node);
+    printf("Sparse node size: %d\n", sparse_node->containedSplats->size());
 
     /* Put node pointers into array for CUDA processing */
 
@@ -370,7 +366,7 @@ int main(){
         while(!process_queue.empty()){
             HybridVH * node = process_queue.front();
 
-            totalStorageSize += nodeHeaderSize;
+            totalStorageSize += 1;
             
             process_queue.pop_front();
             for(HybridVH * child : node->children){
@@ -381,11 +377,65 @@ int main(){
 	}
 
     /* Get the necessary memory to serialize in RAM the array of subtrees */
-    void * storageBlock = malloc(totalStorageSize);
+    CUDATreeNode * storageBlock = (CUDATreeNode *)malloc(totalStorageSize * sizeof(CUDATreeNode));
+    CUDATreeNode * cudaStorageBlock = NULL;
+    uint32_t * cuda_roots = NULL;
 
-    
+    size_t currentMemoryPosition = 0;
+    std::vector<uint32_t> roots;
 
-    printf("Built %d subtrees\n", nodes.size());
+    for(int i = 0; i < nodes.size(); i++){
+        HybridVH * tree_root = nodes[i];
+        roots.push_back(currentMemoryPosition);
+        std::deque<HybridVH *> process_queue;
+        process_queue.push_back(tree_root);
+        while(!process_queue.empty()){
+            HybridVH * node = process_queue.front();
+            process_queue.pop_front();
+
+            size_t child1Pos = 0, child2Pos = 0;
+            if(node->children.size() > 0){
+                child1Pos = process_queue.size() + currentMemoryPosition + 1;
+            }
+            if(node->children.size() > 1){
+                child2Pos = process_queue.size() + currentMemoryPosition + 2;
+            }
+
+            storageBlock[currentMemoryPosition].childrenIndices[0] = child1Pos;
+            storageBlock[currentMemoryPosition].childrenIndices[1] = child2Pos;
+
+            for(int s = 0; s < sizeof(storageBlock[currentMemoryPosition].splatIds) / sizeof(uint32_t); s++){
+                storageBlock[currentMemoryPosition].splatIds[s] = 0;
+            }
+
+            for(int s = 0; s < std::min(node->containedSplats->size(), sizeof(storageBlock[currentMemoryPosition].splatIds) / sizeof(uint32_t)); s++){
+                if(node->containedSplats->size() > sizeof(storageBlock[currentMemoryPosition].splatIds) / sizeof(uint32_t)){
+                    std::cout<<node->containedSplats->size()<<" "<<sizeof(storageBlock[currentMemoryPosition].splatIds) / sizeof(uint32_t)<<std::endl;
+                }
+                storageBlock[currentMemoryPosition].splatIds[s] = (*(node->containedSplats))[s];
+            }
+
+            storageBlock[currentMemoryPosition].representative = node->representative;
+            storageBlock[currentMemoryPosition].flags = node->isLeaf;
+
+            glm::vec3 center = (node->coverage[0] + node->coverage[1]) / 2.0f;
+
+            storageBlock[currentMemoryPosition].center.x = center.x;
+            storageBlock[currentMemoryPosition].center.y = center.y;
+            storageBlock[currentMemoryPosition].center.z = center.z; 
+
+            storageBlock[currentMemoryPosition].diagonal = glm::length((node->coverage[0] - node->coverage[1]));
+
+            currentMemoryPosition++;
+
+            for(HybridVH * child : node->children){
+                process_queue.push_back(child);
+            }
+
+        }
+	}
+
+    printf("Built %d subtrees\n", roots.size());
 
     printf("Done building space partitioning\n");
 
@@ -399,6 +449,13 @@ int main(){
     
     printf("Number of splats: %d\n", num_elements);
 
+    checkCudaErrors(cudaMalloc(&cudaStorageBlock, sizeof(CUDATreeNode) * totalStorageSize));
+    assert(cudaStorageBlock != NULL);
+    checkCudaErrors(cudaMemcpy((void *)cudaStorageBlock, (void *)storageBlock, sizeof(CUDATreeNode) * totalStorageSize, cudaMemcpyHostToDevice));
+
+    checkCudaErrors(cudaMalloc(&cuda_roots, sizeof(uint32_t) * roots.size()));
+    assert(cuda_roots != NULL);
+    checkCudaErrors(cudaMemcpy((void *)cuda_roots, (void *)roots.data(), sizeof(uint32_t) * roots.size(), cudaMemcpyHostToDevice));
 
     /* Allocate and send splat data to GPU memory */
     SplatData * d_sd;
@@ -415,7 +472,6 @@ int main(){
     int * d_overlap;
     int * d_overlap_sums;
     bool * d_renderMask;
-
     float * d_cov3ds;
 
     checkCudaErrors(cudaMalloc(&d_conic_opacity, sizeof(float4) * num_elements));
@@ -491,6 +547,11 @@ int main(){
     // Prepare CUDA interop
     checkCudaErrors(cudaMalloc(&d_pbo_buffer, 4 * SCREEN_HEIGHT * SCREEN_WIDTH * sizeof(float)));
     checkCudaErrors(cudaGraphicsGLRegisterBuffer(&cuda_pbo_resource, pboId, cudaGraphicsRegisterFlagsNone));
+
+    void     *d_temp_storage = NULL;
+    size_t   temp_storage_bytes = 200000000;
+
+    checkCudaErrors(cudaMalloc(&d_temp_storage, temp_storage_bytes));
     
 
     /* Very basic FPS metrics */
@@ -540,24 +601,21 @@ int main(){
             //     renderMask[i] = 1;
             // }
             //renderedSplats = spacePartitioningRoot->markForRender(renderMask, num_elements, sd, autoLevel ? -1 : renderLevel, cameraPosition, fovy, SCREEN_WIDTH, diagonalProjectionThreshold);
-            renderedSplats = markForRender(renderMask, nodes, autoLevel ? -1 : renderLevel, cameraPosition, fovy, SCREEN_WIDTH, diagonalProjectionThreshold, num_elements);
+            // renderedSplats = markForRender(renderMask, nodes, autoLevel ? -1 : renderLevel, cameraPosition, fovy, SCREEN_WIDTH, diagonalProjectionThreshold, num_elements);
+            checkCudaErrors(cudaMemset(d_renderMask, 0, sizeof(bool) * num_elements));
+            CUDAmarkForRender<<<roots.size() / 256 + 1, 256>>>(d_renderMask, cudaStorageBlock, cuda_roots, roots.size(), cameraPosition, fovy, SCREEN_WIDTH, diagonalProjectionThreshold);
+            checkCudaErrors(cudaDeviceSynchronize());
             // printf("Rendered splats: %d\n", renderedSplats);
 
-            checkCudaErrors(cudaMemcpy(d_renderMask, renderMask, sizeof(bool) * num_elements, cudaMemcpyHostToDevice));
+            // checkCudaErrors(cudaMemcpy(d_renderMask, renderMask, sizeof(bool) * num_elements, cudaMemcpyHostToDevice));
 
             preprocessGaussians<<<num_elements / LINE_BLOCK + 1, LINE_BLOCK>>>(num_elements, d_sd, perspective, modelview, cameraPosition, fovy, fovx, d_conic_opacity, d_rgb, d_image_point, d_radius, d_depth, d_overlap, SCREEN_WIDTH, SCREEN_HEIGHT, grid, renderMode, d_renderMask);
             checkCudaErrors(cudaDeviceSynchronize());
 
-            // Determine temporary device storage requirements for inclusive prefix sum
-            void     *d_temp_storage = NULL;
-            size_t   temp_storage_bytes = 0;
-            cub::DeviceScan::InclusiveSum(d_temp_storage, temp_storage_bytes, d_overlap, d_overlap_sums, num_elements);
             // Allocate temporary storage for inclusive prefix sum
-            cudaMalloc(&d_temp_storage, temp_storage_bytes);
+            
             // Run inclusive prefix sum
             cub::DeviceScan::InclusiveSum(d_temp_storage, temp_storage_bytes, d_overlap, d_overlap_sums, num_elements);
-
-            checkCudaErrors(cudaFree(d_temp_storage));
 
             int totalDuplicateGaussians = 0;
             checkCudaErrors(cudaMemcpy(&totalDuplicateGaussians, d_overlap_sums + num_elements - 1, sizeof(int), cudaMemcpyDeviceToHost));
@@ -568,16 +626,8 @@ int main(){
             duplicateGaussians<<<num_elements / LINE_BLOCK + 1, LINE_BLOCK>>>(num_elements, d_image_point, d_radius, d_depth, d_overlap_sums, d_sort_keys_in, d_sort_ids_in, grid);
             checkCudaErrors(cudaDeviceSynchronize());
 
-            d_temp_storage = NULL;
-            temp_storage_bytes = 0;
-
-            /* Determine how much temporary storage we need */
-            cub::DeviceRadixSort::SortPairs(d_temp_storage, temp_storage_bytes, d_sort_keys_in, d_sort_keys_out, d_sort_ids_in, d_sort_ids_out, totalDuplicateGaussians);
-            checkCudaErrors(cudaMalloc(&d_temp_storage, temp_storage_bytes));
-
             /* TODO: determine highest MSB to pass to sorting, so we don't use all 64 bits */
             cub::DeviceRadixSort::SortPairs(d_temp_storage, temp_storage_bytes, d_sort_keys_in, d_sort_keys_out, d_sort_ids_in, d_sort_ids_out, totalDuplicateGaussians);
-            checkCudaErrors(cudaFree(d_temp_storage));
 
             checkCudaErrors(cudaMemset(d_tile_range_min, 0, sizeof(uint32_t) * grid.x * grid.y));
             checkCudaErrors(cudaMemset(d_tile_range_max, 0, sizeof(uint32_t) * grid.x * grid.y));
@@ -705,6 +755,7 @@ int main(){
     checkCudaErrors(cudaFree(d_sort_keys_out));
     checkCudaErrors(cudaFree(d_sort_ids_in));
     checkCudaErrors(cudaFree(d_sort_ids_out));
+    checkCudaErrors(cudaFree(d_temp_storage));
 
     if(spacePartitioningRoot != nullptr) delete spacePartitioningRoot;
     delete [] imageData;
