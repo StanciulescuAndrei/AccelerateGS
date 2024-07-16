@@ -11,7 +11,7 @@
 #define MIN_OCTREE_LEVEL 13
 #define MAX_OCTREE_LEVEL 21
 
-#define MIN_HYBRID_LEVEL 16
+#define MIN_HYBRID_LEVEL 14
 #define MAX_HYBRID_LEVEL 23
 
 // #define MIN_HYBRID_LEVEL 6
@@ -96,7 +96,7 @@ void buildInterface(){
     }
 
     ImGui::SliderInt("Render Level", &renderLevel, render_low_limit, render_high_limit + 1);
-    ImGui::SliderFloat("LOD render bias", &diagonalProjectionThreshold, 10.0f, 300.0f);
+    ImGui::SliderFloat("LOD render bias", &diagonalProjectionThreshold, 0.0f, 300.0f);
 
     ImGui::RadioButton("Free camera", &cameraMode, 0); ImGui::SameLine();
     ImGui::RadioButton("COLMAP Camera", &cameraMode, 1);

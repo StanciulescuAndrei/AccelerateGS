@@ -29,6 +29,9 @@
 
 #include <deque>
 
+#include <thrust/count.h>
+#include <thrust/device_vector.h>
+
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 #include "raster_helper.cuh"
@@ -502,6 +505,8 @@ int main(){
     assert(d_renderMask != NULL);
     checkCudaErrors(cudaMemcpy(d_renderMask, renderMask, sizeof(bool) * num_elements, cudaMemcpyHostToDevice));
 
+    thrust::device_ptr<bool> d_renderMask_devPtr(d_renderMask);
+
     dim3 block(BLOCK_X, BLOCK_Y, 1); // One thread per pixel!
     dim3 grid(SCREEN_WIDTH / BLOCK_X + 1, SCREEN_HEIGHT / BLOCK_Y + 1, 1);
 
@@ -589,30 +594,20 @@ int main(){
             }
 
             modelview = glm::lookAt(cameraPosition, cameraRotation * glm::vec3(0.0f, 0.0f, 1.0f) + cameraPosition, cameraRotation * glm::vec3(0.0f, 1.0f, 0.0f));
-            // modelview = glm::lookAt(glm::vec3(3.149138,-0.195829,0.727059), glm::vec3(2.239249,-0.210347,1.141656), glm::vec3(0.032943,0.993702,0.107094));
             perspective = glm::perspective(fovy, (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.009f, 100.0f) * modelview;
 
-            /* Call the main CUDA render kernel */
+            Frustum f;
 
             int renderMode = (selectedViewMode<<4) + renderPrimitive;
 
-            memset(renderMask, 0, sizeof(bool) * num_elements);
-            // for(int i = 0; i < old_num_elements; i++){
-            //     renderMask[i] = 1;
-            // }
-            //renderedSplats = spacePartitioningRoot->markForRender(renderMask, num_elements, sd, autoLevel ? -1 : renderLevel, cameraPosition, fovy, SCREEN_WIDTH, diagonalProjectionThreshold);
-            // renderedSplats = markForRender(renderMask, nodes, autoLevel ? -1 : renderLevel, cameraPosition, fovy, SCREEN_WIDTH, diagonalProjectionThreshold, num_elements);
             checkCudaErrors(cudaMemset(d_renderMask, 0, sizeof(bool) * num_elements));
             CUDAmarkForRender<<<roots.size() / 256 + 1, 256>>>(d_renderMask, cudaStorageBlock, cuda_roots, roots.size(), cameraPosition, fovy, SCREEN_WIDTH, diagonalProjectionThreshold);
             checkCudaErrors(cudaDeviceSynchronize());
-            // printf("Rendered splats: %d\n", renderedSplats);
-
-            // checkCudaErrors(cudaMemcpy(d_renderMask, renderMask, sizeof(bool) * num_elements, cudaMemcpyHostToDevice));
 
             preprocessGaussians<<<num_elements / LINE_BLOCK + 1, LINE_BLOCK>>>(num_elements, d_sd, perspective, modelview, cameraPosition, fovy, fovx, d_conic_opacity, d_rgb, d_image_point, d_radius, d_depth, d_overlap, SCREEN_WIDTH, SCREEN_HEIGHT, grid, renderMode, d_renderMask);
             checkCudaErrors(cudaDeviceSynchronize());
 
-            // Allocate temporary storage for inclusive prefix sum
+            renderedSplats = thrust::count(d_renderMask_devPtr, d_renderMask_devPtr + num_elements, true);
             
             // Run inclusive prefix sum
             cub::DeviceScan::InclusiveSum(d_temp_storage, temp_storage_bytes, d_overlap, d_overlap_sums, num_elements);
@@ -634,9 +629,6 @@ int main(){
 
             getTileRanges<<<(totalDuplicateGaussians) / LINE_BLOCK + 1, LINE_BLOCK>>>(d_sort_keys_out, totalDuplicateGaussians, d_tile_range_min, d_tile_range_max);
             checkCudaErrors(cudaDeviceSynchronize());
-
-            // debugInfo<<<1, 1>>>(num_elements, d_sd, perspective, modelview, d_conic_opacity, d_rgb, d_image_point, d_radius, d_depth, d_overlap, SCREEN_HEIGHT, SCREEN_WIDTH, grid);
-            // checkCudaErrors(cudaDeviceSynchronize());
 
             render<<<grid, block>>>(num_elements, d_sd, d_conic_opacity, d_rgb, d_image_point, d_depth, d_tile_range_min, d_tile_range_max, d_sort_ids_out, SCREEN_WIDTH, SCREEN_HEIGHT, grid, dataPointer);
             checkCudaErrors(cudaDeviceSynchronize());

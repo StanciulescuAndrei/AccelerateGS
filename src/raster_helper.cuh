@@ -40,6 +40,57 @@ union SplatData
     } fields;
 };
 
+struct Frustum{
+	float planes[6][4]; // 6 planes, each plane defined by 4 floats [(a, b, c), d]
+};
+
+__host__ void computeFrustum(Frustum & f,  glm::mat4 & mvp){
+	// Left plane
+    f.planes[0][0] = viewProjMatrix[0][3] + viewProjMatrix[0][0];
+	f.planes[0][1] = viewProjMatrix[1][3] + viewProjMatrix[1][0];
+	f.planes[0][2] = viewProjMatrix[2][3] + viewProjMatrix[2][0];
+	f.planes[0][3] = viewProjMatrix[3][3] + viewProjMatrix[3][0];
+
+    // Right plane
+    f.planes[1][0] = viewProjMatrix[0][3] - viewProjMatrix[0][0];
+	f.planes[1][1] = viewProjMatrix[1][3] - viewProjMatrix[1][0];
+	f.planes[1][2] = viewProjMatrix[2][3] - viewProjMatrix[2][0];
+	f.planes[1][3] = viewProjMatrix[3][3] - viewProjMatrix[3][0];
+
+    // Bottom plane
+	f.planes[2][0] = viewProjMatrix[0][3] + viewProjMatrix[0][1];
+	f.planes[2][1] = viewProjMatrix[1][3] + viewProjMatrix[1][1];
+	f.planes[2][2] = viewProjMatrix[2][3] + viewProjMatrix[2][1];
+	f.planes[2][3] = viewProjMatrix[3][3] + viewProjMatrix[3][1];
+
+    // Top plane
+    f.planes[3][0] = viewProjMatrix[0][3] - viewProjMatrix[0][1];
+	f.planes[3][1] = viewProjMatrix[1][3] - viewProjMatrix[1][1];
+	f.planes[3][2] = viewProjMatrix[2][3] - viewProjMatrix[2][1];
+	f.planes[3][3] = viewProjMatrix[3][3] - viewProjMatrix[3][1];
+
+    // Near plane
+	f.planes[4][0] = viewProjMatrix[0][3] + viewProjMatrix[0][2];
+	f.planes[4][1] = viewProjMatrix[1][3] + viewProjMatrix[1][2];
+	f.planes[4][2] = viewProjMatrix[2][3] + viewProjMatrix[2][2];
+	f.planes[4][3] = viewProjMatrix[3][3] + viewProjMatrix[3][2];
+
+    // Far plane
+    f.planes[5][0] = viewProjMatrix[0][3] - viewProjMatrix[0][2];
+	f.planes[5][1] = viewProjMatrix[1][3] - viewProjMatrix[1][2];
+	f.planes[5][2] = viewProjMatrix[2][3] - viewProjMatrix[2][2];
+	f.planes[5][3] = viewProjMatrix[3][3] - viewProjMatrix[3][2];
+}
+
+__device__ bool isPointInFrustum(const Frustum f, const glm::vec3 & point){
+	for(int i = 0; i < 6; i++){
+		if(glm::dot(glm::make_vec3(f.planes[i]), point) + f.planes[i][3] < 0){
+			return false;
+		}
+	}
+	return true;
+}
+
 // Spherical harmonics coefficients
 __device__ const float SH_C0 = 0.28209479177387814f;
 __device__ const float SH_C1 = 0.4886025119029199f;
