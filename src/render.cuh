@@ -297,7 +297,7 @@ __global__ void render(int num_splats, SplatData * sd,
 
 
 
-__global__ void CUDAmarkForRender(bool *renderMask, CUDATreeNode * nodes, uint32_t * roots, int num_roots, glm::vec3 cameraPosition, float fovy, int SW, float dpt)
+__global__ void CUDAmarkForRender(bool *renderMask, CUDATreeNode * nodes, uint32_t * roots, int num_roots, glm::vec3 cameraPosition, float fovy, int SW, float dpt, Frustum frustum)
 {
 	int thread_idx = blockIdx.x * blockDim.x + threadIdx.x;
 	if(thread_idx >= num_roots) return;
@@ -317,6 +317,9 @@ __global__ void CUDAmarkForRender(bool *renderMask, CUDATreeNode * nodes, uint32
 		/* Easiest implementation, maximum projection by distance */
 		float S = nodes[crt_node_id].diagonal;
 		glm::vec3 center = glm::vec3(nodes[crt_node_id].center.x, nodes[crt_node_id].center.y, nodes[crt_node_id].center.z);
+
+		if(!isPointInFrustum(frustum, center, S)) continue;
+
 		float D = glm::length(center - cameraPosition);
 
 		float P = S / D * (SW / fovy);

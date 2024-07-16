@@ -597,11 +597,12 @@ int main(){
             perspective = glm::perspective(fovy, (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.009f, 100.0f) * modelview;
 
             Frustum f;
+            computeFrustum(f, perspective);
 
             int renderMode = (selectedViewMode<<4) + renderPrimitive;
 
             checkCudaErrors(cudaMemset(d_renderMask, 0, sizeof(bool) * num_elements));
-            CUDAmarkForRender<<<roots.size() / 256 + 1, 256>>>(d_renderMask, cudaStorageBlock, cuda_roots, roots.size(), cameraPosition, fovy, SCREEN_WIDTH, diagonalProjectionThreshold);
+            CUDAmarkForRender<<<roots.size() / 256 + 1, 256>>>(d_renderMask, cudaStorageBlock, cuda_roots, roots.size(), cameraPosition, fovy, SCREEN_WIDTH, diagonalProjectionThreshold, f);
             checkCudaErrors(cudaDeviceSynchronize());
 
             preprocessGaussians<<<num_elements / LINE_BLOCK + 1, LINE_BLOCK>>>(num_elements, d_sd, perspective, modelview, cameraPosition, fovy, fovx, d_conic_opacity, d_rgb, d_image_point, d_radius, d_depth, d_overlap, SCREEN_WIDTH, SCREEN_HEIGHT, grid, renderMode, d_renderMask);
