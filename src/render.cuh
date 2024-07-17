@@ -306,15 +306,15 @@ __global__ void CUDAmarkForRender(bool *renderMask, CUDATreeNode * nodes, uint32
 
 	const size_t bufferSize = 128;
 	uint32_t buffer[bufferSize];
-	size_t b_start = 0;
-	size_t b_end = 0;
+
+	uint32_t * stack_head = buffer;
+	*stack_head++ = NULL;
+
+	uint32_t crt_node_id = root_id;
 
 	const float div = SW / fovy;
 
-	insertCircularBuffer(buffer, b_start, b_end, bufferSize, root_id);
-	while(b_start != b_end){
-		uint32_t crt_node_id = popCircularBuffer(buffer, b_start, b_end, bufferSize);
-		
+	do{		
 		int shouldRenderNode = 0;
 		/* Easiest implementation, maximum projection by distance */
 		float S = nodes[crt_node_id].diagonal;
@@ -338,9 +338,9 @@ __global__ void CUDAmarkForRender(bool *renderMask, CUDATreeNode * nodes, uint32
 			else
 			{
 				if(nodes[crt_node_id].childrenIndices[0] != 0)
-					insertCircularBuffer(buffer, b_start, b_end, bufferSize, nodes[crt_node_id].childrenIndices[0]);
+					*stack_head++ = nodes[crt_node_id].childrenIndices[0];
 				if(nodes[crt_node_id].childrenIndices[1] != 0)
-					insertCircularBuffer(buffer, b_start, b_end, bufferSize, nodes[crt_node_id].childrenIndices[1]);
+					*stack_head++ = nodes[crt_node_id].childrenIndices[1];
 			}
 		}
 		else
@@ -350,5 +350,8 @@ __global__ void CUDAmarkForRender(bool *renderMask, CUDATreeNode * nodes, uint32
 				renderMask[nodes[crt_node_id].representative] = true;
 			}
 		}
-	}
+
+		crt_node_id = *--stack_head;
+
+	}while(crt_node_id != NULL);
 }
