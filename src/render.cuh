@@ -309,6 +309,8 @@ __global__ void CUDAmarkForRender(bool *renderMask, CUDATreeNode * nodes, uint32
 	size_t b_start = 0;
 	size_t b_end = 0;
 
+	const float div = SW / fovy;
+
 	insertCircularBuffer(buffer, b_start, b_end, bufferSize, root_id);
 	while(b_start != b_end){
 		uint32_t crt_node_id = popCircularBuffer(buffer, b_start, b_end, bufferSize);
@@ -318,11 +320,11 @@ __global__ void CUDAmarkForRender(bool *renderMask, CUDATreeNode * nodes, uint32
 		float S = nodes[crt_node_id].diagonal;
 		glm::vec3 center = glm::vec3(nodes[crt_node_id].center.x, nodes[crt_node_id].center.y, nodes[crt_node_id].center.z);
 
-		if(!isPointInFrustum(frustum, center, S)) continue;
+		// if(!isPointInFrustum(frustum, center, S)) continue;
 
 		float D = glm::length(center - cameraPosition);
 
-		float P = S / D * (SW / fovy);
+		float P = S / D * div;
 
 		shouldRenderNode = (P > dpt);
 
@@ -335,10 +337,10 @@ __global__ void CUDAmarkForRender(bool *renderMask, CUDATreeNode * nodes, uint32
 			}
 			else
 			{
-				for(int i = 0; i < 2; i++){
-					if(nodes[crt_node_id].childrenIndices[i] != 0)
-						insertCircularBuffer(buffer, b_start, b_end, bufferSize, nodes[crt_node_id].childrenIndices[i]);
-				}
+				if(nodes[crt_node_id].childrenIndices[0] != 0)
+					insertCircularBuffer(buffer, b_start, b_end, bufferSize, nodes[crt_node_id].childrenIndices[0]);
+				if(nodes[crt_node_id].childrenIndices[1] != 0)
+					insertCircularBuffer(buffer, b_start, b_end, bufferSize, nodes[crt_node_id].childrenIndices[1]);
 			}
 		}
 		else
@@ -346,17 +348,6 @@ __global__ void CUDAmarkForRender(bool *renderMask, CUDATreeNode * nodes, uint32
 			if (nodes[crt_node_id].representative != 0)
 			{
 				renderMask[nodes[crt_node_id].representative] = true;
-			}
-			else
-			{
-				if(nodes[crt_node_id].flags){
-					for (int s = 0; s < sizeof(nodes[crt_node_id].splatIds) / sizeof(uint32_t); s++)
-						renderMask[nodes[crt_node_id].splatIds[s]] = true;
-				}
-				for(int i = 0; i < 2; i++){
-					if(nodes[crt_node_id].childrenIndices[i] != 0)
-						insertCircularBuffer(buffer, b_start, b_end, bufferSize, nodes[crt_node_id].childrenIndices[i]);
-				}
 			}
 		}
 	}
