@@ -82,7 +82,7 @@ __host__ void computeFrustum(Frustum & f,  glm::mat4 & mvp){
 	f.planes[5][3] = mvp[3][3] - mvp[3][2];
 }
 
-__device__ bool isPointInFrustum(const Frustum f, const glm::vec3 & point, float radius){
+__device__ bool isPointInFrustum(const Frustum & f, const glm::vec3 & point, float radius){
 	for(int i = 0; i < 6; i++){
 		if(glm::dot(glm::make_vec3(f.planes[i]), point) + f.planes[i][3] < -radius){
 			return false;

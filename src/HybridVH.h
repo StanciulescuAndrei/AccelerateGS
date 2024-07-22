@@ -24,7 +24,7 @@ enum LevelType
 
 struct CUDATreeNode{
     uint32_t childrenIndices[2];
-    uint32_t splatIds[128]; // For alignement, whatever
+    uint32_t splatIds[4]; // For alignement, whatever
     uint8_t flags;
     float3 center;
     float diagonal;

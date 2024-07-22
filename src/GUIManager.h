@@ -11,8 +11,8 @@
 #define MIN_OCTREE_LEVEL 13
 #define MAX_OCTREE_LEVEL 21
 
-#define MIN_HYBRID_LEVEL 15
-#define MAX_HYBRID_LEVEL 23
+#define MIN_HYBRID_LEVEL 16
+#define MAX_HYBRID_LEVEL 27
 
 // #define MIN_HYBRID_LEVEL 6
 // #define MAX_HYBRID_LEVEL 15
@@ -32,7 +32,7 @@ int batchRender = 0;
 int renderedSplats = 0;
 int numCameraPositions = 2;
 
-float diagonalProjectionThreshold = 30.0f;
+float diagonalProjectionThreshold = 300.0f;
 
 struct RenderConfig{
     std::string structure;

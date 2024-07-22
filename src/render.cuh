@@ -317,10 +317,15 @@ __global__ void CUDAmarkForRender(bool *renderMask, CUDATreeNode * nodes, uint32
 	do{		
 		int shouldRenderNode = 0;
 		/* Easiest implementation, maximum projection by distance */
-		float S = nodes[crt_node_id].diagonal;
-		glm::vec3 center = glm::vec3(nodes[crt_node_id].center.x, nodes[crt_node_id].center.y, nodes[crt_node_id].center.z);
+		CUDATreeNode cached_node = nodes[crt_node_id];
+		float S = cached_node.diagonal;
+		glm::vec3 center = glm::vec3(cached_node.center.x, cached_node.center.y, cached_node.center.z);
+		uint32_t * splatsVector = cached_node.splatIds;
 
-		// if(!isPointInFrustum(frustum, center, S)) continue;
+		if(!isPointInFrustum(frustum, center, S)){
+			crt_node_id = *--stack_head;
+			continue;
+		}
 
 		float D = glm::length(center - cameraPosition);
 
@@ -330,24 +335,24 @@ __global__ void CUDAmarkForRender(bool *renderMask, CUDATreeNode * nodes, uint32
 
 		if (shouldRenderNode)
 		{ // is node big enough on the screen?
-			if (nodes[crt_node_id].flags)
+			if (cached_node.flags)
 			{
-				for (int s = 0; s < sizeof(nodes[crt_node_id].splatIds) / sizeof(uint32_t); s++)
-					renderMask[nodes[crt_node_id].splatIds[s]] = true;
+				for (int s = 0; s < sizeof(cached_node.splatIds) / sizeof(uint32_t); s++)
+					renderMask[cached_node.splatIds[s]] = true;
 			}
 			else
 			{
-				if(nodes[crt_node_id].childrenIndices[0] != 0)
-					*stack_head++ = nodes[crt_node_id].childrenIndices[0];
-				if(nodes[crt_node_id].childrenIndices[1] != 0)
-					*stack_head++ = nodes[crt_node_id].childrenIndices[1];
+				if(cached_node.childrenIndices[0] != 0)
+					*stack_head++ = cached_node.childrenIndices[0];
+				if(cached_node.childrenIndices[1] != 0)
+					*stack_head++ = cached_node.childrenIndices[1];
 			}
 		}
 		else
 		{
-			if (nodes[crt_node_id].representative != 0)
+			if (cached_node.representative != 0)
 			{
-				renderMask[nodes[crt_node_id].representative] = true;
+				renderMask[cached_node.representative] = true;
 			}
 		}
 
