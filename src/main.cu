@@ -257,7 +257,7 @@ int main(){
     int res = loadSplatData("../../models/truck/point_cloud/iteration_30000/point_cloud.ply", sd, &num_elements);
     printf("Loaded %d splats from file\n", num_elements);
 
-    const uint32_t maxDuplicatedGaussians = num_elements * 8;
+    const uint32_t maxDuplicatedGaussians = num_elements * 64;
 
     // First of all, build da octree
     begin = std::chrono::steady_clock::now();
@@ -566,6 +566,12 @@ int main(){
 
     begin = std::chrono::steady_clock::now();
 
+    cudaEvent_t kernelStart;
+    cudaEvent_t kernelEnd;
+
+    checkCudaErrors(cudaEventCreate(&kernelStart));
+    checkCudaErrors(cudaEventCreate(&kernelEnd));
+
     /* Main program loop */
     while (!glfwWindowShouldClose(window))
     {
@@ -602,8 +608,13 @@ int main(){
             int renderMode = (selectedViewMode<<4) + renderPrimitive;
 
             checkCudaErrors(cudaMemset(d_renderMask, 0, sizeof(bool) * num_elements));
-            CUDAmarkForRender<<<roots.size() / 256 + 1, 256>>>(d_renderMask, cudaStorageBlock, cuda_roots, roots.size(), cameraPosition, fovy, SCREEN_WIDTH, diagonalProjectionThreshold, f);
+
+            checkCudaErrors(cudaEventRecord(kernelStart));
+            CUDAmarkForRender<<<roots.size() / 256 + 1, 256>>>(d_renderMask, cudaStorageBlock, cuda_roots, roots.size(), cameraPosition, fovy, SCREEN_WIDTH, diagonalProjectionThreshold, f, useFrustumCulling);
             checkCudaErrors(cudaDeviceSynchronize());
+            checkCudaErrors(cudaEventRecord(kernelEnd));
+            checkCudaErrors(cudaEventSynchronize(kernelEnd));
+            checkCudaErrors(cudaEventElapsedTime(&traversalTime, kernelStart, kernelEnd));
 
             preprocessGaussians<<<num_elements / LINE_BLOCK + 1, LINE_BLOCK>>>(num_elements, d_sd, perspective, modelview, cameraPosition, fovy, fovx, d_conic_opacity, d_rgb, d_image_point, d_radius, d_depth, d_overlap, SCREEN_WIDTH, SCREEN_HEIGHT, grid, renderMode, d_renderMask);
             checkCudaErrors(cudaDeviceSynchronize());
@@ -631,8 +642,12 @@ int main(){
             getTileRanges<<<(totalDuplicateGaussians) / LINE_BLOCK + 1, LINE_BLOCK>>>(d_sort_keys_out, totalDuplicateGaussians, d_tile_range_min, d_tile_range_max);
             checkCudaErrors(cudaDeviceSynchronize());
 
+            checkCudaErrors(cudaEventRecord(kernelStart));
             render<<<grid, block>>>(num_elements, d_sd, d_conic_opacity, d_rgb, d_image_point, d_depth, d_tile_range_min, d_tile_range_max, d_sort_ids_out, SCREEN_WIDTH, SCREEN_HEIGHT, grid, dataPointer);
             checkCudaErrors(cudaDeviceSynchronize());
+            checkCudaErrors(cudaEventRecord(kernelEnd));
+            checkCudaErrors(cudaEventSynchronize(kernelEnd));
+            checkCudaErrors(cudaEventElapsedTime(&renderTime, kernelStart, kernelEnd));
         };
 
         auto saveRenderRoutine = [&](const char * filename){

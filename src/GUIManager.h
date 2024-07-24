@@ -11,8 +11,8 @@
 #define MIN_OCTREE_LEVEL 13
 #define MAX_OCTREE_LEVEL 21
 
-#define MIN_HYBRID_LEVEL 14
-#define MAX_HYBRID_LEVEL 27
+#define MIN_HYBRID_LEVEL 12
+#define MAX_HYBRID_LEVEL 32
 
 // #define MIN_HYBRID_LEVEL 6
 // #define MAX_HYBRID_LEVEL 15
@@ -31,6 +31,10 @@ int batchRender = 0;
 
 int renderedSplats = 0;
 int numCameraPositions = 2;
+bool useFrustumCulling = 1;
+
+float traversalTime = 0.0f;
+float renderTime = 0.0f;
 
 float diagonalProjectionThreshold = 0.0f;
 
@@ -97,6 +101,11 @@ void buildInterface(){
 
     ImGui::SliderInt("Render Level", &renderLevel, render_low_limit, render_high_limit + 1);
     ImGui::SliderFloat("LOD render bias", &diagonalProjectionThreshold, 0.0f, 300.0f);
+
+    ImGui::Checkbox("Use frustum culling ", &useFrustumCulling);
+
+    ImGui::Text("Traversal time: %.3f", traversalTime); 
+    ImGui::Text("Render time:    %.3f", renderTime); 
 
     ImGui::RadioButton("Free camera", &cameraMode, 0); ImGui::SameLine();
     ImGui::RadioButton("COLMAP Camera", &cameraMode, 1);

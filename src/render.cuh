@@ -297,7 +297,7 @@ __global__ void render(int num_splats, SplatData * sd,
 
 
 
-__global__ void CUDAmarkForRender(bool *renderMask, CUDATreeNode * nodes, uint32_t * roots, int num_roots, glm::vec3 cameraPosition, float fovy, int SW, float dpt, Frustum frustum)
+__global__ void CUDAmarkForRender(bool *renderMask, CUDATreeNode * nodes, uint32_t * roots, int num_roots, glm::vec3 cameraPosition, float fovy, int SW, float dpt, Frustum frustum, bool useFrustumCulling)
 {
 	int thread_idx = blockIdx.x * blockDim.x + threadIdx.x;
 	if(thread_idx >= num_roots) return;
@@ -322,10 +322,14 @@ __global__ void CUDAmarkForRender(bool *renderMask, CUDATreeNode * nodes, uint32
 		glm::vec3 center = glm::vec3(cached_node.center.x, cached_node.center.y, cached_node.center.z);
 		uint32_t * splatsVector = cached_node.splatIds;
 
-		if(!isPointInFrustum(frustum, center, S)){
-			crt_node_id = *--stack_head;
-			continue;
+		if(useFrustumCulling){
+			// Check for FC to eliminate nodes in traversal
+			if(!isPointInFrustum(frustum, center, S)){
+				crt_node_id = *--stack_head;
+				continue;
+			}
 		}
+		
 
 		float D = glm::length(center - cameraPosition);
 
