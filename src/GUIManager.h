@@ -70,9 +70,11 @@ bool useFrustumCulling = 1;
 
 float traversalTime = 0.0f;
 float renderTime = 0.0f;
+float prepTime = 0.0f;
 
 RollingAverage avgTraversal;
 RollingAverage avgRender;
+RollingAverage avgPrep;
 
 float diagonalProjectionThreshold = 0.0f;
 
@@ -133,6 +135,7 @@ void buildInterface(){
     ImGui::Checkbox("Use frustum culling ", &useFrustumCulling);
 
     ImGui::Text("Traversal time: %.3f", avgTraversal.get()); 
+    ImGui::Text("Prep time:      %.3f", avgPrep.get()); 
     ImGui::Text("Render time:    %.3f", avgRender.get()); 
 
     ImGui::RadioButton("Free camera", &cameraMode, 0); ImGui::SameLine();

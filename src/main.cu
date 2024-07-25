@@ -617,6 +617,8 @@ int main(){
             checkCudaErrors(cudaEventElapsedTime(&traversalTime, kernelStart, kernelEnd));
             avgTraversal.insert(traversalTime);
 
+            checkCudaErrors(cudaEventRecord(kernelStart));
+
             preprocessGaussians<<<num_elements / LINE_BLOCK + 1, LINE_BLOCK>>>(num_elements, d_sd, perspective, modelview, cameraPosition, fovy, fovx, d_conic_opacity, d_rgb, d_image_point, d_radius, d_depth, d_overlap, SCREEN_WIDTH, SCREEN_HEIGHT, grid, renderMode, d_renderMask);
             checkCudaErrors(cudaDeviceSynchronize());
 
@@ -642,6 +644,11 @@ int main(){
 
             getTileRanges<<<(totalDuplicateGaussians) / LINE_BLOCK + 1, LINE_BLOCK>>>(d_sort_keys_out, totalDuplicateGaussians, d_tile_range_min, d_tile_range_max);
             checkCudaErrors(cudaDeviceSynchronize());
+
+            checkCudaErrors(cudaEventRecord(kernelEnd));
+            checkCudaErrors(cudaEventSynchronize(kernelEnd));
+            checkCudaErrors(cudaEventElapsedTime(&prepTime, kernelStart, kernelEnd));
+            avgPrep.insert(prepTime);
 
             checkCudaErrors(cudaEventRecord(kernelStart));
             render<<<grid, block>>>(num_elements, d_sd, d_conic_opacity, d_rgb, d_image_point, d_depth, d_tile_range_min, d_tile_range_max, d_sort_ids_out, SCREEN_WIDTH, SCREEN_HEIGHT, grid, dataPointer);
