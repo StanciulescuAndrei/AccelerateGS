@@ -241,7 +241,7 @@ int main(){
     std::chrono::steady_clock::time_point begin;
     std::chrono::steady_clock::time_point end;
 
-    loadCameraFile("../../models/truck/cameras.json");
+    loadCameraFile("../../models/train/cameras.json");
     loadGenericProperties(SCREEN_WIDTH, SCREEN_HEIGHT, fovx, fovy);
 
     loadApplicationConfig("../config.cfg", renderConfig);
@@ -254,10 +254,10 @@ int main(){
     std::vector<SplatData> sd;
     bool * renderMask;
     int num_elements = 0;
-    int res = loadSplatData("../../models/truck/point_cloud/iteration_30000/point_cloud.ply", sd, &num_elements);
+    int res = loadSplatData("../../models/bicycle/point_cloud/iteration_30000/point_cloud.ply", sd, &num_elements);
     printf("Loaded %d splats from file\n", num_elements);
 
-    const uint32_t maxDuplicatedGaussians = num_elements * 64;
+    const uint32_t maxDuplicatedGaussians = num_elements * 8;
 
     // First of all, build da octree
     begin = std::chrono::steady_clock::now();
@@ -615,6 +615,7 @@ int main(){
             checkCudaErrors(cudaEventRecord(kernelEnd));
             checkCudaErrors(cudaEventSynchronize(kernelEnd));
             checkCudaErrors(cudaEventElapsedTime(&traversalTime, kernelStart, kernelEnd));
+            avgTraversal.insert(traversalTime);
 
             preprocessGaussians<<<num_elements / LINE_BLOCK + 1, LINE_BLOCK>>>(num_elements, d_sd, perspective, modelview, cameraPosition, fovy, fovx, d_conic_opacity, d_rgb, d_image_point, d_radius, d_depth, d_overlap, SCREEN_WIDTH, SCREEN_HEIGHT, grid, renderMode, d_renderMask);
             checkCudaErrors(cudaDeviceSynchronize());
@@ -648,6 +649,7 @@ int main(){
             checkCudaErrors(cudaEventRecord(kernelEnd));
             checkCudaErrors(cudaEventSynchronize(kernelEnd));
             checkCudaErrors(cudaEventElapsedTime(&renderTime, kernelStart, kernelEnd));
+            avgRender.insert(renderTime);
         };
 
         auto saveRenderRoutine = [&](const char * filename){

@@ -14,6 +14,41 @@
 #define MIN_HYBRID_LEVEL 12
 #define MAX_HYBRID_LEVEL 32
 
+#define RA_SIZE 256
+
+struct RenderConfig{
+    std::string structure;
+    std::string representative;
+    std::string clustering;
+    int numClusterFeatures;
+    int spectralClusteringThreshold;
+    float dbscan_epsilon;
+    int nClusters;
+};
+
+class RollingAverage{
+    private:
+    float values[RA_SIZE];
+    int ptr = 0;
+    public:
+    RollingAverage(){
+        for(int i = 0; i < RA_SIZE; i++){
+            values[i] = 0.0f;
+        }
+    }
+    void insert(float value){
+        values[ptr] = value;
+        ptr = (ptr + 1) % RA_SIZE;
+    }
+    float get(){
+        float sum = 0.0f;
+        for(int i = 0; i < RA_SIZE; i++){
+            sum += values[i];
+        }
+        return sum / RA_SIZE;
+    }
+};
+
 // #define MIN_HYBRID_LEVEL 6
 // #define MAX_HYBRID_LEVEL 15
 
@@ -36,17 +71,10 @@ bool useFrustumCulling = 1;
 float traversalTime = 0.0f;
 float renderTime = 0.0f;
 
-float diagonalProjectionThreshold = 0.0f;
+RollingAverage avgTraversal;
+RollingAverage avgRender;
 
-struct RenderConfig{
-    std::string structure;
-    std::string representative;
-    std::string clustering;
-    int numClusterFeatures;
-    int spectralClusteringThreshold;
-    float dbscan_epsilon;
-    int nClusters;
-};
+float diagonalProjectionThreshold = 0.0f;
 
 RenderConfig renderConfig;
 
@@ -104,8 +132,8 @@ void buildInterface(){
 
     ImGui::Checkbox("Use frustum culling ", &useFrustumCulling);
 
-    ImGui::Text("Traversal time: %.3f", traversalTime); 
-    ImGui::Text("Render time:    %.3f", renderTime); 
+    ImGui::Text("Traversal time: %.3f", avgTraversal.get()); 
+    ImGui::Text("Render time:    %.3f", avgRender.get()); 
 
     ImGui::RadioButton("Free camera", &cameraMode, 0); ImGui::SameLine();
     ImGui::RadioButton("COLMAP Camera", &cameraMode, 1);

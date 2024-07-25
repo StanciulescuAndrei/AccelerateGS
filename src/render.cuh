@@ -304,7 +304,7 @@ __global__ void CUDAmarkForRender(bool *renderMask, CUDATreeNode * nodes, uint32
 
 	int root_id = roots[thread_idx];
 
-	const size_t bufferSize = 128;
+	const size_t bufferSize = 64;
 	uint32_t buffer[bufferSize];
 
 	uint32_t * stack_head = buffer;
