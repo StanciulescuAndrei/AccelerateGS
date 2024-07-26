@@ -241,7 +241,7 @@ int main(){
     std::chrono::steady_clock::time_point begin;
     std::chrono::steady_clock::time_point end;
 
-    loadCameraFile("../../models/train/cameras.json");
+    loadCameraFile("../../models/truck/cameras.json");
     loadGenericProperties(SCREEN_WIDTH, SCREEN_HEIGHT, fovx, fovy);
 
     loadApplicationConfig("../config.cfg", renderConfig);
@@ -254,10 +254,10 @@ int main(){
     std::vector<SplatData> sd;
     bool * renderMask;
     int num_elements = 0;
-    int res = loadSplatData("../../models/bicycle/point_cloud/iteration_30000/point_cloud.ply", sd, &num_elements);
+    int res = loadSplatData("../../models/truck/point_cloud/iteration_30000/point_cloud.ply", sd, &num_elements);
     printf("Loaded %d splats from file\n", num_elements);
 
-    const uint32_t maxDuplicatedGaussians = num_elements * 8;
+    const uint32_t maxDuplicatedGaussians = num_elements * 16;
 
     // First of all, build da octree
     begin = std::chrono::steady_clock::now();
@@ -673,6 +673,45 @@ int main(){
             stbi_flip_vertically_on_write(true);                
             stbi_write_png(filename, SCREEN_WIDTH, SCREEN_HEIGHT, 4, pixelData.data(), SCREEN_WIDTH * 4);
         };
+
+        if(recordExperiment){
+            cameraMode = 1;
+            std::vector<float> traversalTimeVector;
+            std::vector<float> prepTimeVector;
+            std::vector<float> renderTimeVector;
+            std::vector<uint32_t> numRenSplatsVector;
+            char filename[64];
+
+            for(int i = 0; i < cameraData.size(); i++){
+                /* Color */
+                selectedViewMode = 0;
+                softwareRasterizer(i);
+                traversalTimeVector.push_back(traversalTime);
+                prepTimeVector.push_back(prepTime);
+                renderTimeVector.push_back(renderTime);
+                numRenSplatsVector.push_back(renderedSplats);
+                snprintf(filename, 64, "renders/%05d.png", i);
+                saveRenderRoutine(filename);
+                /* Depth */
+                selectedViewMode = 1;
+                softwareRasterizer(i);
+                snprintf(filename, 64, "renders/d%05d.png", i);
+                saveRenderRoutine(filename);
+            }
+            snprintf(filename, 64, "renders/stats_%.2f_%d.txt", diagonalProjectionThreshold, useFrustumCulling);
+            std::ofstream csv_out(filename);
+            if(csv_out.is_open()){
+                csv_out << "FrameIdx,RenderedSplats,TraversalTime,PrepTime,RenderTime" << std::endl;
+                for(int i = 0; i < cameraData.size(); i++){
+                    csv_out << i << "," << numRenSplatsVector[i] 
+                                 << "," << traversalTimeVector[i]
+                                 << "," << prepTimeVector[i]
+                                 << "," << renderTimeVector[i]
+                                 << std::endl;
+                }
+                csv_out.close();
+            }
+        }
 
         if(batchRender){
             cameraMode = 1;

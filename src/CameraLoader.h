@@ -34,6 +34,9 @@ void loadGenericProperties(int & screen_x, int & screen_y, float & fovx, float &
 
     fovx = 2.0f * atanf((float)screen_x / (2.0f * sensorx));
     fovy = 2.0f * atanf((float)screen_y / (2.0f * sensory));
+
+    screen_x = 1920;
+    screen_y = 1080;
 }
 
 void getCameraParameters(int idx, glm::vec3 & position, glm::mat3 & rotation){

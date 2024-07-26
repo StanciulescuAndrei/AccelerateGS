@@ -63,6 +63,7 @@ int autoLevel = 0;
 
 int saveRender = 0;
 int batchRender = 0;
+int recordExperiment = 0;
 
 int renderedSplats = 0;
 int numCameraPositions = 2;
@@ -157,6 +158,13 @@ void buildInterface(){
     }
     else{
         batchRender = 0;
+    }
+    ImGui::SameLine();
+    if(ImGui::Button("Record experiment")){
+        recordExperiment = 1;
+    }
+    else{
+        recordExperiment = 0;
     }
 
     ImGui::End();
