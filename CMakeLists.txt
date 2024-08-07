@@ -16,10 +16,7 @@ find_package(Threads REQUIRED)
 
 find_package(nanoflann)
 
-find_package(Torch REQUIRED)
-
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${TORCH_CXX_FLAGS}")
-
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
 set(CMAKE_CUDA_ARCHITECTURES 86)
 set(OpenGL_GL_PREFERENCE GLVND)
@@ -36,7 +33,6 @@ include_directories(
 	../../libs/imgui/backends/
 	../../libs/nlohmann/
 	${STB_PATH}
-	/../../libs/libtorch/include
 )
 
 add_compile_definitions("RELEASE=$<CONFIG:Release>")
@@ -85,7 +81,6 @@ target_link_libraries(AccelerateGS
 	tbbmalloc
 	pthread
 	OpenCL
-	"${TORCH_LIBRARIES}"
 )
 
 set_property(TARGET AccelerateGS PROPERTY CXX_STANDARD 17)
