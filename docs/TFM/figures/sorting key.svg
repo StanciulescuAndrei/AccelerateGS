@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="210mm"
+   height="297mm"
+   viewBox="0 0 210 297"
+   version="1.1"
+   id="svg5"
+   inkscape:version="1.2.2 (b0a8486541, 2022-12-01)"
+   sodipodi:docname="sorting key.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview7"
+     pagecolor="#ffffff"
+     bordercolor="#eeeeee"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#505050"
+     inkscape:document-units="mm"
+     showgrid="false"
+     inkscape:zoom="1.5055415"
+     inkscape:cx="384.24712"
+     inkscape:cy="220.51866"
+     inkscape:window-width="1920"
+     inkscape:window-height="1011"
+     inkscape:window-x="0"
+     inkscape:window-y="32"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer1" />
+  <defs
+     id="defs2">
+    <color-profile
+       name="Built-in-display"
+       xlink:href="../../../.local/share/icc/edid-9ed9e018adfc090e526d0f1df61b1087.icc"
+       id="color-profile8585" />
+  </defs>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <rect
+       style="fill:#ffffff;stroke:#000000;stroke-width:0.665001"
+       id="rect4558"
+       width="162.98495"
+       height="12.423283"
+       x="29.059591"
+       y="26.148384" />
+    <rect
+       style="fill:#ffffff;stroke:#000000;stroke-width:0.665001"
+       id="rect4560"
+       width="81.49247"
+       height="12.423283"
+       x="29.059591"
+       y="26.148384" />
+    <text
+       xml:space="preserve"
+       style="font-size:4.58611px;fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:0.165;stroke-dasharray:none"
+       x="63.123867"
+       y="34.079815"
+       id="text4670"><tspan
+         sodipodi:role="line"
+         id="tspan4668"
+         style="font-size:4.58611px;fill:#000000;fill-opacity:1;stroke-width:0.165;stroke-dasharray:none"
+         x="63.123867"
+         y="34.079815">Tile ID</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.58611px;fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:0.165;stroke-dasharray:none"
+       x="138.77364"
+       y="33.552414"
+       id="text4670-3"><tspan
+         sodipodi:role="line"
+         id="tspan4668-6"
+         style="font-size:4.58611px;fill:#000000;fill-opacity:1;stroke-width:0.165;stroke-dasharray:none"
+         x="138.77364"
+         y="33.552414">Splat Depth</tspan></text>
+    <rect
+       style="fill:none;stroke:#000000;stroke-width:0.665001"
+       id="rect4759"
+       width="81.49247"
+       height="12.423283"
+       x="110.55206"
+       y="26.148384" />
+    <text
+       xml:space="preserve"
+       style="font-size:4.5861px;fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:0.165;stroke-dasharray:none"
+       x="62.658386"
+       y="45.734245"
+       id="text4865"><tspan
+         sodipodi:role="line"
+         id="tspan4863"
+         style="stroke-width:0.165"
+         x="62.658386"
+         y="45.734245">32 bits</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.5861px;fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:0.165;stroke-dasharray:none"
+       x="144.15086"
+       y="45.734245"
+       id="text4865-3"><tspan
+         sodipodi:role="line"
+         id="tspan4863-5"
+         style="stroke-width:0.165"
+         x="144.15086"
+         y="45.734245">32 bits</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.5861px;fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:0.165;stroke-dasharray:none"
+       x="192.04453"
+       y="25.09005"
+       id="text4919"><tspan
+         sodipodi:role="line"
+         id="tspan4917"
+         style="stroke-width:0.165"
+         x="192.04453"
+         y="25.09005">0</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.5861px;fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:0.165;stroke-dasharray:none"
+       x="110.55206"
+       y="25.09005"
+       id="text4923"><tspan
+         sodipodi:role="line"
+         id="tspan4921"
+         style="stroke-width:0.165"
+         x="110.55206"
+         y="25.09005">32</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.5861px;fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:0.165;stroke-dasharray:none"
+       x="29.059591"
+       y="25.09005"
+       id="text4927"><tspan
+         sodipodi:role="line"
+         id="tspan4925"
+         style="stroke-width:0.165"
+         x="29.059591"
+         y="25.09005">64</tspan></text>
+    <path
+       style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.128866;stroke-dasharray:none;stroke-opacity:1"
+       d="m 28.673391,49.885934 -0.08581,4.77692"
+       id="path7801" />
+    <path
+       style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.260606;stroke-dasharray:none;stroke-opacity:1"
+       d="m 192.04454,49.883781 v 5.16517"
+       id="path7805" />
+    <path
+       style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.46546409;stroke-dasharray:none;stroke-opacity:1"
+       d="m 28.72709,54.654105 163.31745,0.394846"
+       id="path7807" />
+    <text
+       xml:space="preserve"
+       style="font-size:4.5861px;fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:0.165;stroke-dasharray:none"
+       x="91.389038"
+       y="53.451717"
+       id="text4865-6"><tspan
+         sodipodi:role="line"
+         id="tspan4863-2"
+         style="stroke-width:0.165"
+         x="91.389038"
+         y="53.451717">64-bit sorting key</tspan></text>
+  </g>
+</svg>

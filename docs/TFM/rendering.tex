@@ -1,0 +1,144 @@
+\section{Rendering}
+In this chapter, I will present the details of the rasterization pipeline for 3DGS, as introduced in the reference implementation. Because the Gaussians are rendered directly without any intermediate representation through other standard primitives, the process cannot take advantage of the existing geometry pipelines implemented on GPUs. In turn, it is based upon a tiling software rasterizer implemented as a CUDA kernel.
+
+The render loop is made up of two main routines: the preprocessing stage and the rasterization routine, with a few intermediary steps in between for splat duplication, sorting, and assignment to tiles. This process takes as input the camera transformation and the Gaussian data and outputs the correct pixel color to a pixel buffer that allows the interoperability between CUDA and OpenGL. The only render call made to OpenGL is for a textured quad that fills the whole frame and is textured with the rasterized image. 
+
+\subsection{Preprocessing}
+
+As discussed previously, Gaussian primitives in 3DGS are defined by the following properties: mean $\bm{\mu} \in \mathbb{R}^3$, scale $\bm{S} \in \mathbb{R}^{3}$, rotation quaternion $\bm{q} \in \mathbb{R}^4$, opacity $\alpha \in \mathbb{R}$, and a set of spherical harmonics coefficients represented as an array of 48 floating point values, out of which 3 represent the base color, and the rest the specular details. Using this formulation, the distribution of a 3D Gaussian at any point in space $\bm{x}$ is the following \cite{ewa_splatting}:\[G(\bm{x} - \bm{\mu}) = e^{-\frac{1}{2}(\bm{x} - \bm{\mu})^T \Sigma^{-1} (\bm{x} - \bm{\mu})}\] This value is multiplied by the specific opacity of each Gaussian before being used for the last alpha-blending step. 
+
+\subsubsection{Gaussian Covariance}
+We can build the covariance matrix from the scaling matrix $S = diag(\bm{s}) \in \mathbb{R}^{3 \times 3}$ and the rotation matrix derived from the quaternion $\bm{q} = (x, y, z, w)$ as \cite{ye2023mathematicalsupplementtextttgsplatlibrary}:
+\[
+\bm{R} = \begin{bmatrix}
+1 - 2 \cdot (y^2 + z^2) & 2 \cdot (xy - wz) & 2 \cdot (xz + wy)\\
+2 \cdot (xy + wz) & 1 - 2 \cdot (x^2 - z^2) & 2 \cdot (yz - wx)\\
+2 \cdot (xz - wy) & 2 \cdot (yz + wx) & 1 - 2 \cdot (x^2 + y^2)
+\end{bmatrix}
+\]
+
+Then, we can build the 3D covariance matrix as $\Sigma = R S S^T R^T$. As the matrix is symmetrical, only the upper triangular region is stored. Now, the 3D covariance has to be projected to screen-space into a 2D covariance. A perspective transformation does not map a 3D Gaussian into a 2D Gaussian on the screen. For simplicity, the EWA splatting algorithm \cite{ewa_splatting} is used to approximate the perspective transformation by an affine local transformation using the first-order Taylor expansion at point $\bm{t}$, where $\bm{t}$ is the projected mean point of a Gaussian through the camera extrinsic matrix. Let $(f_x, f_y)$ be the focal lengths of the camera. Then we can obtain the Jacobian matrix of the perspective projection mapping at $\bm{t}$:
+\[
+\bm{J} = \begin{bmatrix}
+f_x/t_z & 0 & f_x \cdot t_x / t_z^2\\
+0 & f_y/t_z & f_y \cdot t_y / t_z^2
+\end{bmatrix} \in \mathbb{R}^{2 \times 3}
+\]
+If the camera extrinsic matrix is:
+\[
+T_{cam} = \begin{bmatrix}
+R_{cam} & t_{cam}\\
+0 & 1
+\end{bmatrix} \in \mathbb{R}^{4 \times 4}
+\]
+then we can finally compute the 2D covariance matrix of the projected Gaussian as:
+\[
+\Sigma_{2D} = \bm{J} R_{cam} \Sigma R_{cam}^T \bm{J}^T \in \mathbb{R}^{2 \times 2}
+\]
+
+At this point in the pipeline, the low-pass filter is applied to the covariance by ensuring that splats are at least one pixel in each direction using the following formula:
+\[
+\Sigma_{screen} = \Sigma_{2D} + \begin{bmatrix}
+0.3 & 0\\
+0 & 0.3
+\end{bmatrix}
+\]
+
+The value of 0.3 is chosen somewhat arbitrarily, the reasoning being that when evaluating the ellipse of 99\% confidence interval of a Gaussian, which is at three standard deviations from the mean, the value of 0.3 would roughly translate to a 1-pixel dilation in both directions of the variance of the Gaussian. Other methods, such as the Mip-Splatting presented earlier, use values that are influenced by the Gaussian's dimensions and the frequency band limitations of the resolution the scene is rendered at.
+
+\subsubsection{Splat geometric properties}
+
+The inverse of the 2D covariance matrix $\Sigma_{2D}$ is a conic matrix that will be used later in the render routine to compute a Gaussian's influence at multiple locations on the screen.
+
+From the eigenvalues of the 2D covariance $\lambda_1, \lambda_2$ where $\lambda_1 > \lambda_2$, we can then determine the minimum radius of a circle centered at the Gaussian mean that contains the 99\% confidence of the interval as $r = 3\sqrt{\lambda_1}$. Knowing the radius and the projected location of the Gaussian's center, we can then compute a screen-space bounding rectangle for the splat. 
+
+From this bounding rectangle and knowing the dimensions in pixels of each tile in the rasterizer, we get the number of overlapped tiles, determining how many times the splat will have to be duplicated in the next step. This value, alongside the conic matrix, radius, projected center, and splat depth (the value of the Z coordinate in the viewport position) will be stored in global memory and passed to the next step.
+
+\subsubsection{Splat color}
+In order to represent variations in color based on different viewing directions on a single splat, the 3DGS implementation uses spherical harmonics. These are a set of functions defined on the surface of a sphere, which form an orthonormal basis, so any function defined on the surface of a sphere can be decomposed into a series of spherical harmonics of multiple degrees \cite{maths_for_physiscs}. For performance and storage considerations, this implementation uses harmonics up to degree $l=3$, as additional levels require more storage and only improve high-frequency details. For each splat, the viewing direction vector is normalized, then its components are used as input to the spherical harmonics function. The standard formulation for the spherical harmonics with the Condon–Shortley phase is used, and the coefficients are precomputed and stored in a table. When compositing the color for each channel, each term of the harmonic expansion is also multiplied by a learned coefficient which is produced by the scene optimization procedure. This allows control of various detail frequencies across the four harmonics degrees and the three color channels. 
+
+\subsection{Splat duplication and sorting}
+In order for the tiling rasterizer to execute efficiently, each tile workgroup needs to have all the necessary data in a contiguous location in memory. Since splats can overlap multiple tiles, this introduces the need to duplicate splat data for each tile and arrange it appropriately in the device memory. To execute some of these operations, the implementation uses the CUB library, which provides state-of-the-art parallel primitives for the CUDA programming model. 
+
+The first step is to determine the total number of splats after duplication, and the array offsets for duplicating in memory. This is done using the overlapped tile values computed in the previous step, on which is applied an inclusive prefix sum scan. This computes, for each element, the sum of all previous values in the array, including itself, and stores the sum in a new results array. This means that given an array of integers of size n $\bm{x} \in \mathbb{N}^n$, the resulting inclusive prefix sum array $\bm{s}$ is:
+\[
+\bm{s}_k = \sum_{i=0}^{k} \bm{x}_i
+\]
+The values in this array will then provide the necessary offsets for duplicating the splat data in memory, and the amount of memory that has to be allocated. The formulation above, implemented on the CPU, has a time complexity of $\bigO (n)$. However, taking advantage of the fact that the data is stored on the GPU, the implementation uses the parallel version of this prefix scan routine \cite{Merrill2016SinglepassPP}, which takes advantage of the massively parallel capabilities of GPUs and can perform this sum in $\bigO (\log_2 n)$ steps by aggregating partial sums.
+
+The next step is duplicating the splat IDs and preparing them for sorting. The tiling rasterizer needs the splats to be ordered by depth, and the data in global memory needs to be contiguous for each tile. To achieve this, the duplicated IDs will be sorted by a set of precomputed keys. During duplication, keys containing the overlapped tile ID and the splat depth are generated for each duplicated splat ID. This means that each duplicated splat will be associated with a unique splat. We wish the arrangement in memory to be done first by splat ID, so splats overlapping the same chunk are contiguous in memory, and then by depth inside each block, so the rasterizer does not have to perform any further sorting. Thus, the keys are built as 64-bit values, where the higher 32 bits represent the overlapped splat ID, and the lower 32 bits represent the splat depth, as shown in figure \ref{fig:sortkey}. Because the tile ID occupies the higher-significance bits, it will have priority during sorting.
+
+\begin{figure}[H]
+    \centering
+    \includesvg[width=0.95\linewidth]{figures/sorting key.svg}
+    \caption{Sorting key structure for splat ordering.}
+    \label{fig:sortkey}
+\end{figure}
+
+
+After sorting, the keys will have a structure as seen in figure \ref{fig:sortedkey}, where the first half of each cell is color-coded by tile ID, and the gradient of the second half shows the depth. To sort the values in device memory by keys, the most efficient method is to use RadixSort \cite{radix_sort}, also implemented in the CUB library. It performs a least significant digit sorting, so the values are sorted in multiple passes, from the least significant digit to the most significant digit. Even though the depth component of the key is a floating point number, it will be interpreted as an integer, which is not an issue since the depth always has the same sign, so ordering as an integer representation produces the same result. The number of passes necessary for sorting depends on the number of digits of the key with the highest value, and it scales linearly with the number of sorted elements and performs very efficiently on the GPU architecture. Because usually, the value for the tile ID does not take up the whole 32 bits allocated for it in the sorting keys, we can determine the highest non-zero bit across all keys and terminate the sorting there, which might reduce the number of necessary sorting passes, depending on the stored values. In my testing, this extra check eliminates one of the passes, resulting in a small performance improvement.
+
+The last step before calling the rasterization routine is to determine, for each tile, the start and end range of its data in the global splat ID array. Ranges are also shown in figure \ref{fig:sortedkey}.
+\begin{figure}[H]
+    \centering
+    \includesvg[width=0.95\linewidth]{figures/sorted_keys.svg}
+    \caption{Sorted keys showcasing tile ranges.}
+    \label{fig:sortedkey}
+\end{figure}
+
+\subsection{Splat Rasterization}
+The rasterizer used in the reference 3DGS implementation cannot take advantage of the hardware graphics pipeline for processing splat primitives, so a tiled software rasterizer is used instead. This means that the rasterization is done through a programmable CUDA kernel. The screen is split into a grid of $16 \times 16$ pixels each, and the image on each grid block, or tile, is generated independently of the other tiles and composed in the end in the output buffer, thus the need for splat duplication done in the previous step. The render kernel is launched as a grid of blocks, and each block processes one screen tile and is made up of $16 \times 16$ threads. This means that there is one thread processing each pixel on the final render. 
+
+Inside every block, all threads will process all the splats assigned to the tile. Global memory accesses are costly and can significantly stall the kernel's execution and would be very wasteful especially if all threads need to access the same data. To avoid this memory access overhead we can take advantage of the local shared memory of each Streaming Multiprocessor \cite{cuda_ref}, which is however much smaller than global memory and cannot fit all splat data at once. To go around this limitation, the image can be composed in multiple passes, each pass processing 256 splats assigned to the tile. At the start of a pass, each thread loads into local shared memory (L1 cache) the screen position, conic matrix, and splat ID. Then, a synchronization barrier is used to ensure all data is loaded before proceeding to the next step. After synchronization, each thread in the block processes all the splats collected in local memory and computes their influence on their assigned pixel in the render. After the color blending is done, the block loads and processes the next batch of 256 splats and the process repeats until all splats assigned to the tile have been rasterized.
+
+The influence of a Gaussian on a specific pixel is determined by the distance between the 2D Gaussian on the screen and the pixel location, which is passed through an exponential falloff function. Because the EWA volume splatting algorithm projects 3D Gaussians to screen as ellipses, we can define the following radial basis function:
+
+\[
+r(\bm{d}) = \bm{d}^T \bm{Q} \bm{d}
+\]
+
+where $\bm{d} \in \mathbb{R}^{2}$ is the component-wise distance vector between the center of a splat and the pixel position and $\bm{Q} \in \mathbb{R}^{2 \times 2}$ is the conic matrix of the splat (i.e. the inverse of the 2D covariance matrix). Then, opacity of a splat centered at point $\bm{s} = (s_x, s_y)$ evaluated at a pixel with center $\bm{p} = (p_x, p_y)$ is:
+\[
+\alpha_{\bm{p}} = \alpha \cdot e^{-\frac{1}{2}r(\bm{s} - \bm{p})} 
+\]
+
+where $\alpha$ is the learned base opacity of the Gaussian (i.e. the opacity at the center of the splat). 
+% Figure shows a graphical explanation of the splat sampling procedure. 
+% \begin{figure}[H]
+%     \centering
+%     \includesvg[width=0.6\linewidth]{figures/splat_sampling2.svg}
+%     \caption{Splat opacity sampling.}
+%     \label{fig:sampling}
+% \end{figure}
+
+Splats are processed front to back, and the contribution of each splat is accumulated for each pixel following an alpha-blending compositing formula. In the end, the color of a pixel $k$ is given by the following formula:
+\[
+\bm{C}_k = \sum_{n < N} \bm{c}_n \cdot \alpha_n \cdot T_n \text{ where } T_n = \prod_{i < n} (1 - \alpha_i)
+\]
+
+Here, $N$ designates the number of splats overlapped by the tile that the thread processing pixel $k$ is assigned to, and $\bm{c}_n$ is the color of splat $n$. To ensure better performance splats with computed opacity lower than $\frac{1}{255}$ are skipped, and the color compositing can be terminated early if the remaining transmittance coefficient $T_n$ is lower than $10^{-4}$, as the pixel is considered to have reached "full" opacity and any further contributions are insignificant.
+
+\subsection{Performance profiling}
+The scope of this project is to propose an acceleration structure for 3DGS rendering, so after explaining the rendering pipeline, it makes sense to also perform a short performance analysis in order to identify potential bottlenecks and the routines that would most benefit from potential speedups. The profiling has been performed on the "Train" scene of the \textit{Tanks and Temples} dataset \cite{Knapitsch2017}, using one of the standard training camera positions. Data has been collected using NVIDIA Nsight Compute, which offers launch statistics, timing, and bottleneck statistics on profiled CUDA kernel launches, and will be an indispensable tool for this project. All the experiments for this project have been performed on a laptop with an NVIDIA RTX 3050 Ti GPU with 4GB of VRAM running at 35W.
+
+Figure \ref{fig:init_profile} shows the render pipeline profile. The final render routine takes up around 65\% of the execution time of the pipeline, indicating that it would be the best candidate for optimization, followed by the sorting at 13.7\% and 6.17\% for the duplication and key generation. However, Nsight Compute reports a compute throughput of over 90\% for the render routine, so optimizing the code will most likely result in minimal improvements, and the RadixSort routine is highly optimized already for the CUDA architecture. This indicates that if we wish to maintain the same pipeline for rendering, the most obvious way to increase the performance is to render fewer Gaussians in each frame. 
+
+\begin{figure}[H]
+\makebox[\textwidth][c]{
+    \centering
+    \begin{minipage}{0.5\textwidth}
+        \centering
+        \includesvg[width=\linewidth]{figures/init_profile.svg}
+        \caption{Render pipeline routine duration.}
+        \label{fig:init_profile}
+    \end{minipage}\hfill
+    \begin{minipage}{0.5\textwidth}
+        \centering
+        \includesvg[width=\linewidth]{figures/speedup.svg}
+        \caption{Render routine speedup when reducing the number of rendered Gaussians.}
+        \label{fig:speedup}
+    \end{minipage}
+    }
+\end{figure}
+
+To investigate the potential improvements of reducing the number of rendered Gaussians, I profiled the render routine on the same scene, rendering all the Gaussians, half of the Gaussians, and lastly a quarter of the Gaussians. Figure \ref{fig:speedup} shows the speedup obtained by reducing the number of Gaussians in the scene, indicating an almost linear relation between render time and the number of primitives. Of course, the relationship is not always linear and further decreasing the number of primitives produces diminishing returns, as kernel launch overheads become more relevant. However, just arbitrarily removing Gaussians from the scene is obviously not a good solution, so there is a need to create a scene simplification structure, which I will present in the following chapters.

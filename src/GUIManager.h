@@ -15,7 +15,7 @@
 // #define MAX_HYBRID_LEVEL 32
 
 #define MIN_BVH_LEVEL 2
-#define MAX_BVH_LEVEL 8
+#define MAX_BVH_LEVEL 14
 
 #define MIN_OCTREE_LEVEL 2
 #define MAX_OCTREE_LEVEL 8

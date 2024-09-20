@@ -1,0 +1,37 @@
+\section{Level of Detail Generation and Selection}
+Now that I have presented the methods implemented for space partitioning and Gaussian merging in the previous two chapters, I will discuss how these two concepts are combined to create the acceleration structure. The solution I propose in this project is a view-dependent continuous LoD structure \cite{lod} since the amount of detail is selected dynamically for each frame depending on the camera position relative to scene elements and the desired granularity.
+
+\subsection{Generating the Level of Detail}
+The level of detail representation is generated in an incipient step when the scene is loaded into memory. The scene partitioning algorithm begins from the bounding box of the entire scene, generated from the confidence ellipsoids of all Gaussians. The octree component of the hybrid partitioning is built without holding any intermediate information in the nodes, except the connectivity information to the children, as no simplification takes place at this level. For most scenes in my tests, I am using an octree depth of 12, which provides good node uniformity across the scene while leaving enough space for multiple levels of detail in the BSP part. The primitives contained in each node are exclusively passed down to the children based on their location inside the parent node.
+
+\begin{figure}[H]
+    \centering
+    \makebox[\textwidth][c]{\includesvg[width=0.6\linewidth]{figures/totaltree.svg}}
+    \caption{Simplified representation of scene tree showing the different types of nodes and representatives allocation.}
+    \label{fig:scenetree}
+\end{figure}
+
+When transitioning into the BSP component, the Gaussians are merged from the coarsest nodes to the finer nodes. When a BSP node is processed, all the Gaussians contained in the node are merged using the method presented earlier. The new primitive is added to the list of scene primitives, and its index is stored in the intermediary node. Also at this point, we use the primitives contained in the node to determine the actual bounding box of the node, which is used later for level selection. Then, we determine the two distinct clusters in the data, and the Gaussians are passed down to the two children depending on their respective clusters. The process repeats recursively until we reach the leaf nodes of the tree, which only contain one primitive, and all the intermediary BSP nodes have a reference to their merged Gaussian. From now on, I will refer to merged primitives of interior nodes as \textit{representatives}, as their intended use is to provide a good representation for a set of multiple Gaussians. Compared to other implementations, which build the representations from the finer level to coarse levels by only merging two primitives at a time, I have found that using all Gaussians included in the subtree of a node provides better results when no further training is involved. This means that all representatives are built directly from the original Gaussians, instead of deep intermediary nodes being built by merging two child representatives. Figure \ref{fig:scenetree} shows a simplified representation of the hybrid scene tree.
+
+\subsection{Level Selection}
+The second part of the acceleration structure is the level selection. This is done by setting a desired primitive granularity, which dictates which nodes will be passed for render. A larger granularity means that larger intermediary nodes will rasterize their representative, instead of allowing traversal to their children, while a small granularity ensures that the traversal will reach the finer nodes and more primitives will be rendered, resulting in higher quality. The granularity of a node is defined as the approximated area on the screen when the primitive is projected. Because projecting representatives is somewhat costly to be done for all nodes, I am using the bounding box of the node. However, instead of projecting all 8 points of the box and then determining the area, I only compute the projection of its diagonal as if it was viewed perpendicular to the diagonal axis. This metric significantly reduces the overhead when searching for node render candidates and gives a good estimation of the perceived size of a node when projected. Tests using the full box projection showed no improvement in image quality, but the processing time increased significantly.
+
+Given a node with the diagonal of length $d$, the projected size on the screen $d_p$, as defined above, is computed as:
+\[
+d_p = \frac{d}{D}\frac{W_{screen}}{FOV_y}
+\]
+where $D$ is the distance from the camera to the node, $W_{screen}$ is the width of the viewport in pixels, and $FOV_y$ is the horizontal field of view of the camera. Figure \ref{fig:granularity} shows a simplified view of this process.
+
+\begin{figure}[H]
+    \centering
+    \makebox[\textwidth][c]{\includesvg[width=\linewidth]{figures/granularity.svg}}
+    \caption{Node granularity computation. Node diagonal is shown in magenta, and its projected length on the image plane is shown in red.}
+    \label{fig:granularity}
+\end{figure}
+
+
+The tree traversal starts from the octree leaves, as these mark the roots of the set of BSP subtrees. The tree structure is traversed in a depth-first manner. At each node, we compute the length of its projected diagonal. If the size is larger than the target granularity, the traversal continues to its children, as the node is too large to be rendered directly through its representative. If the projected size is smaller than the granularity, it means that the node satisfies the criterion, its representative is marked for render, and the traversal of that path is terminated (i.e. the node will not add its children to the node processing queue). In case the traversal reaches a leaf, its assigned primitive will be automatically marked for render. This means that setting a target granularity of 0 tells the LoD selection algorithm to render the scene at the highest quality possible. This effectively creates a cut in the tree that marks the nodes that have a granularity smaller than the target granularity, and their immediate parents have a granularity higher than the target granularity.
+
+The intuition behind this approach is that parts of the scene closer to the camera will have a higher projection length, prompting the traversal to advance further into the tree representation and allocate more primitives for rendering that part. Conversely, parts farther away from the camera will have a smaller projection, so they will be simplified more, since the loss of detail in the background is less noticeable, especially when the primitives would only rasterize to a few pixels. However, the higher the detail level, the deeper the traversal has to go inside the scene tree, which means there are higher overheads. These details will be discussed in the Results section.
+
+This section concludes the discussion about generating and using the dynamic level of detail, as I have presented my approach to scene partitioning, Gaussian merging, and lastly how these two combine to create the acceleration structure.

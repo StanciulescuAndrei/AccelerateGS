@@ -1,0 +1,51 @@
+\documentclass{article}
+\usepackage{calrsfs}
+\usepackage{amssymb}
+\usepackage{bm}
+\usepackage{amsmath}
+\usepackage{wrapfig} 
+\usepackage{subfig}
+\DeclareMathAlphabet{\pazocal}{OMS}{zplm}{m}{n}
+\DeclareMathAlphabet{\mathcal}{OMS}{cmsy}{m}{n}
+\SetMathAlphabet{\mathcal}{bold}{OMS}{cmsy}{b}{n}
+\newcommand{\bigO}{\mathcal{O}}
+\usepackage{svg}
+\usepackage{float}
+\usepackage{adjustbox}
+\usepackage{geometry}
+ \geometry{
+ a4paper,
+ left=25mm,
+ right=25mm,
+ top=30mm
+ }
+
+\begin{document}
+
+\setcounter{tocdepth}{2}
+\tableofcontents
+\newpage
+\input{intro.tex}
+\newpage
+\input{related_works.tex}
+\newpage
+\input{overview.tex}
+\newpage
+\input{rendering.tex}
+\newpage
+\input{merging.tex}
+\newpage
+\input{space_division.tex}
+\newpage
+\input{lod.tex}
+\newpage
+\input{performance.tex}
+\newpage
+\input{results.tex}
+\newpage
+\input{conclusion.tex}
+\newpage
+\bibliographystyle{plain} % We choose the "plain" reference style
+\bibliography{refs} % Entries are in the refs.bib file
+
+\end{document}

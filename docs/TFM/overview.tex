@@ -1,0 +1,25 @@
+\section{Overview}
+
+In this project, I will present a new approach for accelerating Gaussian splatting rendering through a hierarchical Level-of-Detail structure. This is intended for consumer applications on consumer hardware, where the full scene cannot be rendered in real-time, and detail levels have not been provided with the optimized scene, so the simplifications have to be generated locally. All of the implementations presented in the previous chapter incorporate the levels of detail into the training algorithm, which allows them to optimize all of the levels, thus creating representations with very good quality. However, this requires a significant amount of resources that are not readily available on consumer hardware, so the availability of those LoDs depends on whether they were pretrained alongside the scene or not. Moreover, they also require the initial images for training the detail levels, which might not be readily available in consumer applications. 
+
+The method I will present in the following chapters only requires the pretrained scene, from which it can generate an arbitrary number of levels without requiring additional training. Then, at render time, the detail levels for different parts of the scene can be selected based on the camera position and orientation, and the available hardware performance. The implementation takes advantage of the existing rasterization pipeline for 3DGS and introduces minimal changes to the render loop. Figure \ref{fig:system} shows a graphical representation of the pipeline I implemented in this project, highlighting in different colors the pipeline elements existing in the reference 3DGS implementation, and the additional pipeline steps introduced by my implementation.
+
+\begin{figure}[H]
+    \centering
+    \includesvg[width=0.7\linewidth]{figures/system.svg}
+    \caption{Overview of the implemented system.}
+    \label{fig:system}
+\end{figure}
+
+\paragraph{}
+The acceleration structure I propose in this project is built on a hybrid hierarchical space partitioning scheme based on insights from previous works on the topic. The root node of the scene represents the entire scene, which is incrementally subdivided into an octree up to a specified depth. This allows for an even distribution of nodes in the scene, and the maximum octree depth defines the lowest detail level of the simplification. Then, each octree leaf becomes the root node of a binary partitioning tree which will hold the merged and simplified Gaussians. Details on the partitioning structure will be presented in chapter 6.
+
+I will also propose a new partitioning strategy for the Gaussians in the deeper nodes of the tree based on feature clustering, which, for this use case, performs better than previously proposed solutions that are solely based on Gaussian position. Also, because this method does not involve any training or fine-tuning, I will also propose a method for merging the Gaussians to create simplified representations and a comparison to the other methods in the literature. Details on this aspect will be discussed in chapter 5 of this document.
+
+Then, I will discuss the method I used for combining the merging and partitioning algorithm to obtain a hierarchical level of detail structure, and how the appropriate levels are selected at runtime.
+
+\paragraph{}
+In Chapter 8 I will perform an analysis of the performance considerations taken into account when implementing this structure, how it fits into the existing 3DGS rasterization pipeline, and profiling the algorithm. Also, I will investigate its potential for further acceleration through earlier frustum culling. 
+
+\paragraph{}
+Lastly, I will present the experimental results in terms of image quality, rasterization speed, and required resources compared to the reference 3DGS implementation. Note that for this project, all of the experiments have been done on consumer hardware, as this is the intended use of this method, and not on workstation-grade GPUs like the other previously presented works. 
