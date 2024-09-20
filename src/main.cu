@@ -149,6 +149,91 @@ int markForRender(bool *renderMask, std::vector<HybridVH *> & nodes, int renderL
     return rendered;
 }
  
+template <typename T>
+int markForRender(bool *renderMask, T * node, int renderLevel, glm::vec3 &cameraPosition, float fovy, int SW, float dpt, int numSplats)
+{
+	int rendered = 0;
+        T * tree_root = node;
+        std::deque<T *> process_queue;
+        process_queue.push_back(tree_root);
+        while(!process_queue.empty()){
+            T * node = process_queue.front();
+            process_queue.pop_front();
+            if (renderLevel == -1)
+            {
+                int shouldRenderNode = 0;
+                if (node == nullptr)
+                    continue;
+                /* Easiest implementation, maximum projection by distance */
+                float S = glm::length(node->coverage[0] - node->coverage[1]);
+                float D = glm::length((node->coverage[0] + node->coverage[1]) / 2.0f - cameraPosition);
+
+                float P = S / D * (SW / fovy);
+
+                shouldRenderNode = (P > dpt);
+
+                if (shouldRenderNode)
+                { // is node big enough on the screen?
+                    if (node->containedSplats->size() > 0)
+                    {
+                        for (uint32_t splat : *(node->containedSplats))
+                            renderMask[splat] = true;
+                    }
+                    else
+                    {
+                        for(auto child : node ->children){
+                            process_queue.push_back(child);
+                        }
+                    }
+                }
+                else
+                {
+                    if (node->representative != 0)
+                    {
+                        renderMask[node->representative] = true;
+                    }
+                    else
+                    {
+                        if(node->children.size() == 0){
+                            for(auto splat : *(node->containedSplats)){
+                                renderMask[splat] = 1;
+                            }
+                        }
+                        for(auto child : node->children){
+                            process_queue.push_back(child);
+                        }
+                    }
+                }
+            }
+            else
+            {
+                if (node->level == renderLevel && node->representative != 0)
+                {
+                    renderMask[node->representative] = true;
+                }
+                if (node->level < renderLevel && node->isLeaf)
+                {
+                    for (uint32_t splat : *(node->containedSplats)){
+                        renderMask[splat] = true;
+                    }
+                }
+                else if(node->level < renderLevel){
+                    for(T * child : node->children){
+                        process_queue.push_back(child);
+                    }
+                }
+            }
+        }
+    
+    for(int i = 0; i < numSplats; i++){
+        if(renderMask[i]){
+            rendered++;
+        }
+    }
+
+    return rendered;
+}
+
 static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
@@ -235,13 +320,52 @@ void * spacePartitioningThread(void * input){
     pthread_exit(NULL);
 }
 
+template <typename T>
+void splitTree(std::vector<T*> & nodes, SpacePartitioningBase * spbase){
+    /*
+        Split structure in shallower subtrees.
+        This allows independent marking on each subtree on the GPU.
+    */
+    T * sparse_node = new T();
+    sparse_node->isLeaf = true;
+    sparse_node->representative = 0;
+    sparse_node->levelType = OctreeLevel;
+
+    std::deque<T *> q_nodes;
+    q_nodes.push_back((T*)(spbase));
+
+    while(!q_nodes.empty()){
+        T * crt_node = q_nodes.front();
+        q_nodes.pop_front();
+        for(T* child : crt_node->children){
+            if(child->levelType == BipartitionLevel){
+                nodes.push_back(child);
+            }
+        }
+        for(T* child : crt_node->children){
+            if(child->levelType == OctreeLevel){
+                if(child->isLeaf){
+                    for(auto splat : *(child->containedSplats))
+                    sparse_node->containedSplats->push_back(splat);
+                }
+                else{
+                    q_nodes.push_back(child);
+                }
+            }    
+        }
+    }
+    nodes.push_back(sparse_node);
+    printf("Sparse node size: %d\n", sparse_node->containedSplats->size());
+
+}
+
 int main(){
     GLFWwindow* window;
 
     std::chrono::steady_clock::time_point begin;
     std::chrono::steady_clock::time_point end;
 
-    loadCameraFile("../../models/truck/cameras.json");
+    loadCameraFile("../../models/train/cameras.json");
     loadGenericProperties(SCREEN_WIDTH, SCREEN_HEIGHT, fovx, fovy);
 
     loadApplicationConfig("../config.cfg", renderConfig);
@@ -254,10 +378,12 @@ int main(){
     std::vector<SplatData> sd;
     bool * renderMask;
     int num_elements = 0;
-    int res = loadSplatData("../../models/truck/point_cloud/iteration_30000/point_cloud.ply", sd, &num_elements);
+    int res = loadSplatData("../../models/train/point_cloud/iteration_small/point_cloud.ply", sd, &num_elements);
     printf("Loaded %d splats from file\n", num_elements);
 
-    const uint32_t maxDuplicatedGaussians = num_elements * 8;
+    const uint32_t orig_num_splats = num_elements;
+
+    const uint32_t maxDuplicatedGaussians = num_elements * 64;
 
     // First of all, build da octree
     begin = std::chrono::steady_clock::now();
@@ -294,6 +420,8 @@ int main(){
         printf("This ain't good lol....\n");
     }
 
+    octreeLevel = renderConfig.octreeLevel;
+
 
     /* Compute space partitioning in a separate PThread */
     pthread_t t_id;
@@ -320,125 +448,92 @@ int main(){
 #else
     spacePartitioningRoot->buildVHStructure(sd, num_elements, &progress);
 #endif
+    // std::vector<HybridVH *> nodes;
+    // splitTree<HybridVH>(nodes, spacePartitioningRoot);
 
-    /*
-        Split structure in shallower subtrees.
-        This allows independent marking on each subtree on the GPU.
-    */
-    HybridVH * sparse_node = new HybridVH();
-    sparse_node->isLeaf = true;
-    sparse_node->representative = 0;
-    sparse_node->levelType = OctreeLevel;
+    // /* Put node pointers into array for CUDA processing */
 
-    std::deque<HybridVH *> q_nodes;
-    std::vector<HybridVH *> nodes;
-    q_nodes.push_back((HybridVH*)(spacePartitioningRoot));
+    // size_t totalStorageSize = 0;
+    // size_t nodeHeaderSize = sizeof(CUDATreeNode);
 
-    while(!q_nodes.empty()){
-        HybridVH * crt_node = q_nodes.front();
-        q_nodes.pop_front();
-        for(HybridVH* child : crt_node->children){
-            if(child->levelType == BipartitionLevel){
-                nodes.push_back(child);
-            }
-        }
-        for(HybridVH* child : crt_node->children){
-            if(child->levelType == OctreeLevel){
-                if(child->isLeaf){
-                    for(auto splat : *(child->containedSplats))
-                    sparse_node->containedSplats->push_back(splat);
-                }
-                else{
-                    q_nodes.push_back(child);
-                }
-            }    
-        }
-    }
-    nodes.push_back(sparse_node);
-    printf("Sparse node size: %d\n", sparse_node->containedSplats->size());
+    // for(int i = 0; i < nodes.size(); i++){
+    //     HybridVH * tree_root = nodes[i];
+    //     std::deque<HybridVH *> process_queue;
+    //     process_queue.push_back(tree_root);
+    //     while(!process_queue.empty()){
+    //         HybridVH * node = process_queue.front();
 
-    /* Put node pointers into array for CUDA processing */
-
-    size_t totalStorageSize = 0;
-    size_t nodeHeaderSize = sizeof(CUDATreeNode);
-
-    for(int i = 0; i < nodes.size(); i++){
-        HybridVH * tree_root = nodes[i];
-        std::deque<HybridVH *> process_queue;
-        process_queue.push_back(tree_root);
-        while(!process_queue.empty()){
-            HybridVH * node = process_queue.front();
-
-            totalStorageSize += 1;
+    //         totalStorageSize += 1;
             
-            process_queue.pop_front();
-            for(HybridVH * child : node->children){
-                process_queue.push_back(child);
-            }
+    //         process_queue.pop_front();
+    //         for(HybridVH * child : node->children){
+    //             process_queue.push_back(child);
+    //         }
 
-        }
-	}
+    //     }
+	// }
 
-    /* Get the necessary memory to serialize in RAM the array of subtrees */
-    CUDATreeNode * storageBlock = (CUDATreeNode *)malloc(totalStorageSize * sizeof(CUDATreeNode));
-    CUDATreeNode * cudaStorageBlock = NULL;
-    uint32_t * cuda_roots = NULL;
+    // /* Get the necessary memory to serialize in RAM the array of subtrees */
+    // CUDATreeNode * storageBlock = (CUDATreeNode *)malloc(totalStorageSize * sizeof(CUDATreeNode));
+    // CUDATreeNode * cudaStorageBlock = NULL;
+    // uint32_t * cuda_roots = NULL;
 
-    size_t currentMemoryPosition = 0;
-    std::vector<uint32_t> roots;
+    // size_t currentMemoryPosition = 0;
+    // std::vector<uint32_t> roots;
 
-    for(int i = 0; i < nodes.size(); i++){
-        HybridVH * tree_root = nodes[i];
-        roots.push_back(currentMemoryPosition);
-        std::deque<HybridVH *> process_queue;
-        process_queue.push_back(tree_root);
-        while(!process_queue.empty()){
-            HybridVH * node = process_queue.front();
-            process_queue.pop_front();
+    // for(int i = 0; i < nodes.size(); i++){
+    //     HybridVH * tree_root = nodes[i];
+    //     roots.push_back(currentMemoryPosition);
+    //     std::deque<HybridVH *> process_queue;
+    //     process_queue.push_back(tree_root);
+    //     while(!process_queue.empty()){
+    //         HybridVH * node = process_queue.back();
+    //         process_queue.pop_back();
 
-            size_t child1Pos = 0, child2Pos = 0;
-            if(node->children.size() > 0){
-                child1Pos = process_queue.size() + currentMemoryPosition + 1;
-            }
-            if(node->children.size() > 1){
-                child2Pos = process_queue.size() + currentMemoryPosition + 2;
-            }
+    //         size_t child1Pos = 0, child2Pos = 0;
+    //         if(node->children.size() > 0){
+    //             child1Pos = process_queue.size() + currentMemoryPosition + 1;
+    //         }
+    //         if(node->children.size() > 1){
+    //             child2Pos = process_queue.size() + currentMemoryPosition + 2;
+    //         }
 
-            storageBlock[currentMemoryPosition].childrenIndices[0] = child1Pos;
-            storageBlock[currentMemoryPosition].childrenIndices[1] = child2Pos;
+    //         storageBlock[currentMemoryPosition].childrenIndices[0] = child1Pos;
+    //         storageBlock[currentMemoryPosition].childrenIndices[1] = child2Pos;
 
-            for(int s = 0; s < sizeof(storageBlock[currentMemoryPosition].splatIds) / sizeof(uint32_t); s++){
-                storageBlock[currentMemoryPosition].splatIds[s] = 0;
-            }
+    //         for(int s = 0; s < sizeof(storageBlock[currentMemoryPosition].splatIds) / sizeof(uint32_t); s++){
+    //             storageBlock[currentMemoryPosition].splatIds[s] = 0;
+    //         }
 
-            for(int s = 0; s < std::min(node->containedSplats->size(), sizeof(storageBlock[currentMemoryPosition].splatIds) / sizeof(uint32_t)); s++){
-                if(node->containedSplats->size() > sizeof(storageBlock[currentMemoryPosition].splatIds) / sizeof(uint32_t)){
-                    std::cout<<node->containedSplats->size()<<" "<<sizeof(storageBlock[currentMemoryPosition].splatIds) / sizeof(uint32_t)<<std::endl;
-                }
-                storageBlock[currentMemoryPosition].splatIds[s] = (*(node->containedSplats))[s];
-            }
+    //         for(int s = 0; s < std::min(node->containedSplats->size(), sizeof(storageBlock[currentMemoryPosition].splatIds) / sizeof(uint32_t)); s++){
+    //             if(node->containedSplats->size() > sizeof(storageBlock[currentMemoryPosition].splatIds) / sizeof(uint32_t)){
+    //                 std::cout<<node->containedSplats->size()<<" "<<sizeof(storageBlock[currentMemoryPosition].splatIds) / sizeof(uint32_t)<<std::endl;
+    //             }
+    //             storageBlock[currentMemoryPosition].splatIds[s] = (*(node->containedSplats))[s];
+    //         }
 
-            storageBlock[currentMemoryPosition].representative = node->representative;
-            storageBlock[currentMemoryPosition].flags = node->isLeaf;
+    //         storageBlock[currentMemoryPosition].representative = node->representative;
+    //         storageBlock[currentMemoryPosition].flags = node->isLeaf;
+    //         storageBlock[currentMemoryPosition].level = node->level;
 
-            glm::vec3 center = (node->coverage[0] + node->coverage[1]) / 2.0f;
+    //         glm::vec3 center = (node->coverage[0] + node->coverage[1]) / 2.0f;
 
-            storageBlock[currentMemoryPosition].center.x = center.x;
-            storageBlock[currentMemoryPosition].center.y = center.y;
-            storageBlock[currentMemoryPosition].center.z = center.z; 
+    //         storageBlock[currentMemoryPosition].center.x = center.x;
+    //         storageBlock[currentMemoryPosition].center.y = center.y;
+    //         storageBlock[currentMemoryPosition].center.z = center.z; 
 
-            storageBlock[currentMemoryPosition].diagonal = glm::length((node->coverage[0] - node->coverage[1]));
+    //         storageBlock[currentMemoryPosition].diagonal = glm::length((node->coverage[0] - node->coverage[1]));
 
-            currentMemoryPosition++;
+    //         currentMemoryPosition++;
 
-            for(HybridVH * child : node->children){
-                process_queue.push_back(child);
-            }
+    //         for(HybridVH * child : node->children){
+    //             process_queue.push_back(child);
+    //         }
 
-        }
-	}
+    //     }
+	// }
 
-    printf("Built %d subtrees\n", roots.size());
+    // printf("Built %d subtrees\n", roots.size());
 
     printf("Done building space partitioning\n");
 
@@ -452,13 +547,13 @@ int main(){
     
     printf("Number of splats: %d\n", num_elements);
 
-    checkCudaErrors(cudaMalloc(&cudaStorageBlock, sizeof(CUDATreeNode) * totalStorageSize));
-    assert(cudaStorageBlock != NULL);
-    checkCudaErrors(cudaMemcpy((void *)cudaStorageBlock, (void *)storageBlock, sizeof(CUDATreeNode) * totalStorageSize, cudaMemcpyHostToDevice));
+    // checkCudaErrors(cudaMalloc(&cudaStorageBlock, sizeof(CUDATreeNode) * totalStorageSize));
+    // assert(cudaStorageBlock != NULL);
+    // checkCudaErrors(cudaMemcpy((void *)cudaStorageBlock, (void *)storageBlock, sizeof(CUDATreeNode) * totalStorageSize, cudaMemcpyHostToDevice));
 
-    checkCudaErrors(cudaMalloc(&cuda_roots, sizeof(uint32_t) * roots.size()));
-    assert(cuda_roots != NULL);
-    checkCudaErrors(cudaMemcpy((void *)cuda_roots, (void *)roots.data(), sizeof(uint32_t) * roots.size(), cudaMemcpyHostToDevice));
+    // checkCudaErrors(cudaMalloc(&cuda_roots, sizeof(uint32_t) * roots.size()));
+    // assert(cuda_roots != NULL);
+    // checkCudaErrors(cudaMemcpy((void *)cuda_roots, (void *)roots.data(), sizeof(uint32_t) * roots.size(), cudaMemcpyHostToDevice));
 
     /* Allocate and send splat data to GPU memory */
     SplatData * d_sd;
@@ -608,9 +703,21 @@ int main(){
             int renderMode = (selectedViewMode<<4) + renderPrimitive;
 
             checkCudaErrors(cudaMemset(d_renderMask, 0, sizeof(bool) * num_elements));
+            // checkCudaErrors(cudaMemset(d_renderMask, 1, sizeof(bool) * orig_num_splats / 4));
+            memset(renderMask, 0, sizeof(bool) * num_elements);
+
+            if(renderConfig.structure == std::string("octree")) 
+                markForRender<GaussianOctree>(renderMask, static_cast<GaussianOctree*>(spacePartitioningRoot), autoLevel ? -1 : renderLevel, cameraPosition, fovy, SCREEN_WIDTH, diagonalProjectionThreshold, num_elements);
+            else if(renderConfig.structure == std::string("bvh"))
+                markForRender<GaussianBVH>(renderMask, static_cast<GaussianBVH*>(spacePartitioningRoot), autoLevel ? -1 : renderLevel, cameraPosition, fovy, SCREEN_WIDTH, diagonalProjectionThreshold, num_elements);
+            else
+                markForRender<HybridVH>(renderMask, static_cast<HybridVH*>(spacePartitioningRoot), autoLevel ? -1 : renderLevel, cameraPosition, fovy, SCREEN_WIDTH, diagonalProjectionThreshold, num_elements);
+
+            // markForRender(renderMask, nodes, autoLevel ? -1 : renderLevel, cameraPosition, fovy, SCREEN_WIDTH, diagonalProjectionThreshold, num_elements);
+            cudaMemcpy(d_renderMask, renderMask, sizeof(bool) * num_elements, cudaMemcpyHostToDevice);
 
             checkCudaErrors(cudaEventRecord(kernelStart));
-            CUDAmarkForRender<<<roots.size() / 256 + 1, 256>>>(d_renderMask, cudaStorageBlock, cuda_roots, roots.size(), cameraPosition, fovy, SCREEN_WIDTH, diagonalProjectionThreshold, f, useFrustumCulling);
+            // CUDAmarkForRender<<<roots.size() / 256 + 1, 256>>>(d_renderMask, cudaStorageBlock, cuda_roots, roots.size(), cameraPosition, fovy, SCREEN_WIDTH, diagonalProjectionThreshold, f, useFrustumCulling, (!autoLevel)*renderLevel);
             checkCudaErrors(cudaDeviceSynchronize());
             checkCudaErrors(cudaEventRecord(kernelEnd));
             checkCudaErrors(cudaEventSynchronize(kernelEnd));

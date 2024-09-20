@@ -59,8 +59,8 @@ void addSplatToCoverage(glm::vec3 *coverage, uint32_t splatId, std::vector<Splat
 class GaussianOctree : public SpacePartitioningBase
 {
 public:
-    GaussianOctree *children[8] = {nullptr};
-    std::vector<uint32_t> containedSplats;
+    std::vector<GaussianOctree *> children = std::vector<GaussianOctree *>(8, nullptr);
+    std::vector<uint32_t> * containedSplats;
     uint8_t level = 0;
     bool isLeaf = false;
     glm::vec3 bbox[2];
@@ -83,6 +83,8 @@ GaussianOctree::GaussianOctree(glm::vec3 *_bbox)
 
     coverage[0] = _bbox[0];
     coverage[1] = _bbox[1];
+
+    containedSplats = new std::vector<uint32_t>();
 }
 
 GaussianOctree::GaussianOctree()
@@ -93,6 +95,8 @@ GaussianOctree::GaussianOctree()
 
     coverage[0] = zero;
     coverage[1] = zero;
+
+    containedSplats = new std::vector<uint32_t>();
 }
 
 typedef std::vector<glm::vec3> PointCloud;
@@ -151,13 +155,13 @@ void computeNodeRepresentative(GaussianOctree *node, std::vector<SplatData> &sd)
         float volumeWeight = 0.0f;
 
         /* No splats inside, so no representative */
-        if (node->containedSplats.size() == 0)
+        if (node->containedSplats->size() == 0)
             return;
 
         /* Only one splat contained */
-        if (node->containedSplats.size() == 1)
+        if (node->containedSplats->size() == 1)
         {
-            node->representative = node->containedSplats[0];
+            node->representative = node->containedSplats->at(0);
             return;
         }
 
@@ -169,12 +173,12 @@ void computeNodeRepresentative(GaussianOctree *node, std::vector<SplatData> &sd)
         }
 
         PointCloud coveragePoints;
-        coveragePoints.reserve(node->containedSplats.size() * 7);
+        coveragePoints.reserve(node->containedSplats->size() * 7);
 
         std::vector<float> opacities;
 
         /* Iterate through all the contained splats in the node */
-        for (auto splat : node->containedSplats)
+        for (auto splat : *(node->containedSplats))
         {
 
             if (sd[splat].fields.opacity < OPACITY_THRESHOLD)
@@ -350,13 +354,13 @@ void computeNodeRepresentative(GaussianOctree *node, std::vector<SplatData> &sd)
         float nodeSize = (node->bbox[1].x - node->bbox[0].x) / (node->level * node->level);
 
         /* No splats inside, so no representative */
-        if (node->containedSplats.size() == 0)
+        if (node->containedSplats->size() == 0)
             return;
 
         /* Only one splat contained */
-        if (node->containedSplats.size() == 1)
+        if (node->containedSplats->size() == 1)
         {
-            node->representative = node->containedSplats[0];
+            node->representative = node->containedSplats->at(0);
             return;
         }
 
@@ -370,7 +374,7 @@ void computeNodeRepresentative(GaussianOctree *node, std::vector<SplatData> &sd)
 
         /* Iterate through all the contained splats in the node */
         bool worthit = false;
-        for (auto splat : node->containedSplats)
+        for (auto splat : *(node->containedSplats))
         {
 
             glm::vec3 e1 = glm::make_vec3(&sd[splat].fields.directions[0]) * 3.0f;
@@ -395,7 +399,7 @@ void computeNodeRepresentative(GaussianOctree *node, std::vector<SplatData> &sd)
         }
         if (!worthit)
         {
-            node->representative = node->containedSplats[0];
+            node->representative = node->containedSplats->at(0);
             return;
         }
 
@@ -406,7 +410,7 @@ void computeNodeRepresentative(GaussianOctree *node, std::vector<SplatData> &sd)
 
         int idx = 0;
         // First, do the SHs and the weighted mean (a.k.a position)
-        for (auto splat : node->containedSplats)
+        for (auto splat : *(node->containedSplats))
         {
             weights[idx] /= sum_weight;
 
@@ -426,7 +430,7 @@ void computeNodeRepresentative(GaussianOctree *node, std::vector<SplatData> &sd)
 
         idx = 0;
         // second, do the covariance merging
-        for (auto splat : node->containedSplats)
+        for (auto splat : *(node->containedSplats))
         {
 
             Eigen::Matrix3f crt_cov;
@@ -475,17 +479,21 @@ void GaussianOctree::processSplats(uint8_t _level, std::vector<SplatData> &sd, v
         (*progress) += 1;
     }
 
-    if (containedSplats.size() == 0)
+    if (containedSplats->size() == 0)
     {
         isLeaf = true;
         representative = 0;
         return;
     }
 
-    if (containedSplats.size() == 1)
+    if (containedSplats->size() == 1)
     {
         isLeaf = true;
-        representative = containedSplats[0];
+        representative = containedSplats->at(0);
+        return;
+    }
+
+    if(isLeaf){
         return;
     }
 
@@ -509,12 +517,12 @@ void GaussianOctree::processSplats(uint8_t _level, std::vector<SplatData> &sd, v
         children[i] = new GaussianOctree(childBbox);
 
         // See which of the splats go into the newly created node
-        for (int k = 0; k < containedSplats.size(); k++)
+        for (int k = 0; k < containedSplats->size(); k++)
         {
-            auto splat = containedSplats[k];
+            auto splat = containedSplats->at(k);
             if (insideBBox(children[i]->bbox, splat, sd))
             {
-                children[i]->containedSplats.push_back(splat);
+                children[i]->containedSplats->push_back(splat);
                 addSplatToCoverage(children[i]->coverage, splat, sd);
             }
         }
@@ -534,7 +542,7 @@ void GaussianOctree::processSplats(uint8_t _level, std::vector<SplatData> &sd, v
     if (this->level >= MIN_OCTREE_LEVEL)
         computeNodeRepresentative(this, sd);
 
-    containedSplats.clear();
+    containedSplats->clear();
 }
 
 GaussianOctree::~GaussianOctree()
@@ -544,6 +552,7 @@ GaussianOctree::~GaussianOctree()
         {
             delete children[i];
         }
+    delete containedSplats;
 }
 
 void GaussianOctree::buildVHStructure(std::vector<SplatData> &sd, uint32_t num_primitives, volatile int *progress)
@@ -569,7 +578,7 @@ void GaussianOctree::buildVHStructure(std::vector<SplatData> &sd, uint32_t num_p
     this->bbox[1] = center + maxSpan;
 
     for (int i = 0; i < num_primitives; i++)
-        this->containedSplats.push_back(i);
+        this->containedSplats->push_back(i);
 
     this->processSplats(0, sd, progress);
 
@@ -594,11 +603,11 @@ int GaussianOctree::markForRender(bool *renderMask, uint32_t num_primitives, int
 
         if (shouldRenderNode)
         { // is node big enough on the screen?
-            if (this->isLeaf && this->containedSplats.size() > 0)
+            if (this->isLeaf && containedSplats->size() > 0)
             {
-                for (auto splat : this->containedSplats)
+                for (auto splat : *containedSplats)
                     renderMask[splat] = true;
-                return this->containedSplats.size();
+                return containedSplats->size();
             }
             else
             {
@@ -640,10 +649,10 @@ int GaussianOctree::markForRender(bool *renderMask, uint32_t num_primitives, int
 
         if (this->level < renderLevel && this->isLeaf)
         {
-            for (auto splat : this->containedSplats){
+            for (auto splat : *containedSplats){
                 renderMask[splat] = true;
             }
-            return this->containedSplats.size();
+            return containedSplats->size();
         }
 
         if (!this->isLeaf && this->level < renderLevel)
@@ -657,7 +666,7 @@ int GaussianOctree::markForRender(bool *renderMask, uint32_t num_primitives, int
             return splatsRendered;
         }
 
-        if (this->containedSplats.size() == 0 && this->representative == 0)
+        if (containedSplats->size() == 0 && this->representative == 0)
         {
             return 0;
         }

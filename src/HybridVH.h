@@ -26,6 +26,7 @@ struct CUDATreeNode{
     uint32_t childrenIndices[2];
     uint32_t splatIds[4]; // For alignement, whatever
     uint8_t flags;
+    uint8_t level;
     float3 center;
     float diagonal;
     uint32_t representative;

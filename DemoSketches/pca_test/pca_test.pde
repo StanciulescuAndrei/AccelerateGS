@@ -11,7 +11,7 @@ float[] eigenvalues;
 
 Matrix inriaCov;
 
-float deviations = 1.41;
+float deviations =1.41;
 
 void setup() {
   size(800, 800);
@@ -38,8 +38,9 @@ void draw() {
 void mousePressed() {
   PVector center = new PVector(mouseX, mouseY);
   float angle = random(TWO_PI);
-  float rx = random(10, 50);
-  float ry = random(10, 50);
+  float rx = random(50, 100);
+  float ry = random(50, 100);
+  points.add(new PVector(center.x, center.y));
   for (float t = 0; t < TWO_PI; t += PI/2) {
     float x = center.x + rx * cos(t) * cos(angle) - ry * sin(t) * sin(angle);
     float y = center.y + rx * cos(t) * sin(angle) + ry * sin(t) * cos(angle);
@@ -131,7 +132,7 @@ void drawEllipse() {
   translate(mean.x, mean.y);
   rotate(atan2(eigenvectors[0].y, eigenvectors[0].x));
   noFill();
-  strokeWeight(6);
+  strokeWeight(5);
   stroke(0, 255, 0);
   ellipse(0, 0, sqrt(eigenvalues[0]) * 2 * deviations, sqrt(eigenvalues[1]) * 2 * deviations);
   strokeWeight(4);

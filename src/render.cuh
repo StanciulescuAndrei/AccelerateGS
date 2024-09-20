@@ -297,7 +297,7 @@ __global__ void render(int num_splats, SplatData * sd,
 
 
 
-__global__ void CUDAmarkForRender(bool *renderMask, CUDATreeNode * nodes, uint32_t * roots, int num_roots, glm::vec3 cameraPosition, float fovy, int SW, float dpt, Frustum frustum, bool useFrustumCulling)
+__global__ void CUDAmarkForRender(bool *renderMask, CUDATreeNode * nodes, uint32_t * roots, int num_roots, glm::vec3 cameraPosition, float fovy, int SW, float dpt, Frustum frustum, bool useFrustumCulling, int level)
 {
 	int thread_idx = blockIdx.x * blockDim.x + threadIdx.x;
 	if(thread_idx >= num_roots) return;
@@ -322,42 +322,61 @@ __global__ void CUDAmarkForRender(bool *renderMask, CUDATreeNode * nodes, uint32
 		glm::vec3 center = glm::vec3(cached_node.center.x, cached_node.center.y, cached_node.center.z);
 		uint32_t * splatsVector = cached_node.splatIds;
 
-		if(useFrustumCulling){
-			// Check for FC to eliminate nodes in traversal
-			if(!isPointInFrustum(frustum, center, S)){
-				crt_node_id = *--stack_head;
-				continue;
+		if(level == 0){
+			if(useFrustumCulling){
+				// Check for FC to eliminate nodes in traversal
+				if(!isPointInFrustum(frustum, center, S)){
+					crt_node_id = *--stack_head;
+					continue;
+				}
 			}
-		}
-		
+			
 
-		float D = glm::length(center - cameraPosition);
+			float D = glm::length(center - cameraPosition);
 
-		float P = S / D * div;
+			float P = S / D * div;
 
-		shouldRenderNode = (P > dpt);
+			shouldRenderNode = (P > dpt);
 
-		if (shouldRenderNode)
-		{ // is node big enough on the screen?
-			if (cached_node.flags)
-			{
-				for (int s = 0; s < sizeof(cached_node.splatIds) / sizeof(uint32_t); s++)
-					renderMask[cached_node.splatIds[s]] = true;
+			if (shouldRenderNode)
+			{ // is node big enough on the screen?
+				if (cached_node.flags)
+				{
+					for (int s = 0; s < sizeof(cached_node.splatIds) / sizeof(uint32_t); s++)
+						renderMask[cached_node.splatIds[s]] = true;
+				}
+				else
+				{
+					if(cached_node.childrenIndices[0] != 0)
+						*stack_head++ = cached_node.childrenIndices[0];
+					if(cached_node.childrenIndices[1] != 0)
+						*stack_head++ = cached_node.childrenIndices[1];
+				}
 			}
 			else
 			{
-				if(cached_node.childrenIndices[0] != 0)
-					*stack_head++ = cached_node.childrenIndices[0];
-				if(cached_node.childrenIndices[1] != 0)
-					*stack_head++ = cached_node.childrenIndices[1];
+				if (cached_node.representative != 0)
+				{
+					renderMask[cached_node.representative] = true;
+				}
 			}
 		}
-		else
-		{
-			if (cached_node.representative != 0)
-			{
-				renderMask[cached_node.representative] = true;
-			}
+		else{
+			 if (cached_node.level == level && cached_node.representative != 0)
+                {
+                    renderMask[cached_node.representative] = true;
+                }
+                if (cached_node.level < level && cached_node.flags)
+                {
+                    for (int s = 0; s < sizeof(cached_node.splatIds) / sizeof(uint32_t); s++)
+						renderMask[cached_node.splatIds[s]] = true;
+                }
+                else if(cached_node.level < level){
+                    if(cached_node.childrenIndices[0] != 0)
+						*stack_head++ = cached_node.childrenIndices[0];
+					if(cached_node.childrenIndices[1] != 0)
+						*stack_head++ = cached_node.childrenIndices[1];
+                }
 		}
 
 		crt_node_id = *--stack_head;

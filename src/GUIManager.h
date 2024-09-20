@@ -5,16 +5,25 @@
 #include "../../../libs/imgui/backends/imgui_impl_opengl3.h"
 #include <string>
 
-#define MIN_BVH_LEVEL 13
-#define MAX_BVH_LEVEL 21
+// #define MIN_BVH_LEVEL 13
+// #define MAX_BVH_LEVEL 32
 
-#define MIN_OCTREE_LEVEL 13
-#define MAX_OCTREE_LEVEL 21
+// #define MIN_OCTREE_LEVEL 13
+// #define MAX_OCTREE_LEVEL 21
 
-#define MIN_HYBRID_LEVEL 12
-#define MAX_HYBRID_LEVEL 32
+// #define MIN_HYBRID_LEVEL octreeLevel
+// #define MAX_HYBRID_LEVEL 32
 
-#define RA_SIZE 256
+#define MIN_BVH_LEVEL 2
+#define MAX_BVH_LEVEL 8
+
+#define MIN_OCTREE_LEVEL 2
+#define MAX_OCTREE_LEVEL 8
+
+#define MIN_HYBRID_LEVEL octreeLevel
+#define MAX_HYBRID_LEVEL 13
+
+#define RA_SIZE 64
 
 struct RenderConfig{
     std::string structure;
@@ -24,6 +33,7 @@ struct RenderConfig{
     int spectralClusteringThreshold;
     float dbscan_epsilon;
     int nClusters;
+    int octreeLevel;
 };
 
 class RollingAverage{
@@ -56,7 +66,7 @@ float fovy = M_PI / 2.0f;
 float fovx = M_PI / 2.0f * 16 / 9;
 int selectedViewMode = 0;
 int renderPrimitive = 0;
-int renderLevel = 21;
+int renderLevel = MAX_HYBRID_LEVEL;
 int cameraIndex = 0;
 int cameraMode = 0;
 int autoLevel = 0;
@@ -72,6 +82,8 @@ bool useFrustumCulling = 1;
 float traversalTime = 0.0f;
 float renderTime = 0.0f;
 float prepTime = 0.0f;
+
+int octreeLevel = 12;
 
 RollingAverage avgTraversal;
 RollingAverage avgRender;

@@ -17,8 +17,8 @@
 class GaussianBVH : public SpacePartitioningBase
 {
 public:
-    GaussianBVH *children[2] = {nullptr};
-    std::vector<uint32_t> containedSplats;
+    std::vector<GaussianBVH *> children = std::vector<GaussianBVH *>(2, nullptr);
+    std::vector<uint32_t> * containedSplats;
     uint8_t level = 0;
     bool isLeaf = false;
     glm::vec3 bbox[2];
@@ -41,6 +41,8 @@ GaussianBVH::GaussianBVH(glm::vec3 *_bbox)
 
     coverage[0] = _bbox[0];
     coverage[1] = _bbox[1];
+
+    containedSplats = new std::vector<uint32_t>();
 }
 
 GaussianBVH::GaussianBVH()
@@ -51,6 +53,8 @@ GaussianBVH::GaussianBVH()
 
     coverage[0] = zero;
     coverage[1] = zero;
+
+    containedSplats = new std::vector<uint32_t>();
 }
 
 void computeNodeRepresentative(GaussianBVH *node, std::vector<SplatData> &sd)
@@ -75,7 +79,7 @@ void computeNodeRepresentative(GaussianBVH *node, std::vector<SplatData> &sd)
         }
 
         PointCloud coveragePoints;
-        coveragePoints.reserve(node->containedSplats.size() * 7);
+        coveragePoints.reserve(node->containedSplats->size() * 7);
 
         std::vector<float> pointWeights;
 
@@ -89,7 +93,7 @@ void computeNodeRepresentative(GaussianBVH *node, std::vector<SplatData> &sd)
         }
         if (base_splats.size() == 0)
         {
-            base_splats = node->containedSplats;
+            base_splats = *(node->containedSplats);
         }
 
         if (base_splats.size() == 0)
@@ -301,20 +305,20 @@ void computeNodeRepresentative(GaussianBVH *node, std::vector<SplatData> &sd)
         float nodeSize = (node->bbox[1].x - node->bbox[0].x) / (node->level * node->level);
 
         /* No splats inside, so no representative */
-        if (node->containedSplats.size() == 0)
+        if (node->containedSplats->size() == 0)
             return;
 
         /* Only one splat contained */
-        if (node->containedSplats.size() == 1)
+        if (node->containedSplats->size() == 1)
         {
-            node->representative = node->containedSplats[0];
+            node->representative = node->containedSplats->at(0);
             return;
         }
 
         std::vector<uint32_t> base_splats;
         if (node->isLeaf)
         {
-            base_splats = node->containedSplats;
+            base_splats = *(node->containedSplats);
         }
         else
         {
@@ -438,16 +442,16 @@ void GaussianBVH::processSplats(uint8_t _level, std::vector<SplatData> &sd, vola
 {
     level = _level;
 
-    if (containedSplats.size() == 0)
+    if (containedSplats->size() == 0)
     {
         isLeaf = true;
         representative = 0;
         return;
     }
-    if (containedSplats.size() == 1)
+    if (containedSplats->size() == 1)
     {
         isLeaf = true;
-        representative = containedSplats[0];
+        representative = containedSplats->at(0);
         return;
     }
 
@@ -469,7 +473,7 @@ void GaussianBVH::processSplats(uint8_t _level, std::vector<SplatData> &sd, vola
         maxDim = 2;
     }
 
-    for (auto splat : containedSplats)
+    for (auto splat : *containedSplats)
     {
         projs.push_back(sd[splat].fields.position[maxDim]);
     }
@@ -498,12 +502,12 @@ void GaussianBVH::processSplats(uint8_t _level, std::vector<SplatData> &sd, vola
     {
         children[i] = new GaussianBVH((i == 0) ? childBbox1 : childBbox2);
         // See which of the splats go into the newly created node
-        for (int k = 0; k < containedSplats.size(); k++)
+        for (int k = 0; k < containedSplats->size(); k++)
         {
-            auto splat = containedSplats[k];
+            auto splat = containedSplats->at(k);
             if (insideBBox(children[i]->bbox, splat, sd))
             {
-                children[i]->containedSplats.push_back(splat);
+                children[i]->containedSplats->push_back(splat);
                 addSplatToCoverage(children[i]->coverage, splat, sd);
             }
         }
@@ -528,7 +532,7 @@ void GaussianBVH::processSplats(uint8_t _level, std::vector<SplatData> &sd, vola
     if (this->level >= MIN_BVH_LEVEL)
         computeNodeRepresentative(this, sd);
 
-    containedSplats.clear();
+    containedSplats->clear();
 }
 
 GaussianBVH::~GaussianBVH()
@@ -538,6 +542,7 @@ GaussianBVH::~GaussianBVH()
         {
             delete children[i];
         }
+    delete containedSplats;
 }
 
 void GaussianBVH::buildVHStructure(std::vector<SplatData> &sd, uint32_t num_primitives, volatile int *progress)
@@ -560,7 +565,7 @@ void GaussianBVH::buildVHStructure(std::vector<SplatData> &sd, uint32_t num_prim
     this->bbox[1] = maxBound;
 
     for (int i = 0; i < num_primitives; i++)
-        this->containedSplats.push_back(i);
+        containedSplats->push_back(i);
 
     this->processSplats(0, sd, progress);
     printf("\n");
@@ -586,11 +591,11 @@ int GaussianBVH::markForRender(bool *renderMask, uint32_t num_primitives, int re
 
         if (shouldRenderNode)
         { // is node big enough on the screen?
-            if (this->isLeaf && this->containedSplats.size() > 0)
+            if (this->isLeaf && containedSplats->size() > 0)
             {
-                for (auto splat : this->containedSplats)
+                for (auto splat : *containedSplats)
                     renderMask[splat] = true;
-                return this->containedSplats.size();
+                return containedSplats->size();
             }
             else
             {
@@ -645,7 +650,7 @@ int GaussianBVH::markForRender(bool *renderMask, uint32_t num_primitives, int re
             }
             return splatsRendered;
         }
-        if (this->containedSplats.size() == 0 && this->representative == 0)
+        if (containedSplats->size() == 0 && this->representative == 0)
         {
             return 0;
         }

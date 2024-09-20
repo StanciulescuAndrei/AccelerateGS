@@ -73,12 +73,14 @@ void loadApplicationConfig(std::string c, RenderConfig & rc){
     rc.numClusterFeatures = appConfig["numClusterFeatures"].get<int>();
     rc.spectralClusteringThreshold = appConfig["spectralClusteringThreshold"].get<int>();
     rc.nClusters = appConfig["numClusters"].get<int>();
+    rc.octreeLevel = appConfig["octreeLevel"].get<int>();
     std::cout << "Volumetric structure type: " << rc.structure << std::endl;
     std::cout << "# of required clusters: " << rc.nClusters << std::endl;
     std::cout << "Clustering type: " << rc.clustering << std::endl;
     std::cout << "Representative type: " << rc.representative << std::endl;
     std::cout << "Number of features for clustering: " << rc.numClusterFeatures << std::endl;
     std::cout << "Spectral cluster limit: " << rc.spectralClusteringThreshold << std::endl;
+    std::cout << "Tree Octree depth: " << rc.octreeLevel << std::endl;
 }
 
 #endif
