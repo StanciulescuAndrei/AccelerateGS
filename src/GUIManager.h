@@ -5,27 +5,28 @@
 #include "../../../libs/imgui/backends/imgui_impl_opengl3.h"
 #include <string>
 
-// #define MIN_BVH_LEVEL 13
-// #define MAX_BVH_LEVEL 32
+#define MIN_BVH_LEVEL 13
+#define MAX_BVH_LEVEL 32
 
-// #define MIN_OCTREE_LEVEL 13
-// #define MAX_OCTREE_LEVEL 21
-
-// #define MIN_HYBRID_LEVEL octreeLevel
-// #define MAX_HYBRID_LEVEL 32
-
-#define MIN_BVH_LEVEL 2
-#define MAX_BVH_LEVEL 14
-
-#define MIN_OCTREE_LEVEL 2
-#define MAX_OCTREE_LEVEL 8
+#define MIN_OCTREE_LEVEL 13
+#define MAX_OCTREE_LEVEL 21
 
 #define MIN_HYBRID_LEVEL octreeLevel
-#define MAX_HYBRID_LEVEL 13
+#define MAX_HYBRID_LEVEL 32
+
+// #define MIN_BVH_LEVEL 4
+// #define MAX_BVH_LEVEL 20
+
+// #define MIN_OCTREE_LEVEL 4
+// #define MAX_OCTREE_LEVEL 8
+
+// #define MIN_HYBRID_LEVEL octreeLevel
+// #define MAX_HYBRID_LEVEL 23
 
 #define RA_SIZE 64
 
 struct RenderConfig{
+    std::string scene;
     std::string structure;
     std::string representative;
     std::string clustering;
@@ -67,8 +68,8 @@ float fovx = M_PI / 2.0f * 16 / 9;
 int selectedViewMode = 0;
 int renderPrimitive = 0;
 int renderLevel = MAX_HYBRID_LEVEL;
-int cameraIndex = 0;
-int cameraMode = 0;
+int cameraIndex = 158;
+int cameraMode = 1;
 int autoLevel = 0;
 
 int saveRender = 0;
@@ -76,6 +77,8 @@ int batchRender = 0;
 int recordExperiment = 0;
 
 int renderedSplats = 0;
+int duplicatedSplats = 0;
+int maxSplats = 0;
 int numCameraPositions = 2;
 bool useFrustumCulling = 1;
 
@@ -157,6 +160,8 @@ void buildInterface(){
     ImGui::SliderInt("Camera index", &cameraIndex, 0, numCameraPositions - 1);
 
     ImGui::Text("# rendered splats: %d", renderedSplats); 
+    ImGui::Text("# duplicated splats: %d", duplicatedSplats); 
+    ImGui::Text("# max splats: %d", maxSplats); 
 
     if(ImGui::Button("Capture render")){
         saveRender = 1;

@@ -50,7 +50,7 @@ glm::mat3 cameraRotation;
 glm::mat4 modelview;
 glm::mat4 perspective;
 
-glm::vec3 cameraPosition = glm::vec3(0.0f);
+glm::vec3 cameraPosition = glm::vec3(1.7f, -0.5f, 4.0f);
 float angleDirection = 0.0f;
 glm::vec3 lookDirection = glm::vec3(1.0f, 0.0f, 0.0f);
 glm::vec3 rightDirection = glm::vec3(0.0f, 0.0f, 1.0f);
@@ -365,10 +365,10 @@ int main(){
     std::chrono::steady_clock::time_point begin;
     std::chrono::steady_clock::time_point end;
 
-    loadCameraFile("../../models/train/cameras.json");
-    loadGenericProperties(SCREEN_WIDTH, SCREEN_HEIGHT, fovx, fovy);
-
     loadApplicationConfig("../config.cfg", renderConfig);
+
+    loadCameraFile(std::string("../../models/") + renderConfig.scene + std::string("/cameras.json"));
+    loadGenericProperties(SCREEN_WIDTH, SCREEN_HEIGHT, fovx, fovy);
 
     numCameraPositions = cameraData.size();
 
@@ -378,12 +378,12 @@ int main(){
     std::vector<SplatData> sd;
     bool * renderMask;
     int num_elements = 0;
-    int res = loadSplatData("../../models/train/point_cloud/iteration_small/point_cloud.ply", sd, &num_elements);
+    int res = loadSplatData(std::string("../../models/") + renderConfig.scene + std::string("/point_cloud/iteration_30000/point_cloud.ply"), sd, &num_elements);
     printf("Loaded %d splats from file\n", num_elements);
 
     const uint32_t orig_num_splats = num_elements;
 
-    const uint32_t maxDuplicatedGaussians = num_elements * 64;
+    const uint32_t maxDuplicatedGaussians = num_elements * 16;
 
     // First of all, build da octree
     begin = std::chrono::steady_clock::now();
@@ -448,98 +448,99 @@ int main(){
 #else
     spacePartitioningRoot->buildVHStructure(sd, num_elements, &progress);
 #endif
-    // std::vector<HybridVH *> nodes;
-    // splitTree<HybridVH>(nodes, spacePartitioningRoot);
+    std::vector<HybridVH *> nodes;
+    splitTree<HybridVH>(nodes, spacePartitioningRoot);
 
-    // /* Put node pointers into array for CUDA processing */
+    /* Put node pointers into array for CUDA processing */
 
-    // size_t totalStorageSize = 0;
-    // size_t nodeHeaderSize = sizeof(CUDATreeNode);
+    size_t totalStorageSize = 0;
+    size_t nodeHeaderSize = sizeof(CUDATreeNode);
 
-    // for(int i = 0; i < nodes.size(); i++){
-    //     HybridVH * tree_root = nodes[i];
-    //     std::deque<HybridVH *> process_queue;
-    //     process_queue.push_back(tree_root);
-    //     while(!process_queue.empty()){
-    //         HybridVH * node = process_queue.front();
+    for(int i = 0; i < nodes.size(); i++){
+        HybridVH * tree_root = nodes[i];
+        std::deque<HybridVH *> process_queue;
+        process_queue.push_back(tree_root);
+        while(!process_queue.empty()){
+            HybridVH * node = process_queue.front();
 
-    //         totalStorageSize += 1;
+            totalStorageSize += 1;
             
-    //         process_queue.pop_front();
-    //         for(HybridVH * child : node->children){
-    //             process_queue.push_back(child);
-    //         }
+            process_queue.pop_front();
+            for(HybridVH * child : node->children){
+                process_queue.push_back(child);
+            }
 
-    //     }
-	// }
+        }
+	}
 
-    // /* Get the necessary memory to serialize in RAM the array of subtrees */
-    // CUDATreeNode * storageBlock = (CUDATreeNode *)malloc(totalStorageSize * sizeof(CUDATreeNode));
-    // CUDATreeNode * cudaStorageBlock = NULL;
-    // uint32_t * cuda_roots = NULL;
+    /* Get the necessary memory to serialize in RAM the array of subtrees */
+    CUDATreeNode * storageBlock = (CUDATreeNode *)malloc(totalStorageSize * sizeof(CUDATreeNode));
+    CUDATreeNode * cudaStorageBlock = NULL;
+    uint32_t * cuda_roots = NULL;
 
-    // size_t currentMemoryPosition = 0;
-    // std::vector<uint32_t> roots;
+    size_t currentMemoryPosition = 0;
+    std::vector<uint32_t> roots;
 
-    // for(int i = 0; i < nodes.size(); i++){
-    //     HybridVH * tree_root = nodes[i];
-    //     roots.push_back(currentMemoryPosition);
-    //     std::deque<HybridVH *> process_queue;
-    //     process_queue.push_back(tree_root);
-    //     while(!process_queue.empty()){
-    //         HybridVH * node = process_queue.back();
-    //         process_queue.pop_back();
+    for(int i = 0; i < nodes.size(); i++){
+        HybridVH * tree_root = nodes[i];
+        roots.push_back(currentMemoryPosition);
+        std::deque<HybridVH *> process_queue;
+        process_queue.push_back(tree_root);
+        while(!process_queue.empty()){
+            HybridVH * node = process_queue.back();
+            process_queue.pop_back();
 
-    //         size_t child1Pos = 0, child2Pos = 0;
-    //         if(node->children.size() > 0){
-    //             child1Pos = process_queue.size() + currentMemoryPosition + 1;
-    //         }
-    //         if(node->children.size() > 1){
-    //             child2Pos = process_queue.size() + currentMemoryPosition + 2;
-    //         }
+            size_t child1Pos = 0, child2Pos = 0;
+            if(node->children.size() > 0){
+                child1Pos = process_queue.size() + currentMemoryPosition + 1;
+            }
+            if(node->children.size() > 1){
+                child2Pos = process_queue.size() + currentMemoryPosition + 2;
+            }
 
-    //         storageBlock[currentMemoryPosition].childrenIndices[0] = child1Pos;
-    //         storageBlock[currentMemoryPosition].childrenIndices[1] = child2Pos;
+            storageBlock[currentMemoryPosition].childrenIndices[0] = child1Pos;
+            storageBlock[currentMemoryPosition].childrenIndices[1] = child2Pos;
 
-    //         for(int s = 0; s < sizeof(storageBlock[currentMemoryPosition].splatIds) / sizeof(uint32_t); s++){
-    //             storageBlock[currentMemoryPosition].splatIds[s] = 0;
-    //         }
+            for(int s = 0; s < sizeof(storageBlock[currentMemoryPosition].splatIds) / sizeof(uint32_t); s++){
+                storageBlock[currentMemoryPosition].splatIds[s] = 0;
+            }
 
-    //         for(int s = 0; s < std::min(node->containedSplats->size(), sizeof(storageBlock[currentMemoryPosition].splatIds) / sizeof(uint32_t)); s++){
-    //             if(node->containedSplats->size() > sizeof(storageBlock[currentMemoryPosition].splatIds) / sizeof(uint32_t)){
-    //                 std::cout<<node->containedSplats->size()<<" "<<sizeof(storageBlock[currentMemoryPosition].splatIds) / sizeof(uint32_t)<<std::endl;
-    //             }
-    //             storageBlock[currentMemoryPosition].splatIds[s] = (*(node->containedSplats))[s];
-    //         }
+            for(int s = 0; s < std::min(node->containedSplats->size(), sizeof(storageBlock[currentMemoryPosition].splatIds) / sizeof(uint32_t)); s++){
+                if(node->containedSplats->size() > sizeof(storageBlock[currentMemoryPosition].splatIds) / sizeof(uint32_t)){
+                    std::cout<<node->containedSplats->size()<<" "<<sizeof(storageBlock[currentMemoryPosition].splatIds) / sizeof(uint32_t)<<std::endl;
+                }
+                storageBlock[currentMemoryPosition].splatIds[s] = (*(node->containedSplats))[s];
+            }
 
-    //         storageBlock[currentMemoryPosition].representative = node->representative;
-    //         storageBlock[currentMemoryPosition].flags = node->isLeaf;
-    //         storageBlock[currentMemoryPosition].level = node->level;
+            storageBlock[currentMemoryPosition].representative = node->representative;
+            storageBlock[currentMemoryPosition].flags = node->isLeaf;
+            storageBlock[currentMemoryPosition].level = node->level;
 
-    //         glm::vec3 center = (node->coverage[0] + node->coverage[1]) / 2.0f;
+            glm::vec3 center = (node->coverage[0] + node->coverage[1]) / 2.0f;
 
-    //         storageBlock[currentMemoryPosition].center.x = center.x;
-    //         storageBlock[currentMemoryPosition].center.y = center.y;
-    //         storageBlock[currentMemoryPosition].center.z = center.z; 
+            storageBlock[currentMemoryPosition].center.x = center.x;
+            storageBlock[currentMemoryPosition].center.y = center.y;
+            storageBlock[currentMemoryPosition].center.z = center.z; 
 
-    //         storageBlock[currentMemoryPosition].diagonal = glm::length((node->coverage[0] - node->coverage[1]));
+            storageBlock[currentMemoryPosition].diagonal = glm::length((node->coverage[0] - node->coverage[1]));
 
-    //         currentMemoryPosition++;
+            currentMemoryPosition++;
 
-    //         for(HybridVH * child : node->children){
-    //             process_queue.push_back(child);
-    //         }
+            for(HybridVH * child : node->children){
+                process_queue.push_back(child);
+            }
 
-    //     }
-	// }
+        }
+	}
 
-    // printf("Built %d subtrees\n", roots.size());
+    printf("Built %d subtrees\n", roots.size());
 
     printf("Done building space partitioning\n");
 
     num_elements = sd.size();
     renderMask = (bool *)malloc(sizeof(bool) * num_elements);
     memset(renderMask, 0, sizeof(bool) * num_elements);
+    memset(renderMask, 1, sizeof(bool) * orig_num_splats);
 
     end = std::chrono::steady_clock::now();
     int octreeTime = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
@@ -547,13 +548,13 @@ int main(){
     
     printf("Number of splats: %d\n", num_elements);
 
-    // checkCudaErrors(cudaMalloc(&cudaStorageBlock, sizeof(CUDATreeNode) * totalStorageSize));
-    // assert(cudaStorageBlock != NULL);
-    // checkCudaErrors(cudaMemcpy((void *)cudaStorageBlock, (void *)storageBlock, sizeof(CUDATreeNode) * totalStorageSize, cudaMemcpyHostToDevice));
+    checkCudaErrors(cudaMalloc(&cudaStorageBlock, sizeof(CUDATreeNode) * totalStorageSize));
+    assert(cudaStorageBlock != NULL);
+    checkCudaErrors(cudaMemcpy((void *)cudaStorageBlock, (void *)storageBlock, sizeof(CUDATreeNode) * totalStorageSize, cudaMemcpyHostToDevice));
 
-    // checkCudaErrors(cudaMalloc(&cuda_roots, sizeof(uint32_t) * roots.size()));
-    // assert(cuda_roots != NULL);
-    // checkCudaErrors(cudaMemcpy((void *)cuda_roots, (void *)roots.data(), sizeof(uint32_t) * roots.size(), cudaMemcpyHostToDevice));
+    checkCudaErrors(cudaMalloc(&cuda_roots, sizeof(uint32_t) * roots.size()));
+    assert(cuda_roots != NULL);
+    checkCudaErrors(cudaMemcpy((void *)cuda_roots, (void *)roots.data(), sizeof(uint32_t) * roots.size(), cudaMemcpyHostToDevice));
 
     /* Allocate and send splat data to GPU memory */
     SplatData * d_sd;
@@ -659,6 +660,13 @@ int main(){
 
     getCameraParameters(0, cameraPosition, cameraRotation);
 
+    // /* Remove after test */
+    // cameraPosition += 17 * movement_step * cameraRotation* lookDirection;
+    // cameraPosition += 40 * movement_step * cameraRotation* rightDirection;
+    // cameraPosition += cameraRotation* glm::vec3(0.0f, 5 * movement_step, 0.0f);
+
+    cudaMemcpy(d_renderMask, renderMask, sizeof(bool) * num_elements, cudaMemcpyHostToDevice);
+
     begin = std::chrono::steady_clock::now();
 
     cudaEvent_t kernelStart;
@@ -703,21 +711,21 @@ int main(){
             int renderMode = (selectedViewMode<<4) + renderPrimitive;
 
             checkCudaErrors(cudaMemset(d_renderMask, 0, sizeof(bool) * num_elements));
-            // checkCudaErrors(cudaMemset(d_renderMask, 1, sizeof(bool) * orig_num_splats / 4));
-            memset(renderMask, 0, sizeof(bool) * num_elements);
+            // // checkCudaErrors(cudaMemset(d_renderMask, 1, sizeof(bool) * orig_num_splats / 4));
+            // memset(renderMask, 0, sizeof(bool) * num_elements);
 
-            if(renderConfig.structure == std::string("octree")) 
-                markForRender<GaussianOctree>(renderMask, static_cast<GaussianOctree*>(spacePartitioningRoot), autoLevel ? -1 : renderLevel, cameraPosition, fovy, SCREEN_WIDTH, diagonalProjectionThreshold, num_elements);
-            else if(renderConfig.structure == std::string("bvh"))
-                markForRender<GaussianBVH>(renderMask, static_cast<GaussianBVH*>(spacePartitioningRoot), autoLevel ? -1 : renderLevel, cameraPosition, fovy, SCREEN_WIDTH, diagonalProjectionThreshold, num_elements);
-            else
-                markForRender<HybridVH>(renderMask, static_cast<HybridVH*>(spacePartitioningRoot), autoLevel ? -1 : renderLevel, cameraPosition, fovy, SCREEN_WIDTH, diagonalProjectionThreshold, num_elements);
+            // if(renderConfig.structure == std::string("octree")) 
+            //     markForRender<GaussianOctree>(renderMask, static_cast<GaussianOctree*>(spacePartitioningRoot), autoLevel ? -1 : renderLevel, cameraPosition, fovy, SCREEN_WIDTH, diagonalProjectionThreshold, num_elements);
+            // else if(renderConfig.structure == std::string("bvh"))
+            //     markForRender<GaussianBVH>(renderMask, static_cast<GaussianBVH*>(spacePartitioningRoot), autoLevel ? -1 : renderLevel, cameraPosition, fovy, SCREEN_WIDTH, diagonalProjectionThreshold, num_elements);
+            // else
+            //     markForRender<HybridVH>(renderMask, static_cast<HybridVH*>(spacePartitioningRoot), autoLevel ? -1 : renderLevel, cameraPosition, fovy, SCREEN_WIDTH, diagonalProjectionThreshold, num_elements);
 
-            // markForRender(renderMask, nodes, autoLevel ? -1 : renderLevel, cameraPosition, fovy, SCREEN_WIDTH, diagonalProjectionThreshold, num_elements);
-            cudaMemcpy(d_renderMask, renderMask, sizeof(bool) * num_elements, cudaMemcpyHostToDevice);
+            // // markForRender(renderMask, nodes, autoLevel ? -1 : renderLevel, cameraPosition, fovy, SCREEN_WIDTH, diagonalProjectionThreshold, num_elements);
+            // cudaMemcpy(d_renderMask, renderMask, sizeof(bool) * num_elements, cudaMemcpyHostToDevice);
 
             checkCudaErrors(cudaEventRecord(kernelStart));
-            // CUDAmarkForRender<<<roots.size() / 256 + 1, 256>>>(d_renderMask, cudaStorageBlock, cuda_roots, roots.size(), cameraPosition, fovy, SCREEN_WIDTH, diagonalProjectionThreshold, f, useFrustumCulling, (!autoLevel)*renderLevel);
+            CUDAmarkForRender<<<roots.size() / 256 + 1, 256>>>(d_renderMask, cudaStorageBlock, cuda_roots, roots.size(), cameraPosition, fovy, SCREEN_WIDTH, diagonalProjectionThreshold, f, useFrustumCulling, (!autoLevel)*renderLevel);
             checkCudaErrors(cudaDeviceSynchronize());
             checkCudaErrors(cudaEventRecord(kernelEnd));
             checkCudaErrors(cudaEventSynchronize(kernelEnd));
@@ -737,6 +745,12 @@ int main(){
             int totalDuplicateGaussians = 0;
             checkCudaErrors(cudaMemcpy(&totalDuplicateGaussians, d_overlap_sums + num_elements - 1, sizeof(int), cudaMemcpyDeviceToHost));
 
+            duplicatedSplats = totalDuplicateGaussians;
+            maxSplats = maxDuplicatedGaussians;
+            // if(totalDuplicateGaussians > maxDuplicatedGaussians){
+            //     printf("Total: %d\tMax: %d\n", totalDuplicateGaussians, maxDuplicatedGaussians);
+            //     assert(false);
+            // }
             totalDuplicateGaussians = min(totalDuplicateGaussians, maxDuplicatedGaussians);
 
             /* Populate sorting keys array */
@@ -797,13 +811,13 @@ int main(){
                 prepTimeVector.push_back(prepTime);
                 renderTimeVector.push_back(renderTime);
                 numRenSplatsVector.push_back(renderedSplats);
-                snprintf(filename, 64, "renders/%05d.png", i);
-                saveRenderRoutine(filename);
-                /* Depth */
-                selectedViewMode = 1;
-                softwareRasterizer(i);
-                snprintf(filename, 64, "renders/d%05d.png", i);
-                saveRenderRoutine(filename);
+                // snprintf(filename, 64, "renders/%05d.png", i);
+                // saveRenderRoutine(filename);
+                // /* Depth */
+                // selectedViewMode = 1;
+                // softwareRasterizer(i);
+                // snprintf(filename, 64, "renders/d%05d.png", i);
+                // saveRenderRoutine(filename);
             }
             snprintf(filename, 64, "renders/stats_%.2f_%d.txt", diagonalProjectionThreshold, useFrustumCulling);
             std::ofstream csv_out(filename);

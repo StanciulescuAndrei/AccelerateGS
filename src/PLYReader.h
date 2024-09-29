@@ -5,18 +5,13 @@
 #include <string>
 #include "raster_helper.cuh"
 
-int loadSplatData(const char* path, std::vector<SplatData> & dataBuffer, int * numElements){
-    if(path == nullptr)
-    {
-        // invalid path
-        return 1;
-    }
+int loadSplatData(std::string path, std::vector<SplatData> & dataBuffer, int * numElements){
 
     int dataSize = 0;
 
     float shBuffer[48];
 
-    std::ifstream is(path);
+    std::ifstream is(path.c_str());
     if(is.is_open()){
         std::string crt_line;
         std::getline(is, crt_line);

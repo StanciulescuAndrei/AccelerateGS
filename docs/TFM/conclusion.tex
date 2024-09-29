@@ -1,1 +1,30 @@
-\section{Conclusion}
+\section{Conclusions and Future Work}
+\subsection{Conclusions}
+This thesis presents a solution for accelerating the rendering pipeline for 3D Gaussian Splatting scene representations based on a hierarchical Level-of-Detail structure which creates intermediary lower-detail representations without additional scene fine-tuning.
+\paragraph{}
+
+The main contribution of this work is the space subdivision approach for Gaussian primitives that combines regular subdivision with clustering-based separation, and the solution to merging multiple primitives into one representative Gaussian, especially for estimating the 3D covariance. 
+\paragraph{}
+
+Starting from traditional space subdivision algorithms such as octrees and BSP, I evaluated these methods and proposed a hybrid architecture that combines an initial octree subdivision for an even distribution of nodes throughout the scene with a secondary binary partitioning that takes advantage of Gaussian properties to determine their distribution into the children nodes, which leads to better intermediary representation. Also, I justified the choice of the new architecture through experiments showcasing the image quality obtained through each method, eventually showing that this partitioning strategy performs the best for this application.
+\paragraph{}
+
+Then, I presented the algorithm used to select the appropriate level of detail for parts of the scene, which is based on a target granularity of the detail. This allows rendering distant parts of the scene in lower detail, as the primitives occupy less space on the screen, thus leaving more resources to be allocated to rendering closer scene components in higher detail. As the granularity of different elements depends on camera position, this creates a dynamic system that chooses the detail levels appropriately for any camera position.
+\paragraph{}
+
+Lastly, I presented the results of an extended range of tests covering the achieved image quality metrics, rendering performance, timings of individual routines to evaluate the overheads of this method, memory requirements, and potential benefits of early frustum culling. Moreover, I presented a performance profile of the components of the render loop introduced by me, highlighting potential improvements and steps I took for optimization to achieve the results presented in the previous chapter.
+\paragraph{}
+
+To the best of my knowledge, at the time of writing, this is the only proposal for generating LoD representations for 3DGS models without further optimization and fine-tuning. This makes it difficult to evaluate its performance in comparison to other methods. Similar approaches that I presented in the \textit{Related Works} chapter all involve introducing the lower-detail levels in the optimization loop, sometimes even producing image quality results better than the reference implementation using the LoD hierarchy. The performance of my method is also determined by the quality of the initial reconstruction, and reducing the detail can only reduce the quality, as we are only approximating the information that is removed. This is why the method that I presented will have significantly lower quality methods compared to training-based methods and is intended to be used when pre-trained LoDs are not available. 
+
+\subsection{Future Work}
+Given the performance results presented in the previous chapter, it is clear that there are more areas of improvement for this solution. Firstly, one of the most important factors in image quality is the primitive separation in nodes, as that ultimately determines the groups merged together. The feature-based clustering proved to be better than basic median splitting, however, the performance could possibly be improved by considering other properties, such as surface normal to determine a primitive grouping that better follows the geometry of the scene. Also, the primitive merging approach is inspired by methods that fine-tune the detail levels, so it is probably not the most optimal for directly displaying the results as representatives. Introducing a few optimization steps based on the perceived effect of specific lower-detail representations could prove beneficial without introducing an overhead that is too big in the generation of the LoD hierarchy.
+\paragraph{}
+
+Secondly, the scene tree traversal introduces a significant overhead to the rendering loop, somewhat diminishing the benefits of reducing the number of primitives in the scene. Traversing tree structures on the GPU is not trivial and it usually does not scale well as the amount of data increases. However, there might be better representations of this data in memory to improve contiguity, which seems to be the main issue holding back performance in the current implementation.
+\paragraph{}
+
+Lastly, the initial step of subdividing the space and computing the hierarchy of detail levels could be accelerated using parallel computing either on the CPU or on the GPU. As we have seen from the traversal, nodes can be processed in parallel as they do not share any information or dependencies on the same level on the tree. This, however, has not been a priority as the computation is done only once when the scene is loaded and could easily be avoided by storing the new representation to disk for easier loading in subsequent runs.
+\paragraph{}
+
+Also, a detail related more to the user experience of moving through the environment rather than the quality of still renders is the transitions between levels. At the moment, the implementation does not feature any mechanism for a smooth visual transition between levels of detail, so there are popping artifacts and parts of the scene transition between levels. This could be alleviated by transitioning between levels for a few frames. However, this would imply rendering more Gaussians than either level consists of during the transition period, which can cause lag spikes during rendering. However, there may be other more appropriate transitioning strategies with better performance, and this is another area of improvement for reducing the amount of visual artifacts.

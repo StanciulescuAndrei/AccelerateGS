@@ -19,7 +19,7 @@ def main():
     # Directory containing the images
     directory = '../../renders'
 
-    tests = ['octree', 'bvh', 'hybrid']
+    tests = ['50', '75']
     # tests = ['test']
 
     for test in tests:
@@ -28,7 +28,7 @@ def main():
         global_psnr_lod_bg = 0
         global_ssim_lod = 0
 
-        n_images = 181
+        n_images = 291
         depth_threshold = 30
         cnt = 0
 
@@ -60,9 +60,9 @@ def main():
             psnr = calculate_psnr(ref_img, lod_img, depth_img < 100000000000) # np.average(depth_img[depth_img > 0])
             global_psnr_lod_fg = global_psnr_lod_fg + psnr
 
-            # PSNR background
-            psnr = calculate_psnr(ref_img, lod_img, depth_img > np.average(depth_img[depth_img > 0]))
-            global_psnr_lod_bg = global_psnr_lod_bg + psnr
+            # # PSNR background
+            # psnr = calculate_psnr(ref_img, lod_img, depth_img > np.average(depth_img[depth_img > 0]))
+            # global_psnr_lod_bg = global_psnr_lod_bg + psnr
             
 
         global_ssim_lod = global_ssim_lod / cnt

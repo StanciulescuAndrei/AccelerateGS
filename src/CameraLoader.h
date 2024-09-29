@@ -66,6 +66,7 @@ void loadApplicationConfig(std::string c, RenderConfig & rc){
     }
 
     file >> appConfig;
+    rc.scene = appConfig["scene"].get<std::string>();
     rc.structure = appConfig["structure"].get<std::string>();
     rc.representative = appConfig["representative"].get<std::string>();
     rc.clustering = appConfig["clustering"].get<std::string>();

@@ -1,3 +1,207 @@
 \section{Experimental Results}
 
 In this chapter, I will discuss the results obtained using the system developed in this project. First, I will go over intermediate results obtained during development and discuss how these influenced the decisions I took, then present the performance of the final system on multiple scenes. All the experiments that will be presented have been performed on a system running Ubuntu 23.10, with an AMD Ryzen 7 5800H, 16 GB of LPDDR4X RAM, and an NVIDIA RTX 3050 Ti Mobile GPU with 4 GB of VRAM and 2560 CUDA Cores running at 35W. The system configuration is relevant, especially the GPU used, as the performance of the renderer highly depends on the computational capabilities of the graphics card, and the size of some scenes may prevent them from being properly loaded into memory. For reference, most 3DGS publications use the NVIDIA RTX A6000 to test their implementation and generate results. That GPU has an FP32 performance of 38.71 TFLOPS, compared to the hardware I used which only achieves a theoretical maximum of 5.299 TFLOPS, and features 12x more video memory.
+
+\subsection{Space Partitioning Strategy}
+To evaluate the quality differences between the Octree, BSP, and Hybrid partitioning strategies, I evaluate the image quality on the same scene at various simplification levels. The levels chosen for the full scene are 50\% and 75\% reduction in the number of primitives. For each test case, the image quality is evaluated for each training camera position in relation to the render done with all the original primitives. This means that I will quantify the quality loss considering the scene reconstruction as a ground truth, not the original training images. The peak signal-to-noise ratio (PSNR) is then averaged over all camera positions. This part of the experiment has been done on the \textit{Train} and \textit{Truck} scenes. To obtain the render levels, I adjusted the target granularity of the scene such that the number of primitives rendered represents the desired percentage out of the count of initial primitives. This is done for the first camera position, and then this target granularity is maintained throughout the rest of the camera poses. Because of the differences in how the scene trees are constructed, we cannot obtain exactly the same count of primitives for all partitioning methods. However, the number of rendered Gaussians was checked to be within 1\% variation between the different methods for the same primitive reduction level.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{ccc}
+\textbf{\textit{Train}}     & \multicolumn{2}{c}{Primitive fraction} \\
+\multicolumn{1}{c|}{}       & 75\%               & 50\%              \\ \hline
+\multicolumn{1}{c|}{Octree} & 39.69              & 35.33             \\ \hline
+\multicolumn{1}{c|}{BSP}    & 40.18              & 34.96             \\ \hline
+\multicolumn{1}{c|}{Hybrid} & \textbf{41.17}     & \textbf{37.87}   
+\end{tabular}
+\caption{Peak Signal-to-Noise ratio for the \textit{Train} scene for the three different methods.}
+\label{tab:train_metrics}
+\end{table}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{ccc}
+\textbf{\textit{Truck}}     & \multicolumn{2}{c}{Primitive fraction} \\
+\multicolumn{1}{c|}{}       & 75\%               & 50\%              \\ \hline
+\multicolumn{1}{c|}{Octree} & 36.71              & 32.02             \\ \hline
+\multicolumn{1}{c|}{BSP}    & 36.33              & 33.37             \\ \hline
+\multicolumn{1}{c|}{Hybrid} & \textbf{37.41}     & \textbf{34.26}   
+\end{tabular}
+\caption{Peak Signal-to-Noise ratio for the \textit{Truck} scene for the three different methods.}
+\label{tab:truck_metrics}
+\end{table}
+
+Figure \ref{fig:truck_render} shows a series of cropped renders of the \textit{Truck} scene corresponding to the three partitioning methods. The scene contains only half as many primitives as the original environment and the variation between the methods is controlled in the same way as presented for the results above. Note that the Hybrid partitioning keeps more detail for parts of the scene close to the camera, especially for the texture on top of the sewer cover, and the illustration on the door of the truck.
+
+\begin{figure}[H]
+    \centering
+    \includesvg[width=\linewidth]{figures/truck_sample.svg}
+    \caption{Cropped renders of the \textit{Truck} scene showcasing the loss and preservation of detail between the partitioning methods.}
+    \label{fig:truck_render}
+\end{figure}
+
+In order to showcase some specific differences between the three strategies, I also separated a small section of the \textit{Train} scene that contains a part of the train side railing, which is composed of multiple thin and long features. This restricted scene section works well to show how thin spatial features are handled differently by the partitioning algorithms. More specifically, it shows how the clustering in the Hybrid strategy provides better separation, while the BSP tends to merge those features. Also, the figure shows the much finer control in primitive reduction offered by the binary trees compared to the octree when stepping through the tree levels. This is expected, as a simplification of one level in the octree implies an 8x reduction in primitives, while the same one-level simplification in the binary tree only halves the number of primitives. Figure \ref{fig:railing} shows this series of renders. Because the primitives are distributed differently between nodes, the number of primitives at each simplification level is different for each method. I chose to present the renders for simplifications with a similar amount of Gaussians, however, there is some variation in the primitive count, so that can account for some of the variation in quality. The renders clearly show that hybrid partitioning creates better separation between the features than the median binary split. Evidently, the octree shows the best separation for spatial features because of its primitive distribution based strictly on regular space subdivision, but it offers fewer intermediate levels.
+
+\begin{figure}[H]
+    \centering
+    \includesvg[width=\linewidth]{figures/railing_lod.svg}
+    \caption{Various LoDs of the railing scene section of the \textit{Train} scene displayed for the three different scene partitioning methods. The text under each image denotes the number of primitives used to display the simplification.}
+    \label{fig:railing}
+\end{figure}
+
+To showcase the advantages of cluster partitioning in the hybrid strategy, I separated another section of the scene, specifically a side of the train with writing on it. This contains a uniform distribution of Gaussians across a plane, but there is a high definition in color between the blue background and the orange letters. Figure \ref{fig:panellod} shows that the hybrid strategy achieves better splat separation in nodes because of the clustering based on the most distinctive features, which can be best seen in the lower-detail levels, where there is less color blending between the writing and the background paint.
+
+\begin{figure}[H]
+    \centering
+    \includesvg[width=\linewidth]{figures/panel_lods.svg}
+    \caption{Various LoDs of the side panel scene section of the \textit{Train} scene displayed for the three different scene partitioning methods. The text under each image denotes the number of primitives used to display the simplification.}
+    \label{fig:panellod}
+\end{figure}
+
+Given the results obtained in these intermediary experiments, I took the decision to continue the implementation with the hybrid partitioning method, as it seems to provide better results and keep details better when decreasing the number of primitives in the scene.
+
+\subsection{Performance Statistics}
+Having presented the differences between partitioning methods, now I will discuss the performance aspects of this implementation. For the following experiment, I chose five different scenes, namely \textit{Truck}, \textit{Train}, \textit{Garden}, \textit{Bonsai}, and \textit{Stump}. For each scene, I recorded the frame timings for the reference 3DGS implementation, and my implementation at 100\%, 75\%, and 50\% detail levels. The metrics are presented as frames per second (FPS) and were obtained by averaging the metrics over all camera views available for each scene. The reason why I am also evaluating my implementation at 100\% detail is that the scene tree needs to be traversed at the beginning of each frame which introduces quite a significant overhead in the entire render loop, which also has to be taken into consideration when talking about the efficiency of this method. 
+
+\begin{table}[H]
+\centering
+\begin{tabular}{l|lllll}
+Method       & Truck & Train & Garden & Bonsai & Stump \\ \hline
+Reference    & 19.42 & 19.96 & 16.87  & 36.31  & 16.43 \\ \hline
+Hybrid 100\% & 18.21 & 19.22 & 14.98  & 35.12  & 16.31 \\ \hline
+Hybrid 75\%  & 19.62 & 20.75 & 16.85  & 39.37  & 18.03 \\ \hline
+Hybrid 50\%  & 23.09 & 23.21 & 22.04  & 47.80  & 24.70
+\end{tabular}
+\caption{Frames per second metrics for multiple 3DGS scenes at various detail levels versus the reference implementation.}
+\label{tab:fpsmetrics}
+\end{table}
+
+Table \ref{tab:fpsmetrics} shows the metrics obtained from this experiment. For some more complex scenes that require deeper trees, such as \textit{Garden} and \textit{Truck}, reducing the detail to 75\% is barely enough in order to achieve the same rendering speed as the reference implementation, indicating that the overhead introduced by the tree traversal is acceptable only of the detail level is set low enough. In the case of simpler scenes, we observe a better improvement in performance, however, it is clear that the performance does not linearly increase with the reduction of detail. Thus, for a reduction of 25\% in the number of primitives in the scene, the frame time is reduced between -0.11\% (when the traversal overhead is too big to justify the simplification) and 8.87\%. For a reduction of 50\% in the number of primitives, the frame time is reduced by a factor between 14\% and 33.48\%.
+
+\subsection{Global Image Quality Metrics}
+In this subchapter, I will discuss shortly the image quality metrics obtained using the hybrid partitioning strategy at 75\% and 50\% detail levels. Part of these results were also presented in the previous discussion regarding the comparison between the partitioning methods. Table \ref{tab:quality} shows the image quality metrics obtained using a wider range of models for testing, and also including the Structural Similarity Index Measurement (SSIM).
+
+\begin{table}[H]
+\begin{tabular}{ccccccccccc}
+                                          & \multicolumn{2}{c}{\textbf{Truck}} & \multicolumn{2}{c}{\textbf{Train}} & \multicolumn{2}{c}{\textbf{Garden}} & \multicolumn{2}{c}{\textbf{Bonsai}} & \multicolumn{2}{c}{\textbf{Stump}} \\
+\multicolumn{1}{c|}{\textbf{Method}}      & PSNR   & \multicolumn{1}{c|}{SSIM} & PSNR   & \multicolumn{1}{c|}{SSIM} & PSNR   & \multicolumn{1}{c|}{SSIM}  & PSNR   & \multicolumn{1}{c|}{SSIM}  & PSNR             & SSIM            \\ \hline
+\multicolumn{1}{c|}{\textit{Hybrid 75\%}} & 37.41  & \multicolumn{1}{c|}{0.95} & 41.17  & \multicolumn{1}{c|}{0.97} & 36.68  & \multicolumn{1}{c|}{0.96}  & 37.6   & \multicolumn{1}{c|}{0.96}  & 34.68            & 0.93            \\ \hline
+\multicolumn{1}{c|}{\textit{Hybrid 50\%}} & 34.26  & \multicolumn{1}{c|}{0.91} & 37.87  & \multicolumn{1}{c|}{0.93} & 31.91  & \multicolumn{1}{c|}{0.87}  & 33.86  & \multicolumn{1}{c|}{0.91}  & 31.17            & 0.81           
+\end{tabular}
+\caption{Image quality metrics for multiple scenes at two different detail levels.}
+\label{tab:quality}
+\end{table}
+
+At this point it is difficult to compare this method in terms of visual quality to other proposals in the scientific literature, as to the best of my knowledge, at the time of writing, there is no other implementation for generating level-of-detail representation of 3DGS models that do not involve further training and optimization on those lower-detail representations. In comparison to other methods involving training, the quality is significantly worse, and fine-tuned representations should probably used if available. The metrics above show what level of quality is to be expected from this implementation for generating simplified scenes when other training methods are not viable. Also, note that the quality metric refers to the scene rendered with all the primitives, not the initial training images used to generate the scene. This allows the evaluation of the quality loss strictly from the LoD, without involving the scene reconstruction quality.
+
+\subsection{Level-of-Detail Selection}
+Another aspect of this implementation to be investigated is the performance of the selection algorithm for the scene tree traversal for marking the primitives that should be rendered in each frame based on the desired detail granularity. Figures \ref{fig:truck_50} and \ref{fig:truck_75} show how the number of primitives rendered varies with the camera position, and the variation in total frame time in relation to the number of primitives. The experiments have been done on the \textit{Truck} scene for 75\% and 50\% detail levels. These graphs show that even if we set the desired granularity to achieve a certain detail level for one camera position, the camera movement around the model introduces some variation in the number of primitives, as the algorithm maintains the granularity, not the primitive count.
+
+\begin{figure}[H]
+\makebox[\textwidth][c]{
+    \centering
+    \begin{minipage}{0.49\textwidth}
+        \centering
+        \includesvg[width=\linewidth]{figures/truck_50.svg}
+        \caption{Number of rendered primitives and frame time for 50\% detail level.}
+        \label{fig:truck_50}
+    \end{minipage}\hfill
+    \begin{minipage}{0.49\textwidth}
+        \centering
+        \includesvg[width=\linewidth]{figures/truck_75.svg}
+        \caption{Number of rendered primitives and frame time for 75\% detail level.}
+        \label{fig:truck_75}
+    \end{minipage}
+    }
+\end{figure}
+
+The figure above shows how the total frame time differs for multiple camera views at different detail levels, however, we can dig deeper into the performance profiling and determine how the timing of the three main components of the rendering loop changes based on detail. Using the same experiment as above, the timings for each component of the code are averaged over all camera poses. Note that the \textit{Pre-Processing} class here includes the pre-processing routine for splats, as well as the duplication, sorting, and tile range computations. Figure \ref{fig:variation} shows these results. As expected, for lower detail all routines execute faster. For the pre-processing and rendering, this is due to the fact that fewer primitives have to be processed and rasterized. However, the decrease in the traversal time is caused by how the level of detail is generated. The traversal starts from coarser nodes towards the detailed leaves. A lower detail level means that the target granularity is higher, so the traversal stops earlier. This means that for this implementation it is faster to generate a dynamic LoD representation than it is to render the scene at the initial detail, as in the latter case, the entire tree would have to be traversed.
+
+\begin{figure}[H]
+    \centering
+    \includesvg[width=0.9\linewidth]{figures/variation.svg}
+    \caption{Timings of the three main components of the rendering loop.}
+    \label{fig:variation}
+\end{figure}
+
+The last discussion on the topic of level selection is on the actual achieved performance compared to what the hardware is capable of. As discussed in earlier parts of this report, the traversal is accelerated by running on the GPU, so there are some limiting factors affecting performance and some constraints to how the computations should be performed to achieve an optimal speedup. Using the NVIDIA profiling tools, I obtained a report on the performance from the hardware point of view. I will present the results from the final version of the implementation, which went through a few iterations of profiling and optimization. Table \ref{tab:nsight} shows the compute metrics as presented by NVIDIA Nsight Compute 2024.3. 
+
+\begin{table}[H]
+\centering
+\begin{tabular}{l|r}
+\textbf{Metric}                                  & \multicolumn{1}{l}{\textbf{Value}} \\ \hline
+Compute (SM) Throughput {[}\%{]}                 & 43.88                              \\
+Memory Throughput {[}\%{]}                       & 50.16                              \\
+L1/TEX Cache Throughput {[}\%{]}                 & 53.6                               \\
+L2 Cache Throughput {[}\%{]}                     & 36.1                               \\
+SM Busy {[}\%{]}                                 & 18.89                              \\
+Memory Throughput {[}Gbyte/s{]}                  & 88.22                              \\
+L1/TEX Hit Rate {[}\%{]}                         & 74.7                               \\
+L2 Hit Rate {[}\%{]}                             & 43.97                              \\
+Achieved Occupancy {[}\%{]}                      & 62.96                              \\
+Branch Efficiency {[}\%{]}                       & 87.82                              \\
+L2 Theoretical Sectors Global Excessive {[}\%{]} & 72.58                             
+\end{tabular}
+\caption{Metrics reported by NVIDIA Nsight Compute on the tree traversal kernel.}
+\label{tab:nsight}
+\end{table}
+
+Even though the L1 cache hit rate is high, the main bottleneck of the kernel is highlighted by the low L2 cache performance and the high \textit{L2 Theoretical Sectors Global Excessive} metric. The L2 cache is the main interface with the global memory and it stores the data accessed by the SM from VRAM. The profiler highlights part of the code containing excessive memory accesses as the loads of node data and stores in the render mask which identifies which primitives should be processed in the frame. When data is requested from global memory at some position, a bigger block is transferred to the L2 cache, as nearby memory positions are expected to be accessed next. However, because of the inherent tree structure, node data cannot be completely contiguous in memory because of the branching in the traversal. These values are the highest throughput I could achieve in my implementation after testing multiple traversal strategies and methods for storing the traversal process queue. The profiler indicates a potential 68\% speedup in memory accessed by making the data coalesced in memory, however, I could not achieve this with the tree partitioning.
+
+Moreover, the low \textit{Achieved Occupancy} indicates that the kernel is imbalanced and a significant amount of stalls occur during execution. Again, this is somewhat expected as the traversal ends earlier for some of the subtrees, and even between branches in the same subtree. This was partly alleviated by splitting the main scene tree into subtrees from the leaves of the octree part. Splitting lower in the tree reduces the imbalances, but it limits the usable range of the tree and thus the lower bound of the simplification that can be achieved. Thus, the octree component should be built to the maximum depth possible that still allows reaching the minimum detail level available. The results above are shown for the \textit{Truck} scene with an octree depth of 13, which allows a minimum detail level of around 30\%.
+
+\subsection{Frustum Culling}
+The last optimization strategy I investigated is using frustum culling to remove primitives that are not visible from the rendering pipeline. Because the traversal is done from coarse to fine nodes, big clusters of Gaussians can be removed earlier in the pipeline, thus reducing the computation time for the following routines. To assess the potential performance gains, I used the \textit{Truck} scene and rendered it from all camera poses with and without frustum culling, at detail levels 100\% and 50\%, to also be able to evaluate differences in improvement as the detail level changes. The charts in figures \ref{fig:cull_50} and \ref{fig:cull_100} show the results obtained using this setup.
+
+\begin{figure}[H]
+\makebox[\textwidth][c]{
+    \centering
+    \begin{minipage}{0.47\textwidth}
+        \centering
+        \includesvg[width=\linewidth]{figures/50_Detail_Level.svg}
+        \caption{Frustum culling performance for 50\% detail level.}
+        \label{fig:cull_50}
+    \end{minipage}\hfill
+    \begin{minipage}{0.47\textwidth}
+        \centering
+        \includesvg[width=\linewidth]{figures/100_Detail_Level.svg}
+        \caption{Frustum culling performance for 100\% detail level.}
+        \label{fig:cull_100}
+    \end{minipage}
+    }
+\end{figure}
+
+We can see that the main difference in timing comes from the traversal routine, as the algorithm can stop earlier for paths outside the view. For the pre-processing and rendering routines, the difference is under 3\%, which can be caused by normal variation in the experiments, and possibly because the approach I take for frustum culling is less conservative than the one in the pre-processing routine, so slightly more primitives are eliminated. The post-processing routine also contains a culling algorithm that works by projecting the Gaussian's center to the camera plane, and then eliminating the primitive if the center falls outside a margin around the image plane. This means that the frustum culling implemented in the traversal does not bring any real improvement to the baseline performance of the reference implementation, it works as an improvement to the traversal algorithm by reducing the traversal time by at least 25\%.
+
+To validate this finding, I ran the same test on a wider range of scenes, noting the execution time of the traversal function with and without frustum culling, and computing the improvement for each one. Table \ref{tab:fcall} shows that improvements are mostly consistent across the scenes, but the results vary based on how the scene is generated. For example, the \textit{Train} scene contains few details in the background, and most of the primitives are concentrated on the train model, which is in view for most camera poses, so fewer primitives are eliminated by the culling.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lr|r|r|r|r}
+\multicolumn{1}{c}{}          & \multicolumn{1}{c|}{\textbf{Truck}} & \multicolumn{1}{c|}{\textbf{Train}} & \multicolumn{1}{c|}{\textbf{Garden}} & \multicolumn{1}{c|}{\textbf{Bonsai}} & \multicolumn{1}{c}{\textbf{Stump}} \\ \hline
+\textbf{No Frustum Culling}   & 3.08                                & 0.96                                & 5.98                                 & 1.31                                 & 5.45                               \\
+\textbf{Frustum Culling}      & 1.69                                & 0.86                                & 3.57                                 & 0.92                                 & 3.18                               \\ \hline
+\textbf{Improvement {[}\%{]}} & 45.13                               & 10.42                               & 40.30                                & 29.77                                & 41.65                                   
+\end{tabular}
+\caption{Execution time in ms of the scene traversal routine with and without frustum culling.}
+\label{tab:fcall}
+\end{table}
+
+\subsection{Memory Requirements}
+One of the main drawbacks of this method is the additional memory required to store the LoD representations, as this involves the creation and storage of additional primitives. Because the process of generating a representative Gaussian for a scene node is quite computationally complex, these cannot be generated at the time of rendering and need to be precomputed and stored in system memory. For the hybrid implementation, the main driving factor for how much the scene will grow in size from its base representation is given by the depth of the octree component. A shallower octree means that there are more levels for the BSP tree to compute intermediary representations, while a deeper octree means that there will be fewer intermediary nodes, so fewer additional representatives. One solution to this would be to remove the original splats, which would leave the scene with significantly fewer primitives, all obtained as lower-detail representations. However, this would mean that the original detail would never be reached. Another option would be to stream only the necessary primitives from the system memory to the GPU for each frame, but a periodic transfer of that size would introduce significant overheads in the rendering loop. 
+
+I will present the results of the current implementation, which involves allocating the GPU memory for all additional Gaussians, and compare the memory requirements to the case when the scene is rendered using the reference implementation. 
+
+\begin{table}[H]
+\centering
+\begin{tabular}{ll|l|l|l|l}
+                                     & \textbf{Truck}             & \textbf{Train}             & \textbf{Garden}            & \textbf{Bonsai}            & \textbf{Stump}            \\ \hline
+\textbf{Reference Renderer {[}MB{]}} & \multicolumn{1}{r|}{1832}  & \multicolumn{1}{r|}{981}   & \multicolumn{1}{r|}{3104}  & \multicolumn{1}{r|}{1138}  & \multicolumn{1}{r}{2605}  \\
+\textbf{Base Scene + LoD {[}MB{]}}   & \multicolumn{1}{r|}{2034}  & \multicolumn{1}{r|}{1325}  & \multicolumn{1}{r|}{3658}  & \multicolumn{1}{r|}{1472}  & \multicolumn{1}{r}{3280}  \\ \hline
+\textbf{Additional Memory {[}\%{]}}  & \multicolumn{1}{r|}{11.03} & \multicolumn{1}{r|}{35.07} & \multicolumn{1}{r|}{17.85} & \multicolumn{1}{r|}{29.35} & \multicolumn{1}{r}{25.91} \\                        
+\end{tabular}
+\caption{Per-scene memory requirements of the reference renderer and the presented implementation in MB.}
+\label{tab:memory}
+\end{table}
+
+Table \ref{tab:memory} shows the memory requirements depending on the scene, and the increase from the base scene requirements. All the scenes were generated with an octree depth of 14, except for the \textit{Bonsai} model which required a depth of 12 to achieve the minimum detail level of 50\%. The variation in the percentage increase of required memory across scenes indicates that scene structure is also a relevant factor in how many representatives will be generated. Primitive distribution inside the scene is irrelevant to how the octree is built, so the distribution of Gaussians in the octree leaf nodes will differ across the scenes, thus the BSP structure will also be different.
