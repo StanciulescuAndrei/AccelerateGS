@@ -16,7 +16,6 @@
 
 #include <chrono>
 
-#include "OctreeSerializer.cuh"
 #include "render.cuh"
 
 #include "cuda_common/helper_cuda.h"
@@ -36,6 +35,8 @@
 #include "stb_image_write.h"
 #include "raster_helper.cuh"
 #include "HybridVH.h"
+#include "GaussianBVH.h"
+#include "GaussianOctree.h"
 
 
 #define N 100000000
@@ -657,13 +658,7 @@ int main(){
 
     /* Very basic FPS metrics */
     int currentFPSIndex = 0;
-
     getCameraParameters(0, cameraPosition, cameraRotation);
-
-    // /* Remove after test */
-    // cameraPosition += 17 * movement_step * cameraRotation* lookDirection;
-    // cameraPosition += 40 * movement_step * cameraRotation* rightDirection;
-    // cameraPosition += cameraRotation* glm::vec3(0.0f, 5 * movement_step, 0.0f);
 
     cudaMemcpy(d_renderMask, renderMask, sizeof(bool) * num_elements, cudaMemcpyHostToDevice);
 
@@ -711,18 +706,6 @@ int main(){
             int renderMode = (selectedViewMode<<4) + renderPrimitive;
 
             checkCudaErrors(cudaMemset(d_renderMask, 0, sizeof(bool) * num_elements));
-            // // checkCudaErrors(cudaMemset(d_renderMask, 1, sizeof(bool) * orig_num_splats / 4));
-            // memset(renderMask, 0, sizeof(bool) * num_elements);
-
-            // if(renderConfig.structure == std::string("octree")) 
-            //     markForRender<GaussianOctree>(renderMask, static_cast<GaussianOctree*>(spacePartitioningRoot), autoLevel ? -1 : renderLevel, cameraPosition, fovy, SCREEN_WIDTH, diagonalProjectionThreshold, num_elements);
-            // else if(renderConfig.structure == std::string("bvh"))
-            //     markForRender<GaussianBVH>(renderMask, static_cast<GaussianBVH*>(spacePartitioningRoot), autoLevel ? -1 : renderLevel, cameraPosition, fovy, SCREEN_WIDTH, diagonalProjectionThreshold, num_elements);
-            // else
-            //     markForRender<HybridVH>(renderMask, static_cast<HybridVH*>(spacePartitioningRoot), autoLevel ? -1 : renderLevel, cameraPosition, fovy, SCREEN_WIDTH, diagonalProjectionThreshold, num_elements);
-
-            // // markForRender(renderMask, nodes, autoLevel ? -1 : renderLevel, cameraPosition, fovy, SCREEN_WIDTH, diagonalProjectionThreshold, num_elements);
-            // cudaMemcpy(d_renderMask, renderMask, sizeof(bool) * num_elements, cudaMemcpyHostToDevice);
 
             checkCudaErrors(cudaEventRecord(kernelStart));
             CUDAmarkForRender<<<roots.size() / 256 + 1, 256>>>(d_renderMask, cudaStorageBlock, cuda_roots, roots.size(), cameraPosition, fovy, SCREEN_WIDTH, diagonalProjectionThreshold, f, useFrustumCulling, (!autoLevel)*renderLevel);
@@ -747,10 +730,6 @@ int main(){
 
             duplicatedSplats = totalDuplicateGaussians;
             maxSplats = maxDuplicatedGaussians;
-            // if(totalDuplicateGaussians > maxDuplicatedGaussians){
-            //     printf("Total: %d\tMax: %d\n", totalDuplicateGaussians, maxDuplicatedGaussians);
-            //     assert(false);
-            // }
             totalDuplicateGaussians = min(totalDuplicateGaussians, maxDuplicatedGaussians);
 
             /* Populate sorting keys array */
@@ -811,13 +790,6 @@ int main(){
                 prepTimeVector.push_back(prepTime);
                 renderTimeVector.push_back(renderTime);
                 numRenSplatsVector.push_back(renderedSplats);
-                // snprintf(filename, 64, "renders/%05d.png", i);
-                // saveRenderRoutine(filename);
-                // /* Depth */
-                // selectedViewMode = 1;
-                // softwareRasterizer(i);
-                // snprintf(filename, 64, "renders/d%05d.png", i);
-                // saveRenderRoutine(filename);
             }
             snprintf(filename, 64, "renders/stats_%.2f_%d.txt", diagonalProjectionThreshold, useFrustumCulling);
             std::ofstream csv_out(filename);

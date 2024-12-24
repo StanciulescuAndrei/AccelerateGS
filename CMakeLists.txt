@@ -48,7 +48,6 @@ add_executable(AccelerateGS
 		src/GaussianBVH.h
 		src/HybridVH.h
 		src/raster_helper.cuh
-		src/OctreeSerializer.cuh
 		src/CameraLoader.h
 		src/PointClustering.h
 		${IMGUI_PATH}/imgui.h

@@ -3,8 +3,7 @@
 #include <cuda_gl_interop.h>
 
 #include "PLYReader.h"
-#include "OctreeSerializer.cuh"
-
+#include "HybridVH.h"
 
 __global__ void duplicateGaussians(int num_splats, 
     float2 * image_point,
@@ -144,12 +143,6 @@ __global__ void preprocessGaussians(int num_splats, SplatData * sd,
 		glm::vec3 norm_cov = glm::normalize(glm::vec3(cov.x, cov.y, cov.z));
 		rgb[idx] = {norm_cov.x, norm_cov.y, norm_cov.z};
 	}
-
-	// if(cov.x < 0.3 || cov.z < 0.3){
-	// 	rgb[idx] = {1.0f, 0.0f, 0.0f};
-	// }
-
-
 }
 
 __global__ void debugInfo(int num_splats, SplatData * sd, 
