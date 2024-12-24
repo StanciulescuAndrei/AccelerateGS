@@ -6,5 +6,7 @@ build/CMakeFiles/AccelerateGS.dir/compiler_depend.make
 build/CMakeFiles/AccelerateGS.dir/src/main.cu.o
 build/AccelerateGS
 build/
+docs/*
+docs/TFM/
 !*/*.tex
 

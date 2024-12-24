@@ -643,9 +643,9 @@ void computeNodeRepresentative(HybridVH *node, std::vector<SplatData> &sd)
         representative.fields.covariance[4] = cov(1, 2);
         representative.fields.covariance[5] = cov(2, 2);
 
-        // for(int i = 0; i < 9; i++){
-        //     representative.fields.directions[i] = U(i % 3, i / 3) * svals(i / 3);
-        // }
+        for(int i = 0; i < 9; i++){
+            representative.fields.directions[i] = U(i % 3, i / 3) * svals(i / 3);
+        }
 
         representative.fields.position[0] = weighted_mean(0);
         representative.fields.position[1] = weighted_mean(1);
